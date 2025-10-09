@@ -65,52 +65,38 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onLoad } from '@dcloudio/uni-app'
+import { http } from '@/utils/http'
+import { useAddressStore } from '@/stores/modules/address'
 
 const themeColor = '#2c6fdb' // 定义主题色，用于组件
 const isLoading = ref(false)
 const addresses = ref([])
+const selectionMode = ref(false)
+const addressStore = useAddressStore()
 const navTitle = ref('收货地址')
 
 // 模拟从服务端获取地址列表的API
-const fetchAddressesAPI = () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const mockData = [
-        {
-          id: 1,
-          name: '张三',
-          phone: '138****8888',
-          province: '广东省',
-          city: '深圳市',
-          district: '南山区',
-          details: '科技园路1号',
-          isDefault: true,
-        },
-        {
-          id: 2,
-          name: '李四',
-          phone: '139****9999',
-          province: '北京市',
-          city: '北京市',
-          district: '海淀区',
-          details: '中关村大街100号',
-          isDefault: false,
-        },
-      ]
-      resolve({ success: true, data: mockData })
-    }, 500)
-  })
-}
 
 const fetchAddresses = async () => {
   isLoading.value = true
-  const res = await fetchAddressesAPI()
-  if (res.success) {
-    addresses.value = res.data
+  try {
+    const res = await http({ url: '/address/list', method: 'GET' })
+    if (res && res.code === '0') {
+      addresses.value = res.result || []
+    } else {
+      addresses.value = []
+    }
+  } catch (e) {
+    console.warn('fetchAddresses error', e)
+    addresses.value = []
   }
   isLoading.value = false
 }
+
+onLoad((options) => {
+  selectionMode.value = Boolean(options?.select)
+})
 
 onShow(() => {
   fetchAddresses()
@@ -150,6 +136,16 @@ const editAddress = (id) => {
   uni.navigateTo({
     url: `/pages/account/address_edit/address_edit?id=${id}`,
   })
+}
+
+const onAddressClick = (item) => {
+  if (selectionMode.value) {
+    // set selected address in store and go back
+    addressStore.changeSelectedAddress(item)
+    uni.navigateBack()
+    return
+  }
+  // otherwise do nothing (or open edit)
 }
 
 // --- (已修改) ---

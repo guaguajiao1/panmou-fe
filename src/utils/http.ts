@@ -11,8 +11,12 @@
  */
 
 import { useMemberStore } from '@/stores'
+import { mockRequest } from '@/mock/server'
 
 const baseURL = 'https://pcapi-xiaotuxian-front-devtest.itheima.net'
+// enable local mock when not in production
+// enable mock when not in production OR when runtime flag __UNI_MOCK__ is set (useful for debugging)
+const ENABLE_MOCK = process.env.NODE_ENV !== 'production' || !!(globalThis as any).__UNI_MOCK__
 
 // 添加拦截器
 const httpInterceptor = {
@@ -59,8 +63,23 @@ type Data<T> = {
   result: T
 }
 // 2.2 添加类型，支持泛型
-export const http = <T>(options: UniApp.RequestOptions) => {
-  // 1. 返回 Promise 对象
+export const http = async <T>(options: UniApp.RequestOptions): Promise<Data<T>> => {
+  // try mock first in dev
+  // debug: print mode and url so we can see whether mock is attempted
+  console.debug && console.debug('[http] ENABLE_MOCK=', ENABLE_MOCK, 'url=', options.url)
+
+  if (ENABLE_MOCK) {
+    try {
+      const mockRes = await mockRequest(options)
+      console.debug && console.debug('[http] mockRes=', mockRes)
+      if (mockRes !== null) {
+        return { code: '0', msg: mockRes.msg || 'ok', result: (mockRes as any).result }
+      }
+    } catch (e) {
+      console.warn('mock request failed', e)
+    }
+  }
+
   return new Promise<Data<T>>((resolve, reject) => {
     uni.request({
       ...options,

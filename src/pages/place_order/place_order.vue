@@ -11,31 +11,33 @@
     </view>
 
     <scroll-view scroll-y class="scroll-view-container">
-      <!-- 1. 地址区 (保持不变) -->
-      <view class="section-card address-section" @click="goToAddressManagement">
-        <view v-if="!shippingAddress" class="address-create">
-          <uni-icons type="plusempty" size="24" color="#888"></uni-icons>
-          <text>创建收货地址</text>
-        </view>
-        <view v-else class="address-display">
-          <view class="address-info">
-            <view class="address-line-1">
-              <text class="name">{{ shippingAddress.name }}</text>
-              <text class="phone">{{ shippingAddress.phone }}</text>
+      <!-- 1. 地址区 -->
+      <view class="section-card address-section">
+        <template v-if="!selecteAddress">
+          <!-- inline AddressForm when no address exists -->
+          <AddressForm :saveText="'使用这个地址'" :address-data="{}" @save="onAddressFormSave" />
+        </template>
+        <template v-else>
+          <view class="address-display" @click="goToAddressManagement">
+            <view class="address-info">
+              <view class="address-line-1">
+                <text class="name">{{ selecteAddress.name }}</text>
+                <text class="phone">{{ selecteAddress.phone }}</text>
+              </view>
+              <view class="address-line-2">
+                <text class="default-tag" v-if="selecteAddress.isDefault">默认</text>
+                <text>
+                  {{ selecteAddress.province }} {{ selecteAddress.city }}
+                  {{ selecteAddress.district }}
+                </text>
+              </view>
+              <view class="address-line-3">
+                <text>{{ selecteAddress.details }}</text>
+              </view>
             </view>
-            <view class="address-line-2">
-              <text class="default-tag" v-if="shippingAddress.isDefault">默认</text>
-              <text
-                >{{ shippingAddress.province }} {{ shippingAddress.city }}
-                {{ shippingAddress.district }}</text
-              >
-            </view>
-            <view class="address-line-3">
-              <text>{{ shippingAddress.details }}</text>
-            </view>
+            <uni-icons type="right" size="18" color="#999"></uni-icons>
           </view>
-          <uni-icons type="right" size="18" color="#999"></uni-icons>
-        </view>
+        </template>
       </view>
 
       <!-- 2. 全新订阅区 (不再折叠) -->
@@ -227,11 +229,20 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AddressForm from '@/components/AddressForm/AddressForm.vue'
+import { http } from '@/utils/http'
+import { useAddressStore } from '@/stores/modules/address'
 
 const themeColor = '#2c6fdb'
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const shippingAddress = ref(null)
+const addressStore = useAddressStore()
+// orderPre will hold data returned by order API and address list
+const orderPre = ref({ userAddresses: [] })
+// computed selected address: prefer store.selectedAddress, fallback to default from orderPre
+const selecteAddress = computed(() => {
+  return addressStore.selectedAddress || orderPre.value?.userAddresses?.find((v) => v.isDefault)
+})
 const orderItems = ref([])
 const orderSummary = ref({ subtotal: 0, totalDiscount: 0, shippingFee: 0, total: 0 })
 const frequencyOptions = ref([])
@@ -337,15 +348,6 @@ const fetchOrderDataAPI = (params = {}) => {
       const shippingFee = 0.0
       const total = finalTotal + shippingFee
       const response = {
-        shippingAddress: {
-          name: '张三',
-          phone: '138****8888',
-          province: '广东省',
-          city: '深圳市',
-          district: '南山区',
-          details: '科技园路1号',
-          isDefault: true,
-        },
         orderItems: items,
         orderSummary: { subtotal, totalDiscount, shippingFee, total },
         frequencyOptions: {
@@ -382,7 +384,22 @@ const fetchOrderData = async (params) => {
   const res = await fetchOrderDataAPI(params)
   if (res.success) {
     const data = res.data
-    shippingAddress.value = data.shippingAddress
+
+    // Try to get addresses from the address mock via http
+
+    try {
+      const addrRes = await http({ url: '/address/list', method: 'GET' })
+      if (addrRes && addrRes.code === '0' && Array.isArray(addrRes.result)) {
+        orderPre.value.userAddresses = addrRes.result
+      } else {
+        // fallback: use order API returned address if available
+        orderPre.value.userAddresses = data.shippingAddress ? [data.shippingAddress] : []
+      }
+    } catch (e) {
+      orderPre.value.userAddresses = data.shippingAddress ? [data.shippingAddress] : []
+      console.warn('fetch addresses error', e)
+    }
+
     orderItems.value = data.orderItems
     orderSummary.value = data.orderSummary
     if (frequencyOptions.value.length === 0) {
@@ -397,8 +414,34 @@ const fetchOrderData = async (params) => {
 const recalculateOrder = () => {
   fetchOrderData({ items: orderItems.value, frequency: selectedFrequency.value })
 }
+// Inline address form save handler
+const onAddressFormSave = async (formData) => {
+  uni.showLoading({ title: '保存地址...' })
+  try {
+    const res = await http({ url: '/address/create', method: 'POST', data: formData })
+    if (res && res.code === '0') {
+      const created = res.result
+      // update global store and local orderPre so computed selecteAddress reflects it
+      addressStore.changeSelectedAddress(created)
+      orderPre.value.userAddresses = [created, ...(orderPre.value.userAddresses || [])]
+      uni.hideLoading()
+      uni.showToast({ title: '已使用这个地址', icon: 'success' })
+    } else {
+      uni.hideLoading()
+      uni.showToast({ title: res?.msg || '保存失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: '保存失败', icon: 'none' })
+    console.warn('onAddressFormSave error', e)
+  }
+}
+
+const goToAddressManagement = () => {
+  uni.navigateTo({ url: '/pages/account/address_list/address_list?select=1' })
+}
 const placeOrder = async () => {
-  /* ... (逻辑保持不变) ... */ if (!shippingAddress.value) {
+  /* ... (逻辑保持不变) ... */ if (!selecteAddress.value) {
     uni.showToast({ title: '请先创建收货地址', icon: 'none' })
     return
   }
@@ -479,9 +522,7 @@ const getSavedAmount = (item, type) => {
   }
   return '0.00'
 }
-const goToAddressManagement = () => {
-  uni.navigateTo({ url: '/pages/account/address_list/address_list' })
-}
+// (goToAddressManagement is declared earlier to open address list in selection mode)
 const goToProductDetail = (item) => uni.navigateTo({ url: `/pages/product/detail?id=${item.id}` })
 </script>
 

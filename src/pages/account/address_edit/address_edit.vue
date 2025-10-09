@@ -18,6 +18,8 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AddressForm from '@/components/AddressForm/AddressForm.vue'
+import { http } from '@/utils/http'
+import { useAddressStore } from '@/stores/modules/address'
 
 const addressDetail = ref({})
 const navTitle = ref('新建收货地址')
@@ -35,45 +37,54 @@ onLoad((options) => {
   }
 })
 
-// 模拟 API 获取详情
-const fetchAddressDetail = (id) => {
+const addressStore = useAddressStore()
+
+// Fetch detail from API (mocked in dev)
+const fetchAddressDetail = async (id) => {
   uni.showLoading({ title: '加载中...' })
-  setTimeout(() => {
-    const mockData = {
-      id: id,
-      name: '张三',
-      phone: '13800138000',
-      province: '广东省',
-      city: '深圳市',
-      district: '南山区',
-      details: '科技园路1号',
-      isDefault: true,
+  try {
+    const res = await http({ url: `/address/detail?id=${id}`, method: 'GET' })
+    if (res && res.code === '0') {
+      addressDetail.value = res.result || {}
+    } else {
+      addressDetail.value = {}
     }
-    addressDetail.value = mockData
-    uni.hideLoading()
-  }, 500)
+  } catch (e) {
+    console.warn('fetchAddressDetail error', e)
+    addressDetail.value = {}
+  }
+  uni.hideLoading()
 }
-
-// 点击取消按钮返回
-const onCancel = () => {
-  uni.navigateBack()
-}
-
-// 处理保存事件
-const handleSave = (formData) => {
-  console.log('页面接收到保存事件，数据为:', formData)
+// 处理保存事件，从子组件 AddressForm 收到 formData
+const handleSave = async (formData) => {
   uni.showLoading({ title: '保存中...' })
-
-  // 模拟保存请求
-  setTimeout(() => {
+  try {
+    const payload = {
+      ...formData,
+      region: formData.region,
+    }
+    const res = await http({ url: '/address/create', method: 'POST', data: payload })
+    if (res && res.code === '0') {
+      const created = res.result
+      uni.hideLoading()
+      uni.showToast({ title: '保存成功', icon: 'success' })
+      addressStore.changeSelectedAddress(created)
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 600)
+    } else {
+      uni.hideLoading()
+      uni.showToast({ title: res?.msg || '保存失败', icon: 'none' })
+    }
+  } catch (e) {
     uni.hideLoading()
-    uni.showToast({ title: '保存成功', icon: 'success' })
+    uni.showToast({ title: '保存失败', icon: 'none' })
+    console.warn('save address error', e)
+  }
+}
 
-    // ✅ 延时返回上一页，让 toast 显示更自然
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 800)
-  }, 500)
+function onCancel() {
+  uni.navigateBack()
 }
 </script>
 
