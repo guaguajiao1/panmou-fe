@@ -43,9 +43,9 @@
 			}
 		},
 		{
-			"path": "pages/place_order/place_order",
+			"path": "pages/checkout/checkout",
 			"style": {
-				"navigationBarTitleText": "place_order"
+				"navigationBarTitleText": "checkout"
 			}
 		},
 		{

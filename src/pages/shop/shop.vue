@@ -20,7 +20,7 @@
   <view class="navigate_cart">
     <button @click="goCart()">Go to Cart</button>
   </view>
-  <view class="navigate_place_order">
+  <view class="navigate_checkout">
     <button @click="goPlaceOrder()">Go to Place Order</button>
   </view>
 </template>
@@ -42,7 +42,7 @@ function goChewyCart() {
 
 function goPlaceOrder() {
   uni.navigateTo({
-    url: '/pages/place_order/place_order',
+    url: '/pages/checkout/checkout',
   })
 }
 </script>

@@ -1,4 +1,3 @@
-
 /** 首页-热门推荐数据类型 */
 export type PromoProduct = {
   /** id */
