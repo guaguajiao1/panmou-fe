@@ -19,30 +19,20 @@ const previews: Record<string, any> = {}
 // Helpers
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
 
-const computePreviewFromItems = (items: Item[]) => {
-  const cloned = clone(items || [])
+const computePreview = (orderPreview: OrderPreview) => {
+  console.log('before orderPreview=', orderPreview)
 
-  const orderPreview: OrderPreview = {
-    id: '1',
-    subscriptionDiscount: {
-      subscriptionDiscountRate: 0,
-      subscriptionDiscount: 0,
-      firstSubscription: false,
-    },
-    totalItemQuantity: 0,
-    subtotal: 0,
-    grandTotal: 0,
-    shippingFee: 0,
-    freeShippingThreshold: 30,
-    eligibleSubtotalForFreeShipping: 0,
-    discountDetails: [],
-    recommendSubscriptions: [],
-    items: [],
-  }
   let totalDiscount = 0
   let hasSubscription = false
+  orderPreview.subtotal = 0
+  orderPreview.totalItemQuantity = 0
+  orderPreview.eligibleSubtotalForFreeShipping = 0
+  orderPreview.discountDetails = []
+  orderPreview.grandTotal = 0
+  orderPreview.subscriptionDiscount.subscriptionDiscount = 0
+  orderPreview.subscriptionDiscount.subscriptionDiscountRate = 0
 
-  cloned.forEach((it: Item) => {
+  orderPreview.items.forEach((it: Item) => {
     it.discountDetails = []
     it.totalPrice = it.sku.strikeThroughPrice * it.quantity
     it.sku.onceDiscount = (it.sku.onceDiscountRate * it.sku.strikeThroughPrice) / 100
@@ -85,7 +75,7 @@ const computePreviewFromItems = (items: Item[]) => {
   })
   orderPreview.grandTotal = orderPreview.subtotal - totalDiscount
   if (hasSubscription) {
-    cloned.forEach((it: Item) => {
+    orderPreview.items.forEach((it: Item) => {
       if (it.sku.supportSubscription && it.purchaseType === 1) {
         orderPreview.subscriptionDiscount.subscriptionDiscount += it.totalDiscount
         if (
@@ -98,7 +88,7 @@ const computePreviewFromItems = (items: Item[]) => {
       }
     })
   } else {
-    cloned.forEach((it: Item) => {
+    orderPreview.items.forEach((it: Item) => {
       if (it.sku.supportSubscription) {
         orderPreview.subscriptionDiscount.subscriptionDiscount +=
           it.sku.subscriptionDiscount * it.quantity
@@ -112,7 +102,10 @@ const computePreviewFromItems = (items: Item[]) => {
       }
     })
   }
-  orderPreview.items = cloned
+  console.log('after orderPreview=', orderPreview)
+
+  console.log('before orderPreview.shipaddress=', orderPreview.shippingAddress)
+
   if (!orderPreview.shippingAddress) {
     const defaultShippingAddress = addresses.reduce(
       (def: AddressItem | null, a) => (a.isDefault ? a : def),
@@ -120,6 +113,8 @@ const computePreviewFromItems = (items: Item[]) => {
     )
     orderPreview.shippingAddress = defaultShippingAddress
   }
+  console.log('after orderPreview.shipaddress=', orderPreview.shippingAddress)
+
   return orderPreview
 }
 
@@ -152,7 +147,7 @@ const computePreviewFromItems = (items: Item[]) => {
       purchaseType: 0,
       subscription: {
         subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
-        subscriptionAjudgements: [],
+        subscriptionAdjustments: [],
         source: 'CHECKOUT',
       },
     },
@@ -180,13 +175,30 @@ const computePreviewFromItems = (items: Item[]) => {
       purchaseType: 0,
       subscription: {
         subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
-        subscriptionAjudgements: [],
+        subscriptionAdjustments: [],
         source: 'CHECKOUT',
       },
     },
   ]
+  const orderPreview: OrderPreview = {
+    id: '1',
+    subscriptionDiscount: {
+      subscriptionDiscountRate: 0,
+      subscriptionDiscount: 0,
+      firstSubscription: false,
+    },
+    totalItemQuantity: 0,
+    subtotal: 0,
+    grandTotal: 0,
+    shippingFee: 0,
+    freeShippingThreshold: 30,
+    eligibleSubtotalForFreeShipping: 0,
+    discountDetails: [],
+    recommendSubscriptions: [],
+    items: items1,
+  }
 
-  previews['1'] = computePreviewFromItems(items1)
+  previews['1'] = computePreview(orderPreview)
 })()
 
 // Convert a cart entry (legacy shape) into checkout Item shape
@@ -419,12 +431,15 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
         })
       } else if (updateField === 'ADDRESS' && body.addressId) {
         const addr = addresses.find((a) => String(a.id) === String(body.addressId))
-        if (addr) previews[previewId].shippingAddresses = addr
+        console.log('address=', addr)
+        if (addr) previews[previewId].shippingAddress = addr
       }
 
+      console.log('orderPreview=', previews[previewId])
+
       // after mutations, recompute totals
-      previews[previewId] = computePreviewFromItems(previews[previewId].items || [])
-      return { code: '0', msg: 'updated', result: clone(previews[previewId]) }
+      previews[previewId] = computePreview(previews[previewId])
+      return { code: '0', msg: 'updated', result: previews[previewId] }
     }
 
     if (action === 'place-order' && method === 'POST') {

@@ -1,96 +1,109 @@
 <template>
-  <view class="page-container">
-    <!-- 顶部导航栏：带返回和取消 -->
-    <uni-nav-bar
-      left-icon="back"
-      background-color="#fff"
-      color="#007aff"
-      :title="navTitle"
-      @clickLeft="onCancel"
-    />
-
-    <!-- 地址表单组件 -->
-    <AddressForm :address-data="addressDetail" :saveText="saveButtonText" @save="handleSave" />
+  <view class="address-edit-page">
+    <AddressForm :address-data="formData" @save="onSave" />
   </view>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AddressForm from '@/components/AddressForm/AddressForm.vue'
-import { http } from '@/utils/http'
+import { addressApi } from '@/api/address' // 导入 addressApi
+import type { AddressItem, AddressParams } from '@/types/address'
 import { useAddressStore } from '@/stores/modules/address'
 
-const addressDetail = ref({})
-const navTitle = ref('新建收货地址')
-const saveButtonText = ref('保存')
+const formData = ref<Partial<AddressItem>>({})
+const pageSource = ref('') // 页面来源
+const addressStore = useAddressStore()
 
-// 页面加载逻辑
-onLoad((options) => {
-  if (options.id) {
-    navTitle.value = '编辑收货地址'
-    saveButtonText.value = '保存修改'
-    fetchAddressDetail(options.id)
-  } else {
-    navTitle.value = '新建收货地址'
-    saveButtonText.value = '保存'
+// 页面加载时，获取ID和来源
+onLoad(async (options) => {
+  if (options) {
+    pageSource.value = options.source || ''
+    const addressId = options.id
+    // 如果有 id，说明是编辑模式，需要获取地址详情
+    if (addressId) {
+      uni.setNavigationBarTitle({ title: '编辑地址' })
+      await getAddressDetail(addressId)
+    } else {
+      uni.setNavigationBarTitle({ title: '新建地址' })
+    }
   }
 })
 
-const addressStore = useAddressStore()
-
-// Fetch detail from API (mocked in dev)
-const fetchAddressDetail = async (id) => {
+// 获取地址详情（编辑时调用）
+const getAddressDetail = async (id: string) => {
   uni.showLoading({ title: '加载中...' })
   try {
-    const res = await http({ url: `/address/detail?id=${id}`, method: 'GET' })
-    if (res && res.code === '0') {
-      addressDetail.value = res.result || {}
+    // 【重构】使用 addressApi.getById() 替代 http 请求
+    const res = await addressApi.getById(id)
+    if (res.code === '0') {
+      formData.value = res.result
     } else {
-      addressDetail.value = {}
+      uni.showToast({ icon: 'none', title: res.msg || '加载失败' })
     }
-  } catch (e) {
-    console.warn('fetchAddressDetail error', e)
-    addressDetail.value = {}
-  }
-  uni.hideLoading()
-}
-// 处理保存事件，从子组件 AddressForm 收到 formData
-const handleSave = async (formData) => {
-  uni.showLoading({ title: '保存中...' })
-  try {
-    const payload = {
-      ...formData,
-      region: formData.region,
-    }
-    const res = await http({ url: '/address/create', method: 'POST', data: payload })
-    if (res && res.code === '0') {
-      const created = res.result
-      uni.hideLoading()
-      uni.showToast({ title: '保存成功', icon: 'success' })
-      addressStore.changeSelectedAddress(created)
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 600)
-    } else {
-      uni.hideLoading()
-      uni.showToast({ title: res?.msg || '保存失败', icon: 'none' })
-    }
-  } catch (e) {
+  } catch (error) {
+    uni.showToast({ icon: 'none', title: '加载失败' })
+  } finally {
     uni.hideLoading()
-    uni.showToast({ title: '保存失败', icon: 'none' })
-    console.warn('save address error', e)
   }
 }
 
-function onCancel() {
-  uni.navigateBack()
+// 点击保存按钮的回调
+const onSave = async (data: AddressParams) => {
+  const addressId = formData.value.id
+
+  uni.showLoading({ title: '保存中...' })
+  try {
+    if (addressId) {
+      // 编辑地址
+      // 【重构】使用 addressApi.update() 替代 http 请求
+      const res = await addressApi.update(addressId, data)
+      if (res.code === '0') {
+        handleSaveSuccess(res.result as AddressItem)
+      } else {
+        uni.showToast({ icon: 'none', title: res.msg || '保存失败' })
+      }
+    } else {
+      // 新建地址
+      // 【重构】使用 addressApi.create() 替代 http 请求
+      const res = await addressApi.create(data)
+      if (res.code === '0') {
+        handleSaveSuccess(res.result as AddressItem)
+      } else {
+        uni.showToast({ icon: 'none', title: res.msg || '保存失败' })
+      }
+    }
+  } catch (error) {
+    uni.showToast({ icon: 'none', title: '保存失败' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+// 处理保存成功后的逻辑
+const handleSaveSuccess = (savedAddress: AddressItem) => {
+  uni.showToast({ icon: 'success', title: '保存成功' })
+
+  // 如果来源是结算页，需要特殊处理
+  if (pageSource.value === 'checkout') {
+    // 更新 Pinia store 中的地址
+    addressStore.changeSelectedAddress(savedAddress)
+    // 根据是新建还是编辑，决定返回几层
+    const delta = formData.value.id ? 1 : 2 // 编辑返回1层，新建返回2层
+    uni.navigateBack({ delta })
+  } else {
+    // 其他情况，直接返回上一页（地址列表）
+    uni.navigateBack()
+  }
 }
 </script>
 
 <style lang="scss" scoped>
-.page-container {
+.address-edit-page {
   background-color: #f7f8fa;
   min-height: 100vh;
+  padding: 20rpx;
+  box-sizing: border-box;
 }
 </style>

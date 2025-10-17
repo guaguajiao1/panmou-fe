@@ -10,7 +10,7 @@ export type FrequencyUnit = 'WEEK' | 'MONTH'
  * Autoship设置的来源页面或模块
  * 根据业务需求可以扩展，例如 'PDP' (商品详情页), 'CART' (购物车)
  */
-export type SubscriptionSource = 'CHECKOUT'
+export type SubscriptionSource = 'CHECKOUT' | 'default' | 'recommend'
 
 /**
  * 描述Autoship的配送频率
@@ -29,7 +29,7 @@ export interface SubscriptionFrequency {
   unit: FrequencyUnit
 }
 
-export interface SubscriptionAjudgement {
+export interface SubscriptionAdjustment {
   quantity: number
   skuId: number | string
   productId: number | string
@@ -44,7 +44,7 @@ export interface Subscription {
    */
   subscriptionFrequency: SubscriptionFrequency
 
-  subscriptionAjudgements: SubscriptionAjudgement[]
+  subscriptionAdjustments: SubscriptionAdjustment[]
   /**
    * 用户设置此Subscriptio时的来源页面或模块
    */
@@ -164,7 +164,7 @@ export type UpdateField = 'ADDRESS' | 'ITEM' | 'GLOBALSUBSCRIPTION'
 export interface UpdatePreviewParams {
   updateField: UpdateField
   addressId?: number | string
-  itemLevelSelection: {
+  itemLevelSelection?: {
     itemId: number
     partNumber: string
     quantity: number

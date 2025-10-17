@@ -42,7 +42,7 @@ function goChewyCart() {
 
 function goPlaceOrder() {
   uni.navigateTo({
-    url: '/pages/checkout/checkout',
+    url: '/pages/checkout/checkout?previewId=1',
   })
 }
 </script>

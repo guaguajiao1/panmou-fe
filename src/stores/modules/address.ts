@@ -5,7 +5,7 @@ import { ref } from 'vue'
 export const useAddressStore = defineStore('address', () => {
   const selectedAddress = ref<AddressItem>()
 
-  const changeSelectedAddress = (val: AddressItem) => {
+  const changeSelectedAddress = (val: AddressItem | undefined) => {
     selectedAddress.value = val
   }
 

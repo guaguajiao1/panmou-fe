@@ -1,49 +1,48 @@
 <template>
   <view class="place-order-page">
-    <!-- 全局加载动画 -->
     <view class="loading-overlay" v-if="isLoading">
       <uni-load-more status="loading" :showText="false"></uni-load-more>
     </view>
 
-    <!-- 顶部导航栏 -->
     <view class="custom-nav-bar">
       <text class="title">提交订单</text>
     </view>
 
     <scroll-view scroll-y class="scroll-view-container">
-      <!-- 1. 地址区 -->
-      <view class="section-card address-section">
+      <view class="address-section-wrapper">
         <template v-if="!orderPreview.shippingAddress">
-          <!-- inline AddressForm when no address exists -->
-          <AddressForm :saveText="'使用这个地址'" :address-data="{}" @save="onAddressFormSave" />
+          <AddressForm :saveText="'使用这个地址'" @save="onAddressFormSave" />
         </template>
         <template v-else>
-          <view class="address-display" @click="goToAddressManagement">
-            <view class="address-info">
-              <view class="address-line-1">
-                <text class="name">{{ orderPreview.shippingAddress.receiver }}</text>
-                <text class="phone">{{ orderPreview.shippingAddress.contact }}</text>
+          <view class="section-card address-section" @click="goToAddressManagement">
+            <view class="address-display">
+              <view class="address-info">
+                <view class="address-line-1">
+                  <text class="name">{{ orderPreview.shippingAddress.receiver }}</text>
+                  <text class="phone">{{ orderPreview.shippingAddress.contact }}</text>
+                </view>
+                <view class="address-line-2">
+                  <text class="default-tag" v-if="orderPreview.shippingAddress.isDefault">
+                    默认
+                  </text>
+                  <text> {{ orderPreview.shippingAddress.fullLocation }} </text>
+                </view>
+                <view class="address-line-3">
+                  <text>{{ orderPreview.shippingAddress.address }}</text>
+                </view>
               </view>
-              <view class="address-line-2">
-                <text class="default-tag" v-if="orderPreview.shippingAddress.isDefault">默认</text>
-                <text> {{ orderPreview.shippingAddress.fullLocation }} </text>
-              </view>
-              <view class="address-line-3">
-                <text>{{ orderPreview.shippingAddress.address }}</text>
-              </view>
+              <uni-icons type="right" size="18" color="#999"></uni-icons>
             </view>
-            <uni-icons type="right" size="18" color="#999"></uni-icons>
           </view>
         </template>
       </view>
 
-      <!-- 2. 全新订阅区 (不再折叠) -->
       <view class="subscription-toggle-section" v-if="hasEligibleSubscriptionItems">
         <view class="promo-header">
           <text>{{
             orderPreview.recommendSubscriptions
               ? '开启您的首次订阅订单，符合条件的商品最高可省'
-              : '开启订阅，符合条商品优惠。'
+              : '开启订阅，符合条件商品优惠。'
           }}</text>
           <text class="promo-highlight">
             {{ orderPreview.subscriptionDiscount.subscriptionDiscountRate }}% (¥{{
@@ -62,25 +61,14 @@
           <view class="option-content">
             <text class="option-title">是，让我的生活更轻松</text>
             <view class="option-details">
-              <text class="save-amount"
-                >此订单您将额外节省 ¥{{
-                  orderPreview.subscriptionDiscount.subscriptionDiscount
-                }}</text
-              >
-              <picker
-                mode="selector"
-                :range="frequencyOptions"
-                @change="onFrequencyChange"
-                class="frequency-picker-wrapper"
-              >
-                <view class="picker-view">
-                  <view class="picker-label">
-                    <text class="label-title">配送频率</text>
-                    <text class="label-value">{{ selectedFrequency }}</text>
-                  </view>
-                  <uni-icons type="bottom" size="16" color="#666"></uni-icons>
-                </view>
-              </picker>
+              <text class="save-amount">
+                此订单您将额外节省 ¥{{ orderPreview.subscriptionDiscount.subscriptionDiscount }}
+              </text>
+              <SubscriptionFrequencyPicker
+                v-model="selectedFreqObj"
+                :recommend-subscriptions="orderPreview.recommendSubscriptions"
+                @update:modelValue="onFrequencyChange"
+              />
               <text class="change-tip">您可以随时轻松地更改、取消或重新安排配送。</text>
               <scroll-view scroll-x class="subscribed-items-scroll">
                 <view
@@ -91,9 +79,9 @@
                   <image :src="item.sku.image" class="item-image-sm"></image>
                 </view>
               </scroll-view>
-              <text class="promo-terms"
-                >订阅促销最高可省 ¥20。仅限支持订阅的商品。部分商品除外。限时优惠。</text
-              >
+              <text class="promo-terms">
+                订阅促销最高可省 ¥20。仅限支持订阅的商品。部分商品除外。限时优惠。
+              </text>
             </view>
           </view>
         </view>
@@ -111,7 +99,6 @@
         </view>
       </view>
 
-      <!-- 3. 商品列表区 (与 cart 保持一致) -->
       <view class="section-card product-list-section">
         <view class="section-title">您的商品</view>
         <view class="cart-item" v-for="item in orderPreview.items" :key="item.id">
@@ -143,7 +130,6 @@
                   <text class="original-price"> ¥{{ item.sku.strikeThroughPrice }} </text>
                 </view>
               </view>
-              <!-- 购买方式选择器，现在在商品列表中 -->
               <view class="purchase-type-selector">
                 <view
                   class="type-option"
@@ -180,7 +166,6 @@
         </view>
       </view>
 
-      <!-- 4. 支付方式区 -->
       <view class="section-card payment-section">
         <text class="label">支付方式</text>
         <view class="payment-method">
@@ -193,7 +178,6 @@
         </view>
       </view>
 
-      <!-- 5. 订单总结区 -->
       <view class="section-card summary-section">
         <view class="summary-row">
           <text class="label">商品金额</text>
@@ -203,7 +187,6 @@
           <text class="label">运费</text>
           <text class="value">¥{{ orderPreview.shippingFee }}</text>
         </view>
-        <!-- 展示每一项优惠明细 -->
         <view v-for="(d, idx) in orderPreview.discountDetails || []" :key="idx" class="summary-row">
           <text class="label">{{ d.label }}</text>
           <text class="value discount-value">- ¥{{ d.amount }}</text>
@@ -216,7 +199,6 @@
         </view>
       </view>
 
-      <!-- 6. 文字说明区 -->
       <view class="disclaimer-section">
         <text
           >点击“立即支付”，即表示您同意我们的服务条款和隐私政策。如果您的订单包含订阅商品，您将授权我们定期向您的账户收费，直到您取消订阅为止。</text
@@ -224,7 +206,6 @@
       </view>
     </scroll-view>
 
-    <!-- 底部操作栏 -->
     <view class="footer">
       <button class="place-order-button" @click="placeOrder" :disabled="isSubmitting">
         {{ paymentButtonText }}
@@ -234,23 +215,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AddressForm from '@/components/AddressForm/AddressForm.vue'
-import { http } from '@/utils/http'
+import SubscriptionFrequencyPicker from '@/components/SubscriptionFrequencyPicker/SubscriptionFrequencyPicker.vue'
 import { useAddressStore } from '@/stores/modules/address'
-import type { OrderPreview, SubscriptionFrequency, UpdatePreviewParams } from '@/types/checkout'
 import { checkoutApi } from '@/api/checkout'
+import { addressApi } from '@/api/address'
+import type { OrderPreview, SubscriptionFrequency, UpdatePreviewParams } from '@/types/checkout'
+import type { AddressParams, AddressItem } from '@/types/address'
+import type { Item } from '@/types/checkout'
 
 const themeColor = '#2c6fdb'
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const addressStore = useAddressStore()
 
-// previewId will be created by entryCart
-const previewId = ref<string>('1')
+const previewId = ref<string>('')
 
-// OrderPreview from server (single source of truth)
 const orderPreview = ref<OrderPreview>({
   totalItemQuantity: 0,
   subtotal: 0,
@@ -259,65 +241,61 @@ const orderPreview = ref<OrderPreview>({
   freeShippingThreshold: 0,
   eligibleSubtotalForFreeShipping: 0,
   discountDetails: [],
-  shippingAddress: {} as any,
+  shippingAddress: undefined,
   recommendSubscriptions: [],
   items: [],
   id: '',
   subscriptionDiscount: {} as any,
 })
 
-// frequencyOptions: use SubscriptionFrequency objects from server (recommendSubscriptions)
-const subscriptionFrequencies = computed<SubscriptionFrequency[]>(() =>
-  (orderPreview.value.recommendSubscriptions || []).map((s) => s.subscriptionFrequency),
-)
-// For picker display we map frequency -> label, but keep SubscriptionFrequency as the source of truth
-const frequencyOptions = computed(() =>
-  subscriptionFrequencies.value.map((f) => `${f.frequency}${f.unit === 'WEEK' ? '周' : '个月'}`),
-)
+const selectedFreqObj = ref<SubscriptionFrequency | null>(null)
 
-// selectedFrequency as human label for display (template expects a string), and keep selectedFreqObj for server updates
-const selectedFreqObj = ref<SubscriptionFrequency | null>(subscriptionFrequencies.value[0] || null)
-const selectedFrequency = ref(frequencyOptions.value[0] || '')
-
-// computed selected address: prefer store.selectedAddress, fallback to preview.shippingAddresses
-const selecteAddress = computed(
-  () => addressStore.selectedAddress || orderPreview.value.shippingAddress,
-)
-
-// --- states derived from server data (minimal client logic) ---
 const isSubscribing = computed(() =>
-  orderPreview.value.items.some((item: any) => item.purchaseType === 1),
+  orderPreview.value.items.some((item: Item) => item.purchaseType === 1),
 )
 
 const hasEligibleSubscriptionItems = computed(() =>
-  orderPreview.value.items.some((item: any) => item.sku?.supportSubscription),
+  orderPreview.value.items.some((item: Item) => item.sku?.supportSubscription),
 )
 
 const subscriptionImageItems = computed(() => {
-  if (isSubscribing.value) return orderPreview.value.items.filter((i: any) => i.purchaseType === 1)
-  return orderPreview.value.items.filter((i: any) => i.sku?.supportSubscription)
+  if (isSubscribing.value) {
+    return orderPreview.value.items.filter((i: Item) => i.purchaseType === 1)
+  }
+  return orderPreview.value.items.filter((i: Item) => i.sku?.supportSubscription)
 })
 
 const paymentButtonText = computed(() => {
-  const total = orderPreview.value.grandTotal ?? 0
-  return isSubmitting.value ? '处理中...' : `立即支付 ¥${total.toFixed(2)}`
+  // 在计算函数的一开始就从 orderPreview.value 解构出需要的属性。
+  // 这个操作会确保 computed 依赖的是 orderPreview.value 这个对象引用。
+  // 当 orderPreview.value 被赋予一个新对象时，引用发生变化，computed 就会强制重新运行。
+  const { grandTotal } = orderPreview.value
+
+  console.log('paymentButtonText computed is running! New grandTotal is:', grandTotal) // 添加日志以确认执行
+
+  if (isSubmitting.value) return '处理中...'
+  const total = grandTotal ?? 0
+  return `立即支付 ¥${total.toFixed(2)}`
 })
 
-// watch address store and sync preview shippingAddress
-import { watch } from 'vue'
-import type { AddressItem } from '@/types/address'
+// Watch for address changes from the store (updated by address list page)
 watch(
   () => addressStore.selectedAddress,
-  (val) => {
-    if (val) orderPreview.value.shippingAddress = val
+  (newAddress) => {
+    if (newAddress && newAddress.id !== orderPreview.value.shippingAddress?.id) {
+      console.log('Address store changed, updating server preview.')
+      orderPreview.value.shippingAddress = newAddress
+      updateAddressOnServer(newAddress.id)
+    }
   },
+  { deep: true },
 )
 
 // ----------------- API interactions -----------------
 const loadPreview = async () => {
   isLoading.value = true
   try {
-    // ensure previewId exists by calling entryCart
+    // **Requirement 4**: Ensure previewId exists. Fallback to entryCart if not from URL.
     if (!previewId.value) {
       const entryRes = await checkoutApi.entryCart()
       if (entryRes && entryRes.code === '0') previewId.value = (entryRes.result as any).previewId
@@ -327,11 +305,9 @@ const loadPreview = async () => {
     const res = await checkoutApi.getPreview(previewId.value)
     if (res && res.code === '0') {
       orderPreview.value = res.result
-      // set frequency UI pickers if server provided recommendations
-      const freqs = subscriptionFrequencies.value
-      if (freqs && freqs.length > 0) {
-        selectedFreqObj.value = freqs[0]
-        selectedFrequency.value = `${freqs[0].frequency}${freqs[0].unit === 'WEEK' ? '周' : '个月'}`
+      // Set the selected address in the store for consistency
+      if (res.result.shippingAddress) {
+        addressStore.changeSelectedAddress(res.result.shippingAddress)
       }
     } else {
       uni.showToast({ title: '数据加载失败', icon: 'none' })
@@ -364,17 +340,19 @@ const updateItem = async (item: any) => {
     console.warn('updateItem error', e)
   } finally {
     isLoading.value = false
+    console.log('updateItem completed orderPreview=', orderPreview.value)
   }
 }
 
 const updateGlobalSubscription = async (subscribe: boolean) => {
   if (!previewId.value) await loadPreview()
-  if (!previewId.value) return
-  const params: any = {
+  if (!previewId.value || !selectedFreqObj.value) return
+
+  const params: UpdatePreviewParams = {
     updateField: 'GLOBALSUBSCRIPTION',
     globalSubscription: {
       subscribe,
-      fulfillmentSchedule: selectedFreqObj.value || { frequency: 4, unit: 'WEEK' },
+      fulfillmentSchedule: selectedFreqObj.value,
     },
   }
   isLoading.value = true
@@ -403,9 +381,8 @@ const updateAddressOnServer = async (addressId: string | number) => {
   }
 }
 
-// place order via checkoutApi
 const placeOrder = async () => {
-  if (!selecteAddress.value) {
+  if (!orderPreview.value.shippingAddress) {
     uni.showToast({ title: '请先创建收货地址', icon: 'none' })
     return
   }
@@ -430,7 +407,7 @@ const placeOrder = async () => {
 // UI handlers
 const increaseQuantity = (item: any) => {
   const current = item.quantity ?? 0
-  const max = item.availableQuantity ?? 999999
+  const max = item.availableQuantity ?? 10
   item.quantity = Math.min(current + 1, max)
   updateItem(item)
 }
@@ -453,32 +430,20 @@ const togglePurchaseType = (item: any, type: 'once' | 'subscribe') => {
   updateItem(item)
 }
 
-const calculateItemPrice = (item: any) => {
-  const current = item.unitPrice ?? item.sku?.offerPrice ?? 0
-  return { current }
+const onFrequencyChange = () => {
+  updateGlobalSubscription(true)
 }
 
-const onFrequencyChange = (e: any) => {
-  const idx = e.detail.value
-  const freqs = subscriptionFrequencies.value
-  if (freqs && freqs[idx]) {
-    selectedFreqObj.value = freqs[idx]
-    selectedFrequency.value = `${freqs[idx].frequency}${freqs[idx].unit === 'WEEK' ? '周' : '个月'}`
-    // update server with new frequency (keep current subscription state)
-    updateGlobalSubscription(isSubscribing.value)
-  }
-}
-
-const onAddressFormSave = async (formData: any) => {
+const onAddressFormSave = async (formData: AddressParams) => {
   uni.showLoading({ title: '保存地址...' })
   try {
-    const res = await http({ url: '/address/create', method: 'POST', data: formData })
+    const res = await addressApi.create(formData)
     if (res && res.code === '0') {
-      const created = res.result
-      addressStore.changeSelectedAddress(created as AddressItem)
-      await updateAddressOnServer((created as AddressItem).id)
+      const created = res.result as AddressItem
+      // Update the address store, which will trigger the watcher to update the server
+      addressStore.changeSelectedAddress(created)
       uni.hideLoading()
-      uni.showToast({ title: '已使用这个地址', icon: 'success' })
+      uni.showToast({ title: '已使用新地址', icon: 'success' })
     } else {
       uni.hideLoading()
       uni.showToast({ title: res?.msg || '保存失败', icon: 'none' })
@@ -490,19 +455,41 @@ const onAddressFormSave = async (formData: any) => {
   }
 }
 
-const goToAddressManagement = () =>
-  uni.navigateTo({ url: '/pages/account/address_list/address_list?select=1' })
+const goToAddressManagement = () => {
+  uni.navigateTo({ url: '/pages/account/address_list/address_list?source=checkout' })
+}
 
 const goToProductDetail = (item: any) =>
   uni.navigateTo({ url: `/pages/product/detail?id=${item.id || item.sku?.productId}` })
 
-onLoad(() => {
+onLoad((options) => {
+  if (options && options.previewId) {
+    previewId.value = options.previewId
+  }
   loadPreview()
+})
+
+// While the watcher is good, onShow is a reliable way to catch changes
+// if the user uses system back buttons.
+onShow(() => {
+  // This ensures that if the selected address in the store is different from
+  // what's displayed, it gets synced.
+  if (
+    addressStore.selectedAddress &&
+    orderPreview.value.shippingAddress?.id !== addressStore.selectedAddress.id
+  ) {
+    console.log('Address changed detected onShow, syncing.')
+    orderPreview.value.shippingAddress = addressStore.selectedAddress
+    updateAddressOnServer(addressStore.selectedAddress.id)
+  }
 })
 </script>
 
 <style lang="scss" scoped>
-/* ... 其他样式 ... */
+.address-section-wrapper {
+  margin-bottom: 20rpx;
+}
+
 .place-order-page {
   display: flex;
   flex-direction: column;
@@ -550,18 +537,6 @@ onLoad(() => {
   margin-bottom: $uni-spacing-col-lg;
 }
 .address-section {
-  /* ... (样式保持不变) ... */
-  .address-create {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40rpx 0;
-    color: $uni-text-color-grey;
-    font-size: $uni-font-size-base;
-    text {
-      margin-left: 16rpx;
-    }
-  }
   .address-display {
     display: flex;
     align-items: center;
@@ -679,27 +654,6 @@ onLoad(() => {
           font-weight: bold;
           display: block;
           margin-bottom: $uni-spacing-col-lg;
-        }
-        .frequency-picker-wrapper {
-          border: 1px solid $uni-border-color;
-          border-radius: $uni-border-radius-base;
-          padding: $uni-spacing-col-base $uni-spacing-row-base;
-          .picker-view {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .picker-label {
-            .label-title {
-              display: block;
-              font-size: 22rpx;
-              color: $uni-text-color-grey;
-            }
-            .label-value {
-              font-size: $uni-font-size-base;
-              color: $uni-text-color;
-            }
-          }
         }
         .change-tip {
           display: block;
@@ -858,7 +812,6 @@ onLoad(() => {
 }
 
 .payment-section {
-  /* ... (样式保持不变) ... */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -877,7 +830,6 @@ onLoad(() => {
   }
 }
 .summary-section {
-  /* ... (样式保持不变) ... */
   .summary-row {
     display: flex;
     justify-content: space-between;
@@ -904,14 +856,12 @@ onLoad(() => {
   }
 }
 .disclaimer-section {
-  /* ... (样式保持不变) ... */
   font-size: $uni-font-size-sm;
   color: $uni-text-color-grey;
   padding: $uni-spacing-col-lg $uni-spacing-row-base;
   line-height: 1.6;
 }
 .footer {
-  /* ... (样式保持不变) ... */
   position: fixed;
   bottom: 0;
   left: 0;

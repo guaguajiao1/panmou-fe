@@ -66,7 +66,8 @@ type Data<T> = {
 export const http = async <T>(options: UniApp.RequestOptions): Promise<Data<T>> => {
   // try mock first in dev
   // debug: print mode and url so we can see whether mock is attempted
-  console.debug && console.debug('[http] ENABLE_MOCK=', ENABLE_MOCK, 'url=', options.url)
+  console.debug &&
+    console.debug('[http] ENABLE_MOCK=', ENABLE_MOCK, 'url=', options.url, 'body', options.data)
 
   if (ENABLE_MOCK) {
     try {
