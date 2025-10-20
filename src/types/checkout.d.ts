@@ -148,7 +148,7 @@ export interface OrderPreview {
   grandTotal: number
   shippingFee: number
   freeShippingThreshold: number
-  eligibleSubtotalForFreeShipping: number
+  freeShippingEligibleAmount: number
   discountDetails: DiscountDetail[]
   shippingAddress?: AddressItem
   recommendSubscriptions: Subscription[]

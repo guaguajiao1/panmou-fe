@@ -1,5 +1,6 @@
 import type { AddressItem } from '@/types/address'
 import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
+import type { it } from 'node:test'
 // Development mock server implementing Address, Cart and Checkout APIs
 // Returns Data<T> objects that match the http wrapper expectations
 
@@ -20,13 +21,11 @@ const previews: Record<string, any> = {}
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
 
 const computePreview = (orderPreview: OrderPreview) => {
-  console.log('before orderPreview=', orderPreview)
-
   let totalDiscount = 0
   let hasSubscription = false
   orderPreview.subtotal = 0
   orderPreview.totalItemQuantity = 0
-  orderPreview.eligibleSubtotalForFreeShipping = 0
+  orderPreview.freeShippingEligibleAmount = 0
   orderPreview.discountDetails = []
   orderPreview.grandTotal = 0
   orderPreview.subscriptionDiscount.subscriptionDiscount = 0
@@ -68,7 +67,7 @@ const computePreview = (orderPreview: OrderPreview) => {
     }
     orderPreview.subtotal = orderPreview.subtotal + it.sku.strikeThroughPrice * it.quantity
     orderPreview.totalItemQuantity = orderPreview.totalItemQuantity + it.quantity
-    orderPreview.eligibleSubtotalForFreeShipping = orderPreview.subtotal
+    orderPreview.freeShippingEligibleAmount = orderPreview.subtotal
     if (it.discountDetails.length > 0) {
       orderPreview.discountDetails.push(...it.discountDetails)
     }
@@ -102,9 +101,6 @@ const computePreview = (orderPreview: OrderPreview) => {
       }
     })
   }
-  console.log('after orderPreview=', orderPreview)
-
-  console.log('before orderPreview.shipaddress=', orderPreview.shippingAddress)
 
   if (!orderPreview.shippingAddress) {
     const defaultShippingAddress = addresses.reduce(
@@ -113,14 +109,10 @@ const computePreview = (orderPreview: OrderPreview) => {
     )
     orderPreview.shippingAddress = defaultShippingAddress
   }
-  console.log('after orderPreview.shipaddress=', orderPreview.shippingAddress)
 
   return orderPreview
 }
 
-// --- Pre-populate two previews (IDs: '1' and '2') for development convenience
-// preview '1' : subtotal >= 100 -> free shipping
-// preview '2' : subtotal < 100 -> has shipping fee
 ;(function createSamplePreviews() {
   const items1: Item[] = [
     {
@@ -192,61 +184,15 @@ const computePreview = (orderPreview: OrderPreview) => {
     grandTotal: 0,
     shippingFee: 0,
     freeShippingThreshold: 30,
-    eligibleSubtotalForFreeShipping: 0,
+    freeShippingEligibleAmount: 0,
     discountDetails: [],
     recommendSubscriptions: [],
     items: items1,
   }
 
   previews['1'] = computePreview(orderPreview)
+  console.log('server init', previews['1'])
 })()
-
-// Convert a cart entry (legacy shape) into checkout Item shape
-const cartEntryToItem = (entry: any) => {
-  const qty = Number(entry.quantity || 1)
-  const unit = Number(entry.unitPrice || entry.price || 0)
-  const purchaseType = entry.purchaseType ?? 0
-  const sku = {
-    productId: entry.productId || entry.id,
-    skuId: entry.skuId || entry.skuId || entry.id,
-    name: entry.name || '',
-    specs: entry.specs || '',
-    image: entry.image || '',
-    strikeThroughPrice: unit,
-    offerPrice: entry.offerPrice ?? unit,
-    advertisedPrice: unit,
-    supportSubscription: !!entry.supportSubscription,
-    subscriptionDiscountRate: entry.subscriptionDiscount ?? 0,
-    subscriptionDiscount: entry.subscriptionDiscount ?? 0,
-    onceDiscountRate: entry.onceDiscount ?? 0,
-    onceDiscount: entry.onceDiscount ?? 0,
-  }
-  const totalPrice = Number(((sku.offerPrice || unit) * qty).toFixed(2))
-  const discountPrice = Math.max(0, Number((unit * qty - totalPrice).toFixed(2)))
-  return {
-    id: sku.productId,
-    quantity: qty,
-    unitPrice: unit,
-    totalPrice,
-    discountPrice,
-    availableQuantity: 999,
-    sku,
-    discountDetails: [],
-    purchaseType: purchaseType === 1 ? 1 : 0,
-    subscription: {
-      subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
-      subscriptionAjudgements: [
-        {
-          quantity: qty,
-          skuId: sku.skuId,
-          productId: sku.productId,
-          partNumber: String(sku.skuId),
-        },
-      ],
-      source: 'CHECKOUT',
-    },
-  }
-}
 
 export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<any> | null> => {
   let url = String(options.url || '')
@@ -316,29 +262,6 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     return { code: '0', msg: 'ok', result: clone(cartItems) }
   }
 
-  if (url === '/account/cart/items' && String(options.method || 'POST').toUpperCase() === 'POST') {
-    const body = (options.data as any) || {}
-    // ensure sku uniqueness
-    const existing = cartItems.find((c) => String(c.skuId) === String(body.skuId))
-    if (existing) {
-      existing.quantity = (existing.quantity || 0) + (body.quantity || 1)
-      existing.purchaseType = body.purchaseType ?? existing.purchaseType
-      return { code: '0', msg: 'updated', result: clone(existing) }
-    }
-    const id = Date.now()
-    const entry = {
-      id,
-      productId: body.productId,
-      skuId: body.skuId,
-      quantity: body.quantity || 1,
-      purchaseType: body.purchaseType || 0,
-      name: body.name || '商品-' + id,
-      unitPrice: body.unitPrice || 10,
-    }
-    cartItems.push(entry)
-    return { code: '0', msg: 'created', result: clone(entry) }
-  }
-
   if (
     url === '/account/cart:batchDelete' &&
     String(options.method || 'POST').toUpperCase() === 'POST'
@@ -375,23 +298,16 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     return { code: '0', msg: 'ok', result: clone(cartItems) }
   }
 
-  // --- Checkout endpoints ---
-  if (url.startsWith('/checkout/entry/cart')) {
-    // create a preview from current cart
-    const previewId = 'PREVIEW-' + Date.now()
-    const items = cartItems.map(cartEntryToItem)
-    // previews[previewId] = computePreviewFromItems(items)
-    return { code: '0', msg: 'ok', result: { previewId } }
-  }
-
   const checkoutMatch = url.match(/^\/checkout\/p\/([^/]+)(?:\/(update|place-order))?$/)
   if (checkoutMatch) {
     const previewId = checkoutMatch[1]
     const action = checkoutMatch[2] || ''
     const method = String(options.method || 'GET').toUpperCase()
+    console.log('[[[server berore orderPreview=', previews[previewId])
 
     if (!action && method === 'GET') {
       const source = previews[previewId]
+      console.log('[[[server get berore orderPreview=', previews[previewId])
       if (!source) return { code: '1', msg: 'preview not found', result: null }
       return { code: '0', msg: 'ok', result: clone(source) }
     }
@@ -399,7 +315,6 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     if (action === 'update' && method === 'POST') {
       const body = (options.data as any) || {}
       if (!previews[previewId]) return { code: '1', msg: 'preview not found', result: null }
-
       const updateField = body.updateField
       if (updateField === 'ITEM' && body.itemLevelSelection) {
         const sel = body.itemLevelSelection
@@ -415,31 +330,60 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
             items[idx].purchaseType = sel.purchaseType === 1 ? 1 : 0
         }
       } else if (updateField === 'GLOBALSUBSCRIPTION' && body.globalSubscription) {
-        const subscribe = !!body.globalSubscription.subscribe
-        const freq = body.globalSubscription.fulfillmentSchedule || { frequency: 4, unit: 'WEEK' }
         const items = previews[previewId].items || []
-        items.forEach((it: any) => {
-          if (it.sku?.supportSubscription) {
-            it.purchaseType = subscribe ? 1 : 0
-            it.subscription = it.subscription || {
-              subscriptionFrequency: freq,
-              subscriptionAjudgements: [],
-              source: 'CHECKOUT',
+        const oldIsSubscribe = items.some((it: Item) => it.purchaseType === 1)
+        const freq = body.globalSubscription.fulfillmentSchedule || { frequency: 4, unit: 'WEEK' }
+
+        if (oldIsSubscribe === body.globalSubscription.subscribe && oldIsSubscribe) {
+          items.forEach((it: Item) => {
+            if (it.sku?.supportSubscription) {
+              it.subscription = it.subscription || {
+                subscriptionFrequency: freq,
+                subscriptionAjudgements: [],
+                source: 'CHECKOUT',
+              }
+              it.subscription.subscriptionFrequency = freq
             }
-            it.subscription.subscriptionFrequency = freq
-          }
-        })
+          })
+        }
+
+        if (
+          oldIsSubscribe !== body.globalSubscription.subscribe &&
+          body.globalSubscription.subscribe
+        ) {
+          items.forEach((it: Item) => {
+            if (it.sku?.supportSubscription) {
+              it.purchaseType = 1
+              it.subscription = it.subscription || {
+                subscriptionFrequency: freq,
+                subscriptionAjudgements: [],
+                source: 'CHECKOUT',
+              }
+              it.subscription.subscriptionFrequency = freq
+            }
+          })
+        }
+        if (
+          oldIsSubscribe !== body.globalSubscription.subscribe &&
+          !body.globalSubscription.subscribe
+        ) {
+          items.forEach((it: Item) => {
+            if (it.sku?.supportSubscription) {
+              it.purchaseType = 0
+            }
+          })
+        }
       } else if (updateField === 'ADDRESS' && body.addressId) {
         const addr = addresses.find((a) => String(a.id) === String(body.addressId))
         console.log('address=', addr)
         if (addr) previews[previewId].shippingAddress = addr
       }
 
-      console.log('orderPreview=', previews[previewId])
-
       // after mutations, recompute totals
       previews[previewId] = computePreview(previews[previewId])
-      return { code: '0', msg: 'updated', result: previews[previewId] }
+      console.log('[[[server after orderPreview=', previews[previewId])
+
+      return { code: '0', msg: 'updated', result: clone(previews[previewId]) }
     }
 
     if (action === 'place-order' && method === 'POST') {

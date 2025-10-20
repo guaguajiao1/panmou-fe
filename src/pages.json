@@ -27,31 +27,32 @@
 		{
 			"path": "pages/product/product",
 			"style": {
-				"navigationBarTitleText": "product"
+				"navigationBarTitleText": "商品详情"
 			}
 		},
 		{
 			"path": "pages/cart/cart",
 			"style": {
-				"navigationBarTitleText": "cart"
+				"navigationBarTitleText": "购物车"
 			}
 		},
 		{
 			"path": "pages/chewy_cart/chewy_cart",
 			"style": {
-				"navigationBarTitleText": "chewy_cart"
+				"navigationBarTitleText": "购物车"
 			}
 		},
 		{
 			"path": "pages/checkout/checkout",
 			"style": {
-				"navigationBarTitleText": "checkout"
+				"navigationBarTitleText": "确认订单",
+         "enablePullDownRefresh": true
 			}
 		},
 		{
 			"path": "pages/account/address_list/address_list",
 			"style": {
-				"navigationBarTitleText": "address_list"
+				"navigationBarTitleText": "收货地址"
 			}
 		},
 		{
@@ -62,10 +63,7 @@
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "white",
-		"navigationBarTitleText": "panmou",
-		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#FFFFFF"
+    "navigationStyle": "custom"
 	},
 	"uniIdRouter": {
 		"loginPage": "pages/login/login",

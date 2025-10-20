@@ -3,10 +3,7 @@
     <view class="loading-overlay" v-if="isLoading">
       <uni-load-more status="loading" :showText="false"></uni-load-more>
     </view>
-
-    <view class="custom-nav-bar">
-      <text class="title">提交订单</text>
-    </view>
+    <CustomNavigationBar title="确认订单"></CustomNavigationBar>
 
     <scroll-view scroll-y class="scroll-view-container">
       <view class="address-section-wrapper">
@@ -225,7 +222,12 @@ import { addressApi } from '@/api/address'
 import type { OrderPreview, SubscriptionFrequency, UpdatePreviewParams } from '@/types/checkout'
 import type { AddressParams, AddressItem } from '@/types/address'
 import type { Item } from '@/types/checkout'
+import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
+onPullDownRefresh(() => {
+  uni.stopPullDownRefresh()
+})
+onReachBottom(() => {})
 const themeColor = '#2c6fdb'
 const isLoading = ref(true)
 const isSubmitting = ref(false)
@@ -239,13 +241,17 @@ const orderPreview = ref<OrderPreview>({
   grandTotal: 0,
   shippingFee: 0,
   freeShippingThreshold: 0,
-  eligibleSubtotalForFreeShipping: 0,
+  freeShippingEligibleAmount: 0,
   discountDetails: [],
   shippingAddress: undefined,
   recommendSubscriptions: [],
   items: [],
   id: '',
-  subscriptionDiscount: {} as any,
+  subscriptionDiscount: {
+    subscriptionDiscountRate: 0,
+    subscriptionDiscount: 0,
+    firstSubscription: false,
+  },
 })
 
 const selectedFreqObj = ref<SubscriptionFrequency | null>(null)
@@ -266,16 +272,10 @@ const subscriptionImageItems = computed(() => {
 })
 
 const paymentButtonText = computed(() => {
-  // 在计算函数的一开始就从 orderPreview.value 解构出需要的属性。
-  // 这个操作会确保 computed 依赖的是 orderPreview.value 这个对象引用。
-  // 当 orderPreview.value 被赋予一个新对象时，引用发生变化，computed 就会强制重新运行。
-  const { grandTotal } = orderPreview.value
-
-  console.log('paymentButtonText computed is running! New grandTotal is:', grandTotal) // 添加日志以确认执行
-
   if (isSubmitting.value) return '处理中...'
-  const total = grandTotal ?? 0
-  return `立即支付 ¥${total.toFixed(2)}`
+  const total = orderPreview.value.grandTotal ?? 0
+  console.log('Computed paymentButtonText, total=', total)
+  return `立即支付 ¥${total}`
 })
 
 // Watch for address changes from the store (updated by address list page)
@@ -336,6 +336,7 @@ const updateItem = async (item: any) => {
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
     if (res && res.code === '0') orderPreview.value = res.result
+    console.log('updateItem orderPreview.value === res.result ?', orderPreview.value === res.result)
   } catch (e) {
     console.warn('updateItem error', e)
   } finally {
@@ -358,9 +359,18 @@ const updateGlobalSubscription = async (subscribe: boolean) => {
   isLoading.value = true
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
+    console.log('vue orderPreview before update=', orderPreview.value)
+    console.log('updateGlobalSubscription response=', res)
+
     if (res && res.code === '0') orderPreview.value = res.result
+    console.log(
+      'updateGlobalSubscription orderPreview.value === res.result ?',
+      orderPreview.value === res.result,
+    )
+
+    console.log('vue orderPreview after update=', orderPreview.value)
   } catch (e) {
-    console.warn('updateGlobalSubscription error', e)
+    console.warn('vue updateGlobalSubscription error', e)
   } finally {
     isLoading.value = false
   }
@@ -405,13 +415,13 @@ const placeOrder = async () => {
 }
 
 // UI handlers
-const increaseQuantity = (item: any) => {
+const increaseQuantity = (item: Item) => {
   const current = item.quantity ?? 0
   const max = item.availableQuantity ?? 10
   item.quantity = Math.min(current + 1, max)
   updateItem(item)
 }
-const decreaseQuantity = (item: any) => {
+const decreaseQuantity = (item: Item) => {
   const current = item.quantity ?? 0
   item.quantity = Math.max(0, current - 1)
   updateItem(item)
@@ -421,7 +431,7 @@ const toggleGlobalSubscription = (subscribe: boolean) => {
   updateGlobalSubscription(subscribe)
 }
 
-const togglePurchaseType = (item: any, type: 'once' | 'subscribe') => {
+const togglePurchaseType = (item: Item, type: 'once' | 'subscribe') => {
   if (item.sku?.supportSubscription) {
     item.purchaseType = type === 'subscribe' ? 1 : 0
   } else {
@@ -455,11 +465,13 @@ const onAddressFormSave = async (formData: AddressParams) => {
   }
 }
 
+const navigateBack = () => uni.navigateBack()
+
 const goToAddressManagement = () => {
   uni.navigateTo({ url: '/pages/account/address_list/address_list?source=checkout' })
 }
 
-const goToProductDetail = (item: any) =>
+const goToProductDetail = (item: Item) =>
   uni.navigateTo({ url: `/pages/product/detail?id=${item.id || item.sku?.productId}` })
 
 onLoad((options) => {
@@ -514,6 +526,18 @@ onShow(() => {
   padding: $uni-spacing-col-base;
   padding-top: calc(var(--status-bar-height) + #{$uni-spacing-col-base});
   border-bottom: 1px solid #eee;
+
+  .close-icon {
+    position: absolute;
+    left: $uni-spacing-row-lg;
+    top: 50%;
+    transform: translateY(-50%);
+    padding-top: var(--status-bar-height);
+    font-size: 48rpx;
+    font-weight: 300;
+    color: $uni-color-primary;
+  }
+
   .title {
     font-size: $uni-font-size-lg;
     font-weight: bold;

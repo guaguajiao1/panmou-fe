@@ -1,27 +1,7 @@
 <template>
   <view class="cart-page">
     <!-- 顶部自定义导航栏 -->
-    <view class="custom-nav-bar">
-      <uni-icons
-        class="close-icon"
-        type="closeempty"
-        size="22"
-        color="#007aff"
-        @click="navigateBack"
-      ></uni-icons>
-      <text class="title">购物车</text>
-    </view>
-
-    <!-- 免运费进度条 -->
-    <view class="shipping-progress-wrapper" v-if="cartItems.length > 0">
-      <view class="progress-bar">
-        <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
-      </view>
-      <text class="progress-text" v-if="shippingDifference > 0">
-        还差 <text class="highlight">¥{{ shippingDifference.toFixed(2) }}</text> 即可免运费
-      </text>
-      <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
-    </view>
+    <CustomNavigationBar title="购物车"></CustomNavigationBar>
 
     <!-- 滚动区域 -->
     <scroll-view scroll-y class="scroll-view-container">
@@ -127,6 +107,16 @@
         </view>
       </view>
       <button class="checkout-button" @click="handleCheckout">去结算 ({{ totalItems }})</button>
+      <!-- 免运费进度条 -->
+      <view class="shipping-progress-wrapper" v-if="cartItems.length > 0">
+        <view class="progress-bar">
+          <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
+        </view>
+        <text class="progress-text" v-if="shippingDifference > 0">
+          还差 <text class="highlight">¥{{ shippingDifference.toFixed(2) }}</text> 即可免运费
+        </text>
+        <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
+      </view>
     </view>
   </view>
 </template>
@@ -290,6 +280,7 @@ $theme-color: #2c6fdb;
 .shipping-progress-wrapper {
   padding: $uni-spacing-col-base $uni-spacing-row-lg;
   background-color: $uni-bg-color;
+  margin-bottom: 30rpx;
   .progress-bar {
     height: 15px;
     background-color: #e9e9e9;

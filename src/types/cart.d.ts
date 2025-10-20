@@ -1,3 +1,4 @@
+import { Item } from './checkout'
 /** 购物车类型 */
 export type CartItem = {
   /** 商品 ID */
@@ -34,4 +35,22 @@ export type CartItem = {
   onceDiscount: number
   /** 购买方式，0-一次性购买，1-订阅购买 */
   purchaseType: 0 | 1
+}
+
+export interface Cart {
+  // 购物车ID
+  id: string
+  // 指购物车中所有商品的总数量
+  totalItemQuantity: number
+  // 指所有商品在应用订单级折扣前的总价
+  subtotal: number
+  // 表示这是用户最终需要支付的“总计”金额
+  grandTotal: number
+  // 运费
+  shippingFee: number
+  // 满免运费门槛
+  freeShippingThreshold: number
+  // 参与面运费满免运费活动的金额
+  freeShippingEligibleAmount: number
+  items: Item[]
 }
