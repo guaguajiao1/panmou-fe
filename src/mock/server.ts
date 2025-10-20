@@ -1,6 +1,7 @@
 import type { AddressItem } from '@/types/address'
 import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
 import type { it } from 'node:test'
+import type { Cart } from '@/types/cart'
 // Development mock server implementing Address, Cart and Checkout APIs
 // Returns Data<T> objects that match the http wrapper expectations
 
@@ -14,7 +15,7 @@ const delay = (ms = 200) => new Promise((r) => setTimeout(r, ms))
 
 // In-memory stores
 const addresses: Array<any> = []
-const cartItems: Array<any> = []
+let globalCart: any = {}
 const previews: Record<string, any> = {}
 
 // Helpers
@@ -113,6 +114,57 @@ const computePreview = (orderPreview: OrderPreview) => {
   return orderPreview
 }
 
+const computeCart = (cart: Cart) => {
+  let totalDiscount = 0
+  let hasSubscription = false
+  cart.subtotal = 0
+  cart.totalItemQuantity = 0
+  cart.freeShippingEligibleAmount = 0
+  cart.grandTotal = 0
+
+  cart.items.forEach((it: Item) => {
+    it.discountDetails = []
+    it.totalPrice = it.sku.strikeThroughPrice * it.quantity
+    it.sku.onceDiscount = (it.sku.onceDiscountRate * it.sku.strikeThroughPrice) / 100
+    it.sku.subscriptionDiscount =
+      (it.sku.subscriptionDiscountRate * it.sku.strikeThroughPrice) / 100
+    if (it.purchaseType === 1) {
+      it.totalDiscount = it.sku.subscriptionDiscount * it.quantity
+      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.subscriptionDiscount
+      it.discountDetails.push({
+        label: '订阅折扣',
+        isRecurring: true,
+        promotionId: 'MOCK-SUBSCRIPTION',
+        promotionCode: '',
+        amount: it.totalDiscount,
+        displayLevel: 'ITEM',
+        discountTarget: 'PRODUCT',
+      })
+      totalDiscount = totalDiscount + it.totalDiscount
+      hasSubscription = true
+    } else {
+      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.onceDiscount
+      it.totalDiscount = it.sku.onceDiscount * it.quantity
+      it.discountDetails.push({
+        label: '商品折扣',
+        isRecurring: false,
+        promotionId: 'MOCK-ONCE',
+        promotionCode: '',
+        amount: it.totalDiscount,
+        displayLevel: 'ITEM',
+        discountTarget: 'PRODUCT',
+      })
+      totalDiscount = totalDiscount + it.totalDiscount
+    }
+    cart.subtotal = cart.subtotal + it.sku.strikeThroughPrice * it.quantity
+    cart.totalItemQuantity = cart.totalItemQuantity + it.quantity
+    cart.freeShippingEligibleAmount = cart.subtotal
+  })
+  cart.grandTotal = cart.subtotal - totalDiscount
+
+  return cart
+}
+
 ;(function createSamplePreviews() {
   const items1: Item[] = [
     {
@@ -190,7 +242,19 @@ const computePreview = (orderPreview: OrderPreview) => {
     items: items1,
   }
 
+  const cart: Cart = {
+    id: '1',
+    totalItemQuantity: 0,
+    subtotal: 0,
+    grandTotal: 0,
+    shippingFee: 0,
+    freeShippingThreshold: 30,
+    freeShippingEligibleAmount: 0,
+    items: items1,
+  }
+
   previews['1'] = computePreview(orderPreview)
+  globalCart = computeCart(cart)
   console.log('server init', previews['1'])
 })()
 
@@ -259,7 +323,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
 
   // --- Cart APIs (/account/cart) ---
   if (url === '/account/cart' && String(options.method || 'GET').toUpperCase() === 'GET') {
-    return { code: '0', msg: 'ok', result: clone(cartItems) }
+    return { code: '0', msg: 'ok', result: clone(globalCart) }
   }
 
   if (
@@ -269,10 +333,10 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     const body = (options.data as any) || {}
     const ids = body.skuIds || []
     for (const sid of ids) {
-      const idx = cartItems.findIndex((c) => String(c.skuId) === String(sid))
-      if (idx !== -1) cartItems.splice(idx, 1)
+      const idx = globalCart.items.findIndex((item: Item) => String(item.sku.skuId) === String(sid))
+      if (idx !== -1) globalCart.items.splice(idx, 1)
     }
-    return { code: '0', msg: 'deleted', result: null }
+    return { code: '0', msg: 'deleted', result: clone(computeCart(globalCart)) }
   }
 
   if (
@@ -282,10 +346,11 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     const parts = url.split('/')
     const skuId = parts[parts.length - 1]
     const body = (options.data as any) || {}
-    const idx = cartItems.findIndex((c) => String(c.skuId) === String(skuId))
+    const idx = globalCart.items.findIndex((item: Item) => String(item.sku.skuId) === String(skuId))
     if (idx === -1) return { code: '1', msg: 'not found', result: null }
-    cartItems[idx] = { ...cartItems[idx], ...body }
-    return { code: '0', msg: 'updated', result: clone(cartItems[idx]) }
+    globalCart.items[idx].quantity = body.quantity ?? globalCart.items[idx].quantity
+    globalCart.items[idx].purchaseType = body.purchaseType ?? globalCart.items[idx].purchaseType
+    return { code: '0', msg: 'updated', result: clone(computeCart(globalCart)) }
   }
 
   if (
@@ -294,8 +359,8 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
   ) {
     const body = (options.data as any) || {}
     const selected = !!body.selected
-    cartItems.forEach((c) => (c.selected = selected))
-    return { code: '0', msg: 'ok', result: clone(cartItems) }
+    //globalCart.items.forEach((item: Item) => (item.selected = selected))
+    return { code: '0', msg: 'ok', result: clone(computeCart(globalCart)) }
   }
 
   const checkoutMatch = url.match(/^\/checkout\/p\/([^/]+)(?:\/(update|place-order))?$/)

@@ -1,80 +1,72 @@
 <template>
   <view class="cart-page">
-    <!-- 顶部自定义导航栏 -->
     <CustomNavigationBar title="购物车"></CustomNavigationBar>
 
-    <!-- 滚动区域 -->
-    <scroll-view scroll-y class="scroll-view-container">
-      <!-- 购物车商品列表 -->
-      <view class="cart-item" v-for="item in cartItems" :key="item.id">
-        <!-- 删除图标 -->
-        <view class="delete-icon" @click="removeItem(item.id)">
-          <uni-icons type="trash" size="22" :color="$uni - text - color - grey"></uni-icons>
-        </view>
-
-        <!-- 商品主信息区域 (结构调整) -->
+    <scroll-view
+      scroll-y
+      class="scroll-view-container"
+      :refresher-enabled="true"
+      @refresherrefresh="onRefresh"
+      :refresher-triggered="isRefreshing"
+    >
+      <view class="cart-item" v-for="item in cartData.items" :key="item.id">
         <view class="item-main">
           <image
-            :src="item.image"
+            :src="item.sku.image"
             class="item-image"
             mode="aspectFill"
-            @click="goToProductDetail(item)"
+            @click="goToProductDetail(item.sku.productId)"
           ></image>
 
-          <!-- 右侧内容 -->
           <view class="item-content-wrapper">
-            <view class="item-info" @click="goToProductDetail(item)">
-              <text class="item-name">{{ item.name }}</text>
-              <text class="item-specs">{{ item.specs }}</text>
+            <view class="item-info" @click="goToProductDetail(item.sku.productId)">
+              <text class="item-name">{{ item.sku.name }}</text>
+              <text class="item-specs">{{ item.sku.specs }}</text>
             </view>
 
-            <!-- 中部操作区 -->
             <view class="item-controls">
-              <!-- 数量选择器 -->
               <view class="quantity-stepper">
                 <button @click="decreaseQuantity(item)" :disabled="item.quantity <= 1">-</button>
                 <text>{{ item.quantity }}</text>
-                <button @click="increaseQuantity(item)">+</button>
+                <button
+                  @click="increaseQuantity(item)"
+                  :disabled="item.quantity >= item.availableQuantity"
+                >
+                  +
+                </button>
               </view>
-              <!-- 价格显示 -->
               <view class="price-info">
-                <text class="current-price"
-                  >¥{{ calculateItemPrice(item).current.toFixed(2) }}</text
-                >
-                <text
-                  class="original-price"
-                  v-if="item.originalPrice > calculateItemPrice(item).current"
-                >
-                  ¥{{ item.originalPrice.toFixed(2) }}
-                </text>
+                <text class="current-price">¥{{ item.sku.adjustedPrice }}</text>
+                <text class="original-price">¥{{ item.sku.strikeThroughPrice.toFixed(2) }} </text>
               </view>
             </view>
 
-            <!-- 购买方式选择 -->
             <view class="purchase-type-selector">
               <view
                 class="type-option"
-                :class="{ active: item.purchaseType === 'once' }"
-                @click="togglePurchaseType(item, 'once')"
+                :class="{ active: item.purchaseType === 0 }"
+                @click="togglePurchaseType(item, 0)"
               >
                 <view class="radio-circle"></view>
                 <text
-                  >买一次<text v-if="item.onceDiscount > 0" class="save-highlight"
-                    >省{{ item.onceDiscount }}%（-¥{{ getSavedAmount(item, 'once') }}）</text
+                  >买一次<text v-if="item.sku.onceDiscount > 0" class="save-highlight"
+                    >省{{ item.sku.onceDiscountRate }}%（-¥{{
+                      item.sku.onceDiscount.toFixed(2)
+                    }}）</text
                   ></text
                 >
               </view>
               <view
                 class="type-option"
-                :class="{ active: item.purchaseType === 'subscribe' }"
-                @click="togglePurchaseType(item, 'subscribe')"
-                v-if="item.supportsSubscription"
+                :class="{ active: item.purchaseType === 1 }"
+                @click="togglePurchaseType(item, 1)"
+                v-if="item.sku.supportSubscription"
               >
                 <view class="radio-circle"></view>
                 <text
                   >订阅并<text class="save-highlight"
-                    >省{{ item.subscriptionDiscount }}%（-¥{{
-                      getSavedAmount(item, 'subscribe')
+                    >省{{ item.sku.subscriptionDiscountRate }}%（-¥{{
+                      item.sku.subscriptionDiscount.toFixed(2)
                     }}）</text
                   ></text
                 >
@@ -84,7 +76,7 @@
         </view>
       </view>
 
-      <view v-if="cartItems.length === 0" class="empty-cart">
+      <view v-if="cartData.items.length === 0" class="empty-cart">
         <image
           src="https://placehold.co/100x100/f0f0f0/cccccc?text=🐾"
           class="empty-icon"
@@ -93,22 +85,11 @@
         <text>购物车还是空的哦</text>
         <button class="go-shopping-btn" @click="goShopping">去逛逛</button>
       </view>
+      <view style="height: 120rpx"></view>
     </scroll-view>
 
-    <!-- 底部结算栏 -->
-    <view class="cart-footer" v-if="cartItems.length > 0">
-      <view class="subtotal-info">
-        <text class="subtotal-label">合计:</text>
-        <view class="subtotal-price">
-          <text class="final-price">¥{{ finalSubtotal.toFixed(2) }}</text>
-          <text class="original-total" v-if="totalDiscount > 0"
-            >已省 ¥{{ totalDiscount.toFixed(2) }}</text
-          >
-        </view>
-      </view>
-      <button class="checkout-button" @click="handleCheckout">去结算 ({{ totalItems }})</button>
-      <!-- 免运费进度条 -->
-      <view class="shipping-progress-wrapper" v-if="cartItems.length > 0">
+    <view class="cart-footer" v-if="cartData.items.length > 0">
+      <view class="shipping-progress-wrapper">
         <view class="progress-bar">
           <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
         </view>
@@ -117,136 +98,180 @@
         </text>
         <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
       </view>
+
+      <view class="subtotal-info">
+        <text class="subtotal-label">合计:</text>
+        <view class="subtotal-price">
+          <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
+          <text class="original-total" v-if="totalDiscount > 0"
+            >已省 ¥{{ totalDiscount.toFixed(2) }}</text
+          >
+        </view>
+      </view>
+      <button class="checkout-button" @click="handleCheckout">
+        去结算 ({{ cartData.totalItemQuantity }})
+      </button>
     </view>
   </view>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+// 修正导入路径
+import { cartApi } from '@/api/cart'
+import type { Cart } from '@/types/cart'
+import type { Item } from '@/types/checkout'
 
-// --- 配置项 ---
-const freeShippingThreshold = ref(50)
+// --- 默认购物车数据结构（应与Cart类型严格一致） ---
+const defaultCart: Cart = {
+  id: '',
+  totalItemQuantity: 0,
+  subtotal: 0,
+  grandTotal: 0,
+  shippingFee: 0,
+  freeShippingThreshold: 50,
+  freeShippingEligibleAmount: 0,
+  items: [],
+}
 
 // --- 响应式数据 ---
-const cartItems = ref([
-  {
-    id: 1,
-    name: '亮白洁牙咀嚼棒 (小型犬)',
-    specs: '30支/盒',
-    image: 'https://placehold.co/100x100/e8e8e8/333?text=Chews',
-    originalPrice: 40.0, // 原价
-    quantity: 1,
-    supportsSubscription: true,
-    subscriptionDiscount: 15, // 订阅优惠15%
-    onceDiscount: 5, // “买一次”优惠5%
-    purchaseType: 'subscribe',
-  },
-  {
-    id: 2,
-    name: '六月惊喜玩具订阅盒',
-    specs: '小型犬 / 无过敏',
-    image: 'https://placehold.co/100x100/e8e8e8/333?text=Box',
-    originalPrice: 55.0,
-    quantity: 1,
-    supportsSubscription: true,
-    subscriptionDiscount: 20,
-    onceDiscount: 0,
-    purchaseType: 'once',
-  },
-  {
-    id: 3,
-    name: '天然剑麻猫抓板',
-    specs: '大号 / 附赠猫薄荷',
-    image: 'https://placehold.co/100x100/e8e8e8/333?text=Scratch',
-    originalPrice: 30.0,
-    quantity: 1,
-    supportsSubscription: false,
-    subscriptionDiscount: 0,
-    onceDiscount: 0,
-    purchaseType: 'once',
-  },
-])
+const cartData = ref<Cart>(defaultCart)
+const isRefreshing = ref(false)
 
 // --- 计算属性 ---
-const totalItems = computed(() => cartItems.value.reduce((sum, item) => sum + item.quantity, 0))
 
-const finalSubtotal = computed(() => {
-  return cartItems.value.reduce((sum, item) => {
-    return sum + calculateItemPrice(item).current * item.quantity
-  }, 0)
-})
-
+/** 实际已节省的金额（subtotal - grandTotal） */
 const totalDiscount = computed(() => {
-  const originalTotal = cartItems.value.reduce(
-    (sum, item) => sum + item.originalPrice * item.quantity,
-    0,
-  )
-  const discount = originalTotal - finalSubtotal.value
+  const discount = cartData.value.subtotal - cartData.value.grandTotal
+  // 确保折扣金额不为负
   return discount > 0 ? discount : 0
 })
 
+/** 距离免运费门槛还差多少 */
+const shippingDifference = computed(() =>
+  // 免运费门槛 - 参与免运费活动的商品总额
+  Math.max(0, cartData.value.freeShippingThreshold - cartData.value.freeShippingEligibleAmount),
+)
+
+/** 免运费进度条百分比 */
 const shippingProgress = computed(() => {
-  const progress = (finalSubtotal.value / freeShippingThreshold.value) * 100
+  const threshold = cartData.value.freeShippingThreshold
+  const eligibleAmount = cartData.value.freeShippingEligibleAmount
+  if (threshold <= 0) return 100 // 避免除零或无门槛
+
+  const progress = (eligibleAmount / threshold) * 100
   return Math.min(progress, 100)
 })
 
-const shippingDifference = computed(() =>
-  Math.max(0, freeShippingThreshold.value - finalSubtotal.value),
-)
+// --- API 方法 ---
 
-// --- 方法 ---
-const calculateItemPrice = (item) => {
-  let current
-  if (item.purchaseType === 'subscribe' && item.supportsSubscription) {
-    current = item.originalPrice * (1 - item.subscriptionDiscount / 100)
-  } else {
-    // “买一次”作为默认情况，应用其对应的折扣
-    current = item.originalPrice * (1 - item.onceDiscount / 100)
+/**
+ * 获取购物车详情 (用于初始化和刷新)
+ */
+const fetchCartData = async () => {
+  // 仅在手动下拉刷新时设置动画状态
+  if (!isRefreshing.value) {
+    // 假设非手动刷新时不需要加载动画
   }
-  return { current }
-}
 
-const getSavedAmount = (item, type) => {
-  const discountPercent = type === 'subscribe' ? item.subscriptionDiscount : item.onceDiscount
-  if (discountPercent > 0) {
-    const saved = item.originalPrice * (discountPercent / 100)
-    return saved.toFixed(2)
+  try {
+    const res = await cartApi.get()
+    if (res && res.result) {
+      cartData.value = res.result as Cart
+    } else {
+      cartData.value = defaultCart
+    }
+  } catch (error) {
+    console.error('获取购物车失败', error)
+    uni.showToast({ title: '加载失败，请重试', icon: 'none' })
+  } finally {
+    isRefreshing.value = false
   }
-  return '0.00'
 }
 
-const increaseQuantity = (item) => item.quantity++
-const decreaseQuantity = (item) => {
-  if (item.quantity > 1) item.quantity--
+/**
+ * 更新商品数量 (增加)
+ */
+const increaseQuantity = async (item: Item) => {
+  if (item.quantity >= item.availableQuantity) {
+    uni.showToast({ title: '已达到最大库存', icon: 'none' })
+    return
+  }
+
+  const newQuantity = item.quantity + 1
+  try {
+    await cartApi.updateItem(item.sku.skuId as string, { quantity: newQuantity })
+    await fetchCartData()
+  } catch (error) {
+    console.error('增加数量失败', error)
+  }
 }
 
-const removeItem = (itemId) => {
-  cartItems.value = cartItems.value.filter((item) => item.id !== itemId)
-  uni.showToast({ title: '已删除', icon: 'none' })
+/**
+ * 更新商品数量 (减少或删除)
+ */
+const decreaseQuantity = async (item: Item) => {
+  const newQuantity = item.quantity - 1
+  try {
+    await cartApi.updateItem(item.sku.skuId as string, { quantity: newQuantity })
+    await fetchCartData()
+  } catch (error) {
+    console.error('减少数量失败', error)
+  }
 }
 
-const togglePurchaseType = (item, type) => {
-  // 切换购买方式
-  item.purchaseType = type
+/**
+ * 切换购买方式 (0: 买一次, 1: 订阅)
+ */
+const togglePurchaseType = async (item: Item, type: 0 | 1) => {
+  if (item.purchaseType !== type) {
+    try {
+      await cartApi.updateItem(item.sku.skuId as string, { purchaseType: type })
+      await fetchCartData()
+    } catch (error) {
+      console.error('切换购买方式失败', error)
+    }
+  }
 }
 
-const goToProductDetail = (item) => uni.navigateTo({ url: `/pages/product/detail?id=${item.id}` })
-const handleCheckout = () => uni.navigateTo({ url: `/pages/checkout/checkout` })
-const navigateBack = () => uni.navigateBack()
-const goShopping = () => uni.switchTab({ url: '/pages/index/index' })
+// --- 事件处理函数 ---
+
+const onRefresh = async () => {
+  isRefreshing.value = true
+  await fetchCartData()
+}
+
+const handleCheckout = () => {
+  // uni.navigateTo({ url: `/pages/checkout/checkout?cartId=${cartData.value.id}` })
+  console.log('去结算，Cart ID：', cartData.value.id)
+}
+
+const goToProductDetail = (id: string | number) => {
+  // uni.navigateTo({ url: `/pages/product/detail?id=${id}` })
+  console.log('查看商品详情：', id)
+}
+
+const goShopping = () => {
+  // uni.switchTab({ url: '/pages/index/index' })
+  console.log('去逛逛')
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+  fetchCartData()
+})
 </script>
 
 <style lang="scss" scoped>
-// 定义主题色，覆盖 uni.scss 的 primary
-$theme-color: #2c6fdb;
+/* SCSS 变量定义 */
+
+// uni-app 的 page 自动引入了 $uni-xxx 变量，直接在样式中使用即可。
 
 .cart-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: $uni-bg-color-grey;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
 }
 
 .custom-nav-bar {
@@ -264,31 +289,22 @@ $theme-color: #2c6fdb;
     font-weight: 600;
     color: $uni-text-color;
   }
-
-  .close-icon {
-    position: absolute;
-    left: $uni-spacing-row-lg;
-    top: 50%;
-    transform: translateY(-50%);
-    padding-top: var(--status-bar-height);
-    font-size: 48rpx;
-    font-weight: 300;
-    color: $uni-color-primary;
-  }
 }
 
 .shipping-progress-wrapper {
   padding: $uni-spacing-col-base $uni-spacing-row-lg;
   background-color: $uni-bg-color;
-  margin-bottom: 30rpx;
+  margin-top: $uni-spacing-col-base;
+  width: 100%;
+
   .progress-bar {
     height: 15px;
-    background-color: #e9e9e9;
+    background-color: $uni-bg-color-grey;
     border-radius: $uni-border-radius-lg;
     overflow: hidden;
     .progress-bar-inner {
       height: 100%;
-      background-color: $theme-color;
+      background-color: $uni-color-primary;
       border-radius: $uni-border-radius-lg;
       transition: width 0.3s ease;
     }
@@ -298,12 +314,14 @@ $theme-color: #2c6fdb;
     color: $uni-text-color;
     text-align: center;
     margin-top: $uni-spacing-col-base;
+    display: block;
     .highlight {
+      // 使用 $uni-color-warning
       color: $uni-color-warning;
       font-weight: bold;
     }
     &.success {
-      color: $theme-color;
+      color: $uni-color-primary;
     }
   }
 }
@@ -323,13 +341,6 @@ $theme-color: #2c6fdb;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
   position: relative;
 
-  .delete-icon {
-    position: absolute;
-    top: $uni-spacing-row-base;
-    right: $uni-spacing-row-base;
-    z-index: 2;
-  }
-
   .item-main {
     display: flex;
   }
@@ -340,7 +351,7 @@ $theme-color: #2c6fdb;
     border-radius: $uni-border-radius-base;
     margin-right: $uni-spacing-row-base;
     flex-shrink: 0;
-    background-color: #f4f4f4;
+    background-color: $uni-bg-color-grey;
     cursor: pointer;
   }
 
@@ -349,17 +360,17 @@ $theme-color: #2c6fdb;
   }
 
   .item-info {
-    padding-right: 40rpx; // 为删除按钮留出空间
+    padding-right: 40rpx;
     cursor: pointer;
     .item-name {
-      display: block; // 确保标题独占一行
+      display: block;
       font-size: $uni-font-size-base;
       font-weight: 600;
       color: $uni-text-color;
       margin-bottom: $uni-spacing-col-sm;
     }
     .item-specs {
-      display: block; // 确保规格独占一行
+      display: block;
       font-size: $uni-font-size-sm;
       color: $uni-text-color-grey;
     }
@@ -387,7 +398,7 @@ $theme-color: #2c6fdb;
       }
       &.active {
         .radio-circle {
-          border-color: $theme-color;
+          border-color: $uni-color-primary;
           &::after {
             content: '';
             position: absolute;
@@ -397,7 +408,7 @@ $theme-color: #2c6fdb;
             width: 8px;
             height: 8px;
             border-radius: $uni-border-radius-circle;
-            background-color: $theme-color;
+            background-color: $uni-color-primary;
           }
         }
       }
@@ -414,7 +425,7 @@ $theme-color: #2c6fdb;
   .quantity-stepper {
     display: flex;
     align-items: center;
-    border: 1px solid #ddd;
+    border: 1px solid $uni-border-color;
     border-radius: 30rpx;
     button {
       background-color: transparent;
@@ -445,11 +456,11 @@ $theme-color: #2c6fdb;
     .current-price {
       font-size: 32rpx;
       font-weight: bold;
-      color: $theme-color;
+      color: $uni-color-primary;
     }
     .original-price {
       font-size: 24rpx;
-      color: #999;
+      color: $uni-text-color-grey;
       text-decoration: line-through;
       display: block;
     }
@@ -470,7 +481,7 @@ $theme-color: #2c6fdb;
   }
   .go-shopping-btn {
     margin-top: $uni-spacing-col-lg;
-    background-color: $theme-color;
+    background-color: $uni-color-primary;
     color: $uni-text-color-inverse;
     border-radius: 40rpx;
     padding: 0 60rpx;
@@ -481,7 +492,9 @@ $theme-color: #2c6fdb;
 }
 
 .cart-footer {
-  position: sticky;
+  display: flex;
+  flex-direction: column-reverse;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
@@ -489,20 +502,21 @@ $theme-color: #2c6fdb;
   padding: $uni-spacing-col-base $uni-spacing-row-lg;
   padding-bottom: calc($uni-spacing-col-base + constant(safe-area-inset-bottom));
   padding-bottom: calc($uni-spacing-col-base + env(safe-area-inset-bottom));
-  border-top: 1px solid #eee;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  border-top: 1px solid $uni-border-color;
+  z-index: 99;
 
   .subtotal-info {
     display: flex;
     align-items: baseline;
+    justify-content: space-between;
+    margin-top: $uni-spacing-col-base;
     .subtotal-label {
       font-size: $uni-font-size-base;
       color: $uni-text-color;
     }
     .subtotal-price {
-      margin-left: $uni-spacing-row-sm;
+      display: flex;
+      align-items: center;
       .final-price {
         font-size: 40rpx;
         font-weight: bold;
@@ -516,10 +530,10 @@ $theme-color: #2c6fdb;
     }
   }
   .checkout-button {
-    width: 280rpx;
+    width: 100%;
     height: 88rpx;
     line-height: 88rpx;
-    background-color: $theme-color;
+    background-color: $uni-color-primary;
     color: $uni-text-color-inverse;
     border-radius: 44rpx;
     font-size: $uni-font-size-lg;

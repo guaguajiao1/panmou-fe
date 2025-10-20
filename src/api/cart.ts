@@ -1,4 +1,4 @@
-import type { CartItem } from '@/types/cart'
+import type { Cart } from '@/types/cart'
 import { http } from '@/utils/http'
 
 // --- 为函数参数定义类型别名，使代码更清晰 ---
@@ -29,7 +29,7 @@ export const cartApi = {
    * 获取当前账户的购物车详情
    */
   get() {
-    return http<CartItem[]>({
+    return http<Cart>({
       method: 'GET',
       url: '/account/cart',
     })
@@ -65,7 +65,7 @@ export const cartApi = {
    * @param data 更新的信息
    */
   updateItem(skuId: string, data: UpdateItemParams) {
-    return http({
+    return http<Cart>({
       method: 'PUT',
       url: `/account/cart/items/${skuId}`,
       data,
@@ -77,7 +77,7 @@ export const cartApi = {
    * @param data 是否全选
    */
   updateAllSelection(data: { selected: boolean }) {
-    return http({
+    return http<Cart>({
       method: 'POST',
       url: '/account/cart:updateSelection',
       data,
