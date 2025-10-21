@@ -52,7 +52,7 @@ export const cartApi = {
    * @param data 包含skuId数组的对象
    */
   removeItems(data: { skuIds: string[] }) {
-    return http({
+    return http<Cart>({
       method: 'POST',
       url: '/account/cart:batchDelete',
       data,

@@ -9,72 +9,16 @@
       @refresherrefresh="onRefresh"
       :refresher-triggered="isRefreshing"
     >
-      <view class="cart-item" v-for="item in cartData.items" :key="item.id">
-        <view class="item-main">
-          <image
-            :src="item.sku.image"
-            class="item-image"
-            mode="aspectFill"
-            @click="goToProductDetail(item.sku.productId)"
-          ></image>
-
-          <view class="item-content-wrapper">
-            <view class="item-info" @click="goToProductDetail(item.sku.productId)">
-              <text class="item-name">{{ item.sku.name }}</text>
-              <text class="item-specs">{{ item.sku.specs }}</text>
-            </view>
-
-            <view class="item-controls">
-              <view class="quantity-stepper">
-                <button @click="decreaseQuantity(item)" :disabled="item.quantity <= 1">-</button>
-                <text>{{ item.quantity }}</text>
-                <button
-                  @click="increaseQuantity(item)"
-                  :disabled="item.quantity >= item.availableQuantity"
-                >
-                  +
-                </button>
-              </view>
-              <view class="price-info">
-                <text class="current-price">¥{{ item.sku.adjustedPrice }}</text>
-                <text class="original-price">¥{{ item.sku.strikeThroughPrice.toFixed(2) }} </text>
-              </view>
-            </view>
-
-            <view class="purchase-type-selector">
-              <view
-                class="type-option"
-                :class="{ active: item.purchaseType === 0 }"
-                @click="togglePurchaseType(item, 0)"
-              >
-                <view class="radio-circle"></view>
-                <text
-                  >买一次<text v-if="item.sku.onceDiscount > 0" class="save-highlight"
-                    >省{{ item.sku.onceDiscountRate }}%（-¥{{
-                      item.sku.onceDiscount.toFixed(2)
-                    }}）</text
-                  ></text
-                >
-              </view>
-              <view
-                class="type-option"
-                :class="{ active: item.purchaseType === 1 }"
-                @click="togglePurchaseType(item, 1)"
-                v-if="item.sku.supportSubscription"
-              >
-                <view class="radio-circle"></view>
-                <text
-                  >订阅并<text class="save-highlight"
-                    >省{{ item.sku.subscriptionDiscountRate }}%（-¥{{
-                      item.sku.subscriptionDiscount.toFixed(2)
-                    }}）</text
-                  ></text
-                >
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
+      <CartItemCard
+        v-for="item in cartData.items"
+        :key="item.id"
+        :item="item"
+        @increase="increaseQuantity"
+        @decrease="decreaseQuantity"
+        @delete="deleteItem"
+        @toggle-purchase-type="handleTogglePurchaseType"
+        @go-to-product-detail="goToProductDetail"
+      />
 
       <view v-if="cartData.items.length === 0" class="empty-cart">
         <image
@@ -117,7 +61,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-// 修正导入路径
 import { cartApi } from '@/api/cart'
 import type { Cart } from '@/types/cart'
 import type { Item } from '@/types/checkout'
@@ -139,17 +82,14 @@ const cartData = ref<Cart>(defaultCart)
 const isRefreshing = ref(false)
 
 // --- 计算属性 ---
-
 /** 实际已节省的金额（subtotal - grandTotal） */
 const totalDiscount = computed(() => {
   const discount = cartData.value.subtotal - cartData.value.grandTotal
-  // 确保折扣金额不为负
   return discount > 0 ? discount : 0
 })
 
 /** 距离免运费门槛还差多少 */
 const shippingDifference = computed(() =>
-  // 免运费门槛 - 参与免运费活动的商品总额
   Math.max(0, cartData.value.freeShippingThreshold - cartData.value.freeShippingEligibleAmount),
 )
 
@@ -157,8 +97,7 @@ const shippingDifference = computed(() =>
 const shippingProgress = computed(() => {
   const threshold = cartData.value.freeShippingThreshold
   const eligibleAmount = cartData.value.freeShippingEligibleAmount
-  if (threshold <= 0) return 100 // 避免除零或无门槛
-
+  if (threshold <= 0) return 100
   const progress = (eligibleAmount / threshold) * 100
   return Math.min(progress, 100)
 })
@@ -169,11 +108,9 @@ const shippingProgress = computed(() => {
  * 获取购物车详情 (用于初始化和刷新)
  */
 const fetchCartData = async () => {
-  // 仅在手动下拉刷新时设置动画状态
   if (!isRefreshing.value) {
-    // 假设非手动刷新时不需要加载动画
+    // 仅在非刷新状态下显示加载提示
   }
-
   try {
     const res = await cartApi.get()
     if (res && res.result) {
@@ -189,83 +126,93 @@ const fetchCartData = async () => {
   }
 }
 
-/**
- * 更新商品数量 (增加)
- */
 const increaseQuantity = async (item: Item) => {
   if (item.quantity >= item.availableQuantity) {
     uni.showToast({ title: '已达到最大库存', icon: 'none' })
     return
   }
-
-  const newQuantity = item.quantity + 1
   try {
-    await cartApi.updateItem(item.sku.skuId as string, { quantity: newQuantity })
-    await fetchCartData()
+    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity + 1 })
+    if (res && res.result) {
+      cartData.value = res.result
+    }
   } catch (error) {
     console.error('增加数量失败', error)
   }
 }
 
-/**
- * 更新商品数量 (减少或删除)
- */
 const decreaseQuantity = async (item: Item) => {
-  const newQuantity = item.quantity - 1
   try {
-    await cartApi.updateItem(item.sku.skuId as string, { quantity: newQuantity })
-    await fetchCartData()
+    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity - 1 })
+    if (res && res.result) {
+      cartData.value = res.result
+    }
   } catch (error) {
     console.error('减少数量失败', error)
   }
 }
 
-/**
- * 切换购买方式 (0: 买一次, 1: 订阅)
- */
+const deleteItem = async (item: Item) => {
+  try {
+    const res = await cartApi.removeItems({ skuIds: [item.sku.skuId as string] })
+    // 直接使用 removeItems 的返回结果更新购物车
+    if (res && res.result) {
+      cartData.value = res.result
+    }
+  } catch (error) {
+    console.error('删除失败', error)
+  }
+}
+
 const togglePurchaseType = async (item: Item, type: 0 | 1) => {
   if (item.purchaseType !== type) {
     try {
-      await cartApi.updateItem(item.sku.skuId as string, { purchaseType: type })
-      await fetchCartData()
+      const res = await cartApi.updateItem(item.sku.skuId as string, { purchaseType: type })
+      if (res && res.result) {
+        cartData.value = res.result
+      }
     } catch (error) {
       console.error('切换购买方式失败', error)
     }
   }
 }
 
-// --- 事件处理函数 ---
+// --- 事件处理函数 (逻辑不变) ---
 
 const onRefresh = async () => {
   isRefreshing.value = true
   await fetchCartData()
 }
 
+/**
+ * (公共)
+ * 用于 @toggle-purchase-type 事件的包装器
+ */
+const handleTogglePurchaseType = (payload: { item: Item; type: 0 | 1 }) => {
+  togglePurchaseType(payload.item, payload.type)
+}
+
 const handleCheckout = () => {
-  // uni.navigateTo({ url: `/pages/checkout/checkout?cartId=${cartData.value.id}` })
   console.log('去结算，Cart ID：', cartData.value.id)
 }
-
 const goToProductDetail = (id: string | number) => {
-  // uni.navigateTo({ url: `/pages/product/detail?id=${id}` })
   console.log('查看商品详情：', id)
 }
-
 const goShopping = () => {
-  // uni.switchTab({ url: '/pages/index/index' })
   console.log('去逛逛')
 }
 
-// 页面加载时获取数据
 onMounted(() => {
   fetchCartData()
 })
 </script>
 
 <style lang="scss" scoped>
-/* SCSS 变量定义 */
-
-// uni-app 的 page 自动引入了 $uni-xxx 变量，直接在样式中使用即可。
+/*
+  父组件的样式表
+  只包含页面布局、空状态 和 底部栏 的样式
+  .cart-item 的样式已移至 CartItemCard.vue
+*/
 
 .cart-page {
   display: flex;
@@ -316,7 +263,6 @@ onMounted(() => {
     margin-top: $uni-spacing-col-base;
     display: block;
     .highlight {
-      // 使用 $uni-color-warning
       color: $uni-color-warning;
       font-weight: bold;
     }
@@ -331,140 +277,6 @@ onMounted(() => {
   overflow-y: auto;
   padding: $uni-spacing-col-lg $uni-spacing-row-lg;
   box-sizing: border-box;
-}
-
-.cart-item {
-  background-color: $uni-bg-color;
-  border-radius: $uni-border-radius-lg;
-  padding: $uni-spacing-row-lg;
-  margin-bottom: $uni-spacing-col-lg;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  position: relative;
-
-  .item-main {
-    display: flex;
-  }
-
-  .item-image {
-    width: 160rpx;
-    height: 160rpx;
-    border-radius: $uni-border-radius-base;
-    margin-right: $uni-spacing-row-base;
-    flex-shrink: 0;
-    background-color: $uni-bg-color-grey;
-    cursor: pointer;
-  }
-
-  .item-content-wrapper {
-    flex: 1;
-  }
-
-  .item-info {
-    padding-right: 40rpx;
-    cursor: pointer;
-    .item-name {
-      display: block;
-      font-size: $uni-font-size-base;
-      font-weight: 600;
-      color: $uni-text-color;
-      margin-bottom: $uni-spacing-col-sm;
-    }
-    .item-specs {
-      display: block;
-      font-size: $uni-font-size-sm;
-      color: $uni-text-color-grey;
-    }
-  }
-
-  .purchase-type-selector {
-    margin-top: $uni-spacing-col-lg;
-    .type-option {
-      display: flex;
-      align-items: center;
-      padding: $uni-spacing-col-sm 0;
-      font-size: $uni-font-size-sm;
-      .radio-circle {
-        width: 16px;
-        height: 16px;
-        border-radius: $uni-border-radius-circle;
-        border: 1px solid $uni-border-color;
-        margin-right: $uni-spacing-row-base;
-        position: relative;
-      }
-      .save-highlight {
-        color: $uni-color-error;
-        font-weight: bold;
-        margin-left: $uni-spacing-row-sm;
-      }
-      &.active {
-        .radio-circle {
-          border-color: $uni-color-primary;
-          &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 8px;
-            height: 8px;
-            border-radius: $uni-border-radius-circle;
-            background-color: $uni-color-primary;
-          }
-        }
-      }
-    }
-  }
-
-  .item-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 50rpx;
-  }
-
-  .quantity-stepper {
-    display: flex;
-    align-items: center;
-    border: 1px solid $uni-border-color;
-    border-radius: 30rpx;
-    button {
-      background-color: transparent;
-      padding: 0;
-      margin: 0 20rpx;
-      font-size: 40rpx;
-      line-height: 50rpx;
-      width: 50rpx;
-      height: 50rpx;
-      color: $uni-text-color;
-      &:after {
-        display: none;
-      }
-      &[disabled] {
-        color: $uni-text-color-disable;
-      }
-    }
-    text {
-      font-size: $uni-font-size-base;
-      font-weight: 500;
-      min-width: 60rpx;
-      text-align: center;
-    }
-  }
-
-  .price-info {
-    text-align: right;
-    .current-price {
-      font-size: 32rpx;
-      font-weight: bold;
-      color: $uni-color-primary;
-    }
-    .original-price {
-      font-size: 24rpx;
-      color: $uni-text-color-grey;
-      text-decoration: line-through;
-      display: block;
-    }
-  }
 }
 
 .empty-cart {
