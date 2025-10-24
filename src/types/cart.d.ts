@@ -1,4 +1,4 @@
-import { Item } from './checkout'
+import { Item, DiscountDetail } from './checkout'
 /** 购物车类型 */
 export type CartItem = {
   /** 商品 ID */
@@ -52,5 +52,8 @@ export interface Cart {
   freeShippingThreshold: number
   // 参与面运费满免运费活动的金额
   freeShippingEligibleAmount: number
+  // 优惠、折扣
+  discountDetails: DiscountDetail[]
+
   items: Item[]
 }

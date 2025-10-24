@@ -11,7 +11,7 @@ type Data<T> = {
   result: T
 }
 
-const delay = (ms = 1000) => new Promise((r) => setTimeout(r, ms))
+const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms))
 
 // In-memory stores
 const addresses: Array<any> = []

@@ -5,19 +5,12 @@
     </view>
     <CustomNavigationBar title="购物车"></CustomNavigationBar>
 
-    <scroll-view
-      scroll-y
-      class="scroll-view-container"
-      :refresher-enabled="true"
-      @refresherrefresh="onRefresh"
-      :refresher-triggered="isRefreshing"
-    >
+    <scroll-view scroll-y class="scroll-view-container">
       <CartItemCard
         v-for="item in cartData.items"
         :key="item.id"
         :item="item"
-        @increase="increaseQuantity"
-        @decrease="decreaseQuantity"
+        @setQuantity="handleSetQuantity"
         @delete="deleteItem"
         @toggle-purchase-type="handleTogglePurchaseType"
         @go-to-product-detail="goToProductDetail"
@@ -82,7 +75,6 @@ const defaultCart: Cart = {
 
 // --- 响应式数据 ---
 const cartData = ref<Cart>(defaultCart)
-const isRefreshing = ref(false)
 const isLoading = ref(true)
 
 // --- 计算属性 ---
@@ -113,9 +105,7 @@ const shippingProgress = computed(() => {
  */
 const fetchCartData = async () => {
   isLoading.value = true
-  if (!isRefreshing.value) {
-    // 仅在非刷新状态下显示加载提示
-  }
+
   try {
     const res = await cartApi.get()
     if (res && res.result) {
@@ -127,38 +117,33 @@ const fetchCartData = async () => {
     console.error('获取购物车失败', error)
     uni.showToast({ title: '加载失败，请重试', icon: 'none' })
   } finally {
-    isRefreshing.value = false
     isLoading.value = false
   }
 }
 
-const increaseQuantity = async (item: Item) => {
-  if (item.quantity >= item.availableQuantity) {
+// 【新】处理所有数量更新的函数
+const handleSetQuantity = async (payload: { item: Item; quantity: number }) => {
+  const { item, quantity } = payload
+
+  // 可以在这里添加前端的校验
+  if (quantity > item.availableQuantity) {
     uni.showToast({ title: '已达到最大库存', icon: 'none' })
     return
   }
-  isLoading.value = true
-  try {
-    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity + 1 })
-    if (res && res.result) {
-      cartData.value = res.result
-    }
-  } catch (error) {
-    console.error('增加数量失败', error)
-  } finally {
-    isLoading.value = false
+  if (quantity < 1) {
+    // 理论上 QuantityInput 的 min=1 会阻止此情况，但双重保险
+    return
   }
-}
 
-const decreaseQuantity = async (item: Item) => {
   isLoading.value = true
   try {
-    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity - 1 })
+    // 调用同一个更新 API，但传入的是确切的 `quantity` 值
+    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: quantity })
     if (res && res.result) {
       cartData.value = res.result
     }
   } catch (error) {
-    console.error('减少数量失败', error)
+    console.error('更新数量失败', error)
   } finally {
     isLoading.value = false
   }
@@ -198,11 +183,6 @@ const togglePurchaseType = async (item: Item, type: 0 | 1) => {
 
 // --- 事件处理函数 (逻辑不变) ---
 
-const onRefresh = async () => {
-  isRefreshing.value = true
-  await fetchCartData()
-}
-
 /**
  * (公共)
  * 用于 @toggle-purchase-type 事件的包装器
@@ -227,17 +207,24 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/*
-  父组件的样式表
-  只包含页面布局、空状态 和 底部栏 的样式
-  .cart-item 的样式已移至 CartItemCard.vue
-*/
-
 .cart-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: $uni-bg-color-grey;
+}
+
+.loading-overlay {
+  position: fixed; /* 改为固定定位，使其脱离文档流，成为真正的“遮罩” */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.7); /* 半透明背景 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* 确保在最上层 */
 }
 
 .custom-nav-bar {

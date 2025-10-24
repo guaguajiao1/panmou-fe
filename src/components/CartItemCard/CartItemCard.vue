@@ -27,13 +27,16 @@
     </view>
 
     <view class="item-bottom-controls">
-      <view class="quantity-stepper">
-        <button @click="onDecrease" :disabled="props.item.quantity <= 1">-</button>
-        <text>{{ props.item.quantity }}</text>
-        <button @click="onIncrease" :disabled="props.item.quantity >= props.item.availableQuantity">
-          +
-        </button>
-      </view>
+      <QuantityInput
+        class="quantity-stepper"
+        :modelValue="props.item.quantity"
+        :min="1"
+        :max="props.item.availableQuantity"
+        @change="onQuantityChange"
+        :inputWidth="60"
+        :inputHeight="50"
+        :size="28"
+      />
 
       <view class="purchase-type-selector">
         <view
@@ -72,6 +75,7 @@
 
 <script setup lang="ts">
 import type { Item } from '@/types/checkout'
+import type { InputNumberBoxEvent } from '@/components/QuantityInput/QuantityInput.ts'
 
 // 1. Props: 定义组件需要从外部接收什么数据
 // 确保导入 Item 类型
@@ -82,22 +86,19 @@ const props = defineProps<Props>()
 
 // 2. Emits: 定义组件能向外发出哪些事件
 const emit = defineEmits<{
+  (e: 'setQuantity', payload: { item: Item; quantity: number }): void
   (e: 'increase', item: Item): void
-  (e: 'decrease', item: Item): void
   (e: 'delete', item: Item): void
   (e: 'togglePurchaseType', payload: { item: Item; type: 0 | 1 }): void
   (e: 'goToProductDetail', productId: string | number): void
 }>()
 
-// 3. 本地事件处理器: 调用 emit 向父组件发送事件
-const onIncrease = () => {
-  emit('increase', props.item)
+const onQuantityChange = (event: InputNumberBoxEvent) => {
+  // 只有当值真的发生变化时才通知父组件
+  if (event.value !== props.item.quantity) {
+    emit('setQuantity', { item: props.item, quantity: event.value })
+  }
 }
-
-const onDecrease = () => {
-  emit('decrease', props.item)
-}
-
 const onDelete = () => {
   emit('delete', props.item)
 }
@@ -236,35 +237,14 @@ const onGoToProductDetail = () => {
     }
   }
 
+  /*
+    【已修改】
+    删除了旧的 .quantity-stepper 及其子元素 (button, text) 的样式。
+    只保留了 flex-shrink 属性，用于控制 QuantityInput 组件在父布局中的行为。
+    QuantityInput 组件将负责自己的内部样式（如边框、圆角等）。
+  */
   .quantity-stepper {
-    display: flex;
-    align-items: center;
-    border: 1px solid $uni-border-color;
-    border-radius: 30rpx;
     flex-shrink: 0;
-
-    button {
-      background-color: transparent;
-      padding: 0;
-      margin: 0 20rpx;
-      font-size: 40rpx;
-      line-height: 50rpx;
-      width: 50rpx;
-      height: 50rpx;
-      color: $uni-text-color;
-      &:after {
-        display: none;
-      }
-      &[disabled] {
-        color: $uni-text-color-disable;
-      }
-    }
-    text {
-      font-size: $uni-font-size-base;
-      font-weight: 500;
-      min-width: 60rpx;
-      text-align: center;
-    }
   }
 
   .delete-button {

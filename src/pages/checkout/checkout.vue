@@ -102,8 +102,7 @@
           v-for="item in orderPreview.items"
           :key="item.id"
           :item="item"
-          @increase="increaseQuantity"
-          @decrease="decreaseQuantity"
+          @setQuantity="handleSetQuantity"
           @delete="deleteItem"
           @toggle-purchase-type="handleTogglePurchaseType"
           @go-to-product-detail="goToProductDetail"
@@ -364,27 +363,14 @@ const placeOrder = async () => {
   }
 }
 
-// UI handlers
-const increaseQuantity = (item: Item) => {
-  const current = item.quantity ?? 0
-  const max = item.availableQuantity ?? 10
-  const quantity = Math.min(current + 1, max)
+const handleSetQuantity = (payload: { item: Item; quantity: number }) => {
+  const { item, quantity } = payload
   updateItem({
     itemId: item.id,
     quantity: quantity,
     purchaseType: item.purchaseType,
   })
 }
-const decreaseQuantity = (item: Item) => {
-  const current = item.quantity ?? 0
-  const quantity = Math.max(0, current - 1)
-  updateItem({
-    itemId: item.id,
-    quantity: quantity,
-    purchaseType: item.purchaseType,
-  })
-}
-
 const toggleGlobalSubscription = (subscribe: boolean) => {
   updateGlobalSubscription(subscribe)
 }

@@ -33,7 +33,9 @@
 		{
 			"path": "pages/cart/cart",
 			"style": {
-				"navigationBarTitleText": "购物车"
+				"navigationBarTitleText": "购物车",
+        "enablePullDownRefresh": false
+
 			}
 		},
 		{
@@ -46,7 +48,7 @@
 			"path": "pages/checkout/checkout",
 			"style": {
 				"navigationBarTitleText": "确认订单",
-         "enablePullDownRefresh": true
+         "enablePullDownRefresh": false
 			}
 		},
 		{
