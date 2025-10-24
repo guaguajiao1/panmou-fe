@@ -98,69 +98,16 @@
 
       <view class="section-card product-list-section">
         <view class="section-title">您的商品</view>
-        <view class="cart-item" v-for="item in orderPreview.items" :key="item.id">
-          <view class="item-main">
-            <image
-              :src="item.sku.image"
-              class="item-image"
-              mode="aspectFill"
-              @click="goToProductDetail(item)"
-            ></image>
-            <view class="item-content-wrapper">
-              <view class="item-info" @click="goToProductDetail(item)">
-                <text class="item-name">{{ item.sku.name }}</text>
-                <text class="item-specs">{{ item.sku.specs }}</text>
-              </view>
-              <view class="item-controls">
-                <view class="quantity-stepper">
-                  <button @click="decreaseQuantity(item)" :disabled="item.quantity <= 0">-</button>
-                  <text>{{ item.quantity }}</text>
-                  <button
-                    @click="increaseQuantity(item)"
-                    :disabled="item.quantity >= item.availableQuantity"
-                  >
-                    +
-                  </button>
-                </view>
-                <view class="price-info">
-                  <text class="current-price"> ¥{{ item.sku.adjustedPrice }} </text>
-                  <text class="original-price"> ¥{{ item.sku.strikeThroughPrice }} </text>
-                </view>
-              </view>
-              <view class="purchase-type-selector">
-                <view
-                  class="type-option"
-                  :class="{ active: item.purchaseType === 0 }"
-                  @click="togglePurchaseType(item, 'once')"
-                >
-                  <view class="radio-circle"></view>
-                  <text>
-                    买一次
-                    <text v-if="item.sku.onceDiscount > 0" class="save-highlight">
-                      省{{ item.sku.onceDiscountRate }}%（-¥{{ item.sku.onceDiscount }}）
-                    </text>
-                  </text>
-                </view>
-                <view
-                  class="type-option"
-                  :class="{ active: item.purchaseType === 1 }"
-                  @click="togglePurchaseType(item, 'subscribe')"
-                  v-if="item.sku?.supportSubscription"
-                >
-                  <view class="radio-circle"></view>
-                  <text>
-                    订阅并
-                    <text class="save-highlight">
-                      省{{ item.sku.subscriptionDiscountRate }}%（-¥{{
-                        item.sku.subscriptionDiscount
-                      }}）
-                    </text>
-                  </text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
+        <CartItemCard
+          v-for="item in orderPreview.items"
+          :key="item.id"
+          :item="item"
+          @increase="increaseQuantity"
+          @decrease="decreaseQuantity"
+          @delete="deleteItem"
+          @toggle-purchase-type="handleTogglePurchaseType"
+          @go-to-product-detail="goToProductDetail"
+        />
       </view>
 
       <view class="section-card payment-section">
@@ -320,17 +267,12 @@ const loadPreview = async () => {
   }
 }
 
-const updateItem = async (item: any) => {
+const updateItem = async (item: { itemId: string; quantity: number; purchaseType: 0 | 1 }) => {
   if (!previewId.value) await loadPreview()
   if (!previewId.value) return
   const params: UpdatePreviewParams = {
     updateField: 'ITEM',
-    itemLevelSelection: {
-      itemId: item.id,
-      partNumber: String(item.sku?.skuId ?? item.id),
-      quantity: item.quantity,
-      purchaseType: item.purchaseType === 1 ? 1 : 0,
-    },
+    itemLevelSelection: item,
   }
   isLoading.value = true
   try {
@@ -342,6 +284,14 @@ const updateItem = async (item: any) => {
   } finally {
     isLoading.value = false
     console.log('updateItem completed orderPreview=', orderPreview.value)
+  }
+}
+
+const deleteItem = async (item: Item) => {
+  try {
+    // Reuse updateItem with quantity 0 to delete
+  } catch (error) {
+    console.error('删除失败', error)
   }
 }
 
@@ -418,26 +368,39 @@ const placeOrder = async () => {
 const increaseQuantity = (item: Item) => {
   const current = item.quantity ?? 0
   const max = item.availableQuantity ?? 10
-  item.quantity = Math.min(current + 1, max)
-  updateItem(item)
+  const quantity = Math.min(current + 1, max)
+  updateItem({
+    itemId: item.id,
+    quantity: quantity,
+    purchaseType: item.purchaseType,
+  })
 }
 const decreaseQuantity = (item: Item) => {
   const current = item.quantity ?? 0
-  item.quantity = Math.max(0, current - 1)
-  updateItem(item)
+  const quantity = Math.max(0, current - 1)
+  updateItem({
+    itemId: item.id,
+    quantity: quantity,
+    purchaseType: item.purchaseType,
+  })
 }
 
 const toggleGlobalSubscription = (subscribe: boolean) => {
   updateGlobalSubscription(subscribe)
 }
 
-const togglePurchaseType = (item: Item, type: 'once' | 'subscribe') => {
-  if (item.sku?.supportSubscription) {
-    item.purchaseType = type === 'subscribe' ? 1 : 0
-  } else {
-    item.purchaseType = 0
+const handleTogglePurchaseType = (payload: { item: Item; type: 0 | 1 }) => {
+  togglePurchaseType(payload.item, payload.type)
+}
+
+const togglePurchaseType = (item: Item, type: 0 | 1) => {
+  if (item.purchaseType !== type) {
+    updateItem({
+      itemId: item.id,
+      quantity: item.quantity,
+      purchaseType: type,
+    })
   }
-  updateItem(item)
 }
 
 const onFrequencyChange = () => {

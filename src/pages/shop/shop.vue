@@ -23,6 +23,9 @@
   <view class="navigate_checkout">
     <button @click="goPlaceOrder()">Go to Place Order</button>
   </view>
+  <view class="navigate_subscription">
+    <button @click="goSubscription()">Go to Subscription</button>
+  </view>
 </template>
 
 <script lang="ts" setup>
@@ -43,6 +46,12 @@ function goChewyCart() {
 function goPlaceOrder() {
   uni.navigateTo({
     url: '/pages/checkout/checkout?previewId=1',
+  })
+}
+
+function goSubscription() {
+  uni.navigateTo({
+    url: '/pages/subscription/subscription',
   })
 }
 </script>

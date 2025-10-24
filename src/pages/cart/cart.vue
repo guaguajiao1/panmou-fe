@@ -1,5 +1,8 @@
 <template>
   <view class="cart-page">
+    <view class="loading-overlay" v-if="isLoading">
+      <uni-load-more status="loading" :showText="false"></uni-load-more>
+    </view>
     <CustomNavigationBar title="购物车"></CustomNavigationBar>
 
     <scroll-view
@@ -47,9 +50,9 @@
         <text class="subtotal-label">合计:</text>
         <view class="subtotal-price">
           <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
-          <text class="original-total" v-if="totalDiscount > 0"
-            >已省 ¥{{ totalDiscount.toFixed(2) }}</text
-          >
+          <text class="original-total" v-if="totalDiscount > 0">
+            已省 ¥{{ totalDiscount.toFixed(2) }}
+          </text>
         </view>
       </view>
       <button class="checkout-button" @click="handleCheckout">
@@ -80,6 +83,7 @@ const defaultCart: Cart = {
 // --- 响应式数据 ---
 const cartData = ref<Cart>(defaultCart)
 const isRefreshing = ref(false)
+const isLoading = ref(true)
 
 // --- 计算属性 ---
 /** 实际已节省的金额（subtotal - grandTotal） */
@@ -108,6 +112,7 @@ const shippingProgress = computed(() => {
  * 获取购物车详情 (用于初始化和刷新)
  */
 const fetchCartData = async () => {
+  isLoading.value = true
   if (!isRefreshing.value) {
     // 仅在非刷新状态下显示加载提示
   }
@@ -123,6 +128,7 @@ const fetchCartData = async () => {
     uni.showToast({ title: '加载失败，请重试', icon: 'none' })
   } finally {
     isRefreshing.value = false
+    isLoading.value = false
   }
 }
 
@@ -131,6 +137,7 @@ const increaseQuantity = async (item: Item) => {
     uni.showToast({ title: '已达到最大库存', icon: 'none' })
     return
   }
+  isLoading.value = true
   try {
     const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity + 1 })
     if (res && res.result) {
@@ -138,10 +145,13 @@ const increaseQuantity = async (item: Item) => {
     }
   } catch (error) {
     console.error('增加数量失败', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
 const decreaseQuantity = async (item: Item) => {
+  isLoading.value = true
   try {
     const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: item.quantity - 1 })
     if (res && res.result) {
@@ -149,10 +159,13 @@ const decreaseQuantity = async (item: Item) => {
     }
   } catch (error) {
     console.error('减少数量失败', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
 const deleteItem = async (item: Item) => {
+  isLoading.value = true
   try {
     const res = await cartApi.removeItems({ skuIds: [item.sku.skuId as string] })
     // 直接使用 removeItems 的返回结果更新购物车
@@ -161,11 +174,14 @@ const deleteItem = async (item: Item) => {
     }
   } catch (error) {
     console.error('删除失败', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
 const togglePurchaseType = async (item: Item, type: 0 | 1) => {
   if (item.purchaseType !== type) {
+    isLoading.value = true
     try {
       const res = await cartApi.updateItem(item.sku.skuId as string, { purchaseType: type })
       if (res && res.result) {
@@ -173,6 +189,9 @@ const togglePurchaseType = async (item: Item, type: 0 | 1) => {
       }
     } catch (error) {
       console.error('切换购买方式失败', error)
+    } finally {
+      // 修复：} 和 finally 之间缺少空格
+      isLoading.value = false
     }
   }
 }

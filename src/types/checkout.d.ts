@@ -118,7 +118,7 @@ export interface Sku {
 }
 
 export interface Item {
-  id: number | string
+  id: string
   quantity: number
   totalPrice: number
   totalDiscount: number
@@ -165,8 +165,7 @@ export interface UpdatePreviewParams {
   updateField: UpdateField
   addressId?: number | string
   itemLevelSelection?: {
-    itemId: number
-    partNumber: string
+    itemId: string
     quantity: number
     purchaseType: 0 | 1
   }

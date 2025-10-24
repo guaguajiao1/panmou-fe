@@ -60,7 +60,12 @@
 			"style": {
 				"navigationBarTitleText": "address"
 			}
-		}
+		}, {
+      "path": "pages/subscription/subscription",
+      "style": {
+        "navigationBarTitleText": "订阅管理"
+      }
+    }
 	],
 	"globalStyle": {
     "navigationStyle": "custom"

@@ -11,7 +11,7 @@ type Data<T> = {
   result: T
 }
 
-const delay = (ms = 200) => new Promise((r) => setTimeout(r, ms))
+const delay = (ms = 1000) => new Promise((r) => setTimeout(r, ms))
 
 // In-memory stores
 const addresses: Array<any> = []
@@ -168,7 +168,7 @@ const computeCart = (cart: Cart) => {
 ;(function createSamplePreviews() {
   const items1: Item[] = [
     {
-      id: 101,
+      id: '101',
       quantity: 2,
       totalPrice: 0,
       totalDiscount: 0,
@@ -196,7 +196,7 @@ const computeCart = (cart: Cart) => {
       },
     },
     {
-      id: 201,
+      id: '201',
       quantity: 1,
       totalPrice: 0,
       totalDiscount: 0,
