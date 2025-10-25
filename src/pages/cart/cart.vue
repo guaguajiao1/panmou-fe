@@ -25,7 +25,7 @@
         <text>购物车还是空的哦</text>
         <button class="go-shopping-btn" @click="goShopping">去逛逛</button>
       </view>
-      <view style="height: 120rpx"></view>
+      <view style="height: 220rpx"></view>
     </scroll-view>
 
     <view class="cart-footer" v-if="cartData.items.length > 0">
@@ -40,18 +40,53 @@
       </view>
 
       <view class="subtotal-info">
-        <text class="subtotal-label">合计:</text>
-        <view class="subtotal-price">
-          <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
-          <text class="original-total" v-if="totalDiscount > 0">
-            已省 ¥{{ totalDiscount.toFixed(2) }}
+        <view class="top-row">
+          <text class="subtotal-label">合计:</text>
+          <view class="price-row">
+            <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
+            <text class="original-total" v-if="totalDiscount > 0">
+              ¥{{ cartData.subtotal.toFixed(2) }}
+            </text>
+          </view>
+        </view>
+        <view class="bottom-row">
+          <text class="details-link" @click="openDiscountDetails" v-if="totalDiscount > 0">
+            明细
           </text>
         </view>
       </view>
+
       <button class="checkout-button" @click="handleCheckout">
         去结算 ({{ cartData.totalItemQuantity }})
       </button>
     </view>
+
+    <uni-popup ref="discountPopup" type="bottom" background-color="#fff">
+      <view class="discount-popup-content">
+        <view class="popup-header">
+          <text class="popup-title">费用明细</text>
+          <text class="popup-close" @click="closeDiscountDetails">✕</text>
+        </view>
+        <scroll-view scroll-y class="popup-body">
+          <view class="detail-row">
+            <text>商品总价</text>
+            <text>¥{{ cartData.subtotal.toFixed(2) }}</text>
+          </view>
+          <view
+            class="detail-row"
+            v-for="discount in cartData.discountDetails"
+            :key="discount.promotionId"
+          >
+            <text>{{ discount.label }}</text>
+            <text class="discount-amount">¥{{ discount.amount.toFixed(2) }}</text>
+          </view>
+        </scroll-view>
+        <view class="popup-footer">
+          <text>合计</text>
+          <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
+        </view>
+      </view>
+    </uni-popup>
   </view>
 </template>
 
@@ -60,8 +95,10 @@ import { ref, computed, onMounted } from 'vue'
 import { cartApi } from '@/api/cart'
 import type { Cart } from '@/types/cart'
 import type { Item } from '@/types/checkout'
+// 导入 uni-popup 的类型，如果需要更严格的类型检查
+// import type { UniPopup } from '@dcloudio/uni-ui'
 
-// --- 默认购物车数据结构（应与Cart类型严格一致） ---
+// --- 默认购物车数据结构 ---
 const defaultCart: Cart = {
   id: '',
   totalItemQuantity: 0,
@@ -70,12 +107,15 @@ const defaultCart: Cart = {
   shippingFee: 0,
   freeShippingThreshold: 50,
   freeShippingEligibleAmount: 0,
+  discountDetails: [],
   items: [],
 }
 
 // --- 响应式数据 ---
 const cartData = ref<Cart>(defaultCart)
 const isLoading = ref(true)
+// 弹窗 Ref (需求 3)
+const discountPopup = ref<any>(null) // 使用 any 简化，或者使用 InstanceType<typeof UniPopup>
 
 // --- 计算属性 ---
 /** 实际已节省的金额（subtotal - grandTotal） */
@@ -97,6 +137,20 @@ const shippingProgress = computed(() => {
   const progress = (eligibleAmount / threshold) * 100
   return Math.min(progress, 100)
 })
+
+// --- 弹窗控制方法 (需求 3) ---
+/** 打开优惠明细弹窗 */
+const openDiscountDetails = () => {
+  if (discountPopup.value) {
+    discountPopup.value.open()
+  }
+}
+/** 关闭优惠明细弹窗 */
+const closeDiscountDetails = () => {
+  if (discountPopup.value) {
+    discountPopup.value.close()
+  }
+}
 
 // --- API 方法 ---
 
@@ -175,7 +229,7 @@ const togglePurchaseType = async (item: Item, type: 0 | 1) => {
     } catch (error) {
       console.error('切换购买方式失败', error)
     } finally {
-      // 修复：} 和 finally 之间缺少空格
+      // 修复：} 和 finally 之间缺少空格 (原代码中的备注)
       isLoading.value = false
     }
   }
@@ -227,6 +281,7 @@ onMounted(() => {
   z-index: 1000; /* 确保在最上层 */
 }
 
+/* Custom Nav Bar 样式 (如果 CustomNavigationBar 是全局组件则不需要) */
 .custom-nav-bar {
   display: flex;
   align-items: center;
@@ -244,14 +299,15 @@ onMounted(() => {
   }
 }
 
+/* 运费进度条 (需求 1: 减小 padding 和 height) */
 .shipping-progress-wrapper {
-  padding: $uni-spacing-col-base $uni-spacing-row-lg;
+  padding: $uni-spacing-col-sm $uni-spacing-row-lg;
   background-color: $uni-bg-color;
-  margin-top: $uni-spacing-col-base;
+  // margin-top: $uni-spacing-col-base; // 被移入 footer，不再需要
   width: 100%;
 
   .progress-bar {
-    height: 15px;
+    height: 10px; // 变小
     background-color: $uni-bg-color-grey;
     border-radius: $uni-border-radius-lg;
     overflow: hidden;
@@ -263,10 +319,10 @@ onMounted(() => {
     }
   }
   .progress-text {
-    font-size: $uni-font-size-base;
+    font-size: $uni-font-size-sm; // 变小
     color: $uni-text-color;
     text-align: center;
-    margin-top: $uni-spacing-col-base;
+    margin-top: $uni-spacing-col-sm; // 变小
     display: block;
     .highlight {
       color: $uni-color-warning;
@@ -309,58 +365,148 @@ onMounted(() => {
   }
 }
 
+/* 页脚 (需求 1 & 2: 变小, 变更为 column 布局) */
 .cart-footer {
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column; // (需求 2: 更改)
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background-color: $uni-bg-color;
-  padding: $uni-spacing-col-base $uni-spacing-row-lg;
-  padding-bottom: calc($uni-spacing-col-base + constant(safe-area-inset-bottom));
-  padding-bottom: calc($uni-spacing-col-base + env(safe-area-inset-bottom));
+  padding: $uni-spacing-col-sm $uni-spacing-row-lg; // (需求 1: 减小 padding)
+  padding-bottom: calc($uni-spacing-col-sm + constant(safe-area-inset-bottom));
+  padding-bottom: calc($uni-spacing-col-sm + env(safe-area-inset-bottom));
   border-top: 1px solid $uni-border-color;
   z-index: 99;
 
+  /* 合计信息 (需求 3: 布局调整) */
   .subtotal-info {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-top: $uni-spacing-col-base;
+    flex-direction: column; // 更改为 column
+    justify-content: center;
+    margin-top: $uni-spacing-col-sm;
+    margin-bottom: $uni-spacing-col-sm;
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline; // (关键) 水平对齐 "合计" 和 "价格"
+    }
+
+    .bottom-row {
+      display: flex;
+      justify-content: flex-end; // "明细" 右对齐
+    }
+
     .subtotal-label {
-      font-size: $uni-font-size-base;
+      font-size: 36rpx; // (新需求: 变大)
+      font-weight: bold; // (新需求: 加粗以匹配价格)
       color: $uni-text-color;
     }
-    .subtotal-price {
+
+    /* .subtotal-price-wrapper 已被移除 */
+
+    .price-row {
       display: flex;
-      align-items: center;
-      .final-price {
-        font-size: 40rpx;
-        font-weight: bold;
-        color: $uni-text-color;
-        margin-right: $uni-spacing-row-sm;
-      }
-      .original-total {
-        font-size: $uni-font-size-sm;
-        color: $uni-text-color-grey;
-      }
+      align-items: baseline;
+    }
+
+    .final-price {
+      font-size: 36rpx;
+      font-weight: bold;
+      color: $uni-color-error;
+      margin-right: $uni-spacing-row-sm;
+    }
+    .original-total {
+      font-size: 24rpx;
+      color: $uni-text-color-grey;
+      text-decoration: line-through;
+    }
+    .details-link {
+      font-size: $uni-font-size-sm;
+      color: $uni-color-primary;
+      margin-top: 4rpx;
+      cursor: pointer;
     }
   }
+  /* 结算按钮 (需求 1: 变小) */
   .checkout-button {
     width: 100%;
-    height: 88rpx;
-    line-height: 88rpx;
+    height: 72rpx; // 变小
+    line-height: 72rpx; // 变小
     background-color: $uni-color-primary;
     color: $uni-text-color-inverse;
-    border-radius: 44rpx;
-    font-size: $uni-font-size-lg;
+    border-radius: 36rpx; // 变小
+    font-size: $uni-font-size-base; // 变小
     font-weight: 500;
     text-align: center;
     padding: 0;
     margin: 0;
     &:after {
       display: none;
+    }
+  }
+}
+
+/* 优惠明细弹窗样式 (需求 3) */
+.discount-popup-content {
+  background-color: #fff;
+  border-top-left-radius: 20rpx;
+  border-top-right-radius: 20rpx;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  .popup-header {
+    position: relative;
+    text-align: center;
+    padding: $uni-spacing-col-lg;
+    border-bottom: 1px solid $uni-border-color;
+    .popup-title {
+      font-size: $uni-font-size-lg;
+      font-weight: 600;
+    }
+    .popup-close {
+      position: absolute;
+      right: $uni-spacing-row-lg;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 40rpx;
+      color: $uni-text-color-grey;
+      cursor: pointer;
+    }
+  }
+
+  .popup-body {
+    max-height: 50vh; // 大约半个屏幕
+    padding: $uni-spacing-col-lg $uni-spacing-row-lg;
+    box-sizing: border-box;
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: $uni-font-size-base;
+      margin-bottom: $uni-spacing-col-base;
+      &:last-child {
+        margin-bottom: 0;
+      }
+      .discount-amount {
+        color: $uni-color-error; // 优惠金额(负数)显示为红色
+      }
+    }
+  }
+
+  .popup-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: $uni-spacing-col-lg $uni-spacing-row-lg;
+    border-top: 1px solid $uni-border-color;
+    font-size: $uni-font-size-lg;
+    font-weight: 600;
+    .final-price {
+      font-size: 40rpx;
+      color: $uni-color-error;
     }
   }
 }
