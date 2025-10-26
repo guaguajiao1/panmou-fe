@@ -1,6 +1,6 @@
 <template>
   <view class="page-container">
-    <!-- [MODIFIED] 2. 增加自定义导航栏 -->
+    <!-- 2. 增加自定义导航栏 -->
     <CustomNavigationBar title="订阅详情"></CustomNavigationBar>
 
     <!-- 加载状态 -->
@@ -10,13 +10,21 @@
 
     <!-- 页面内容 -->
     <scroll-view v-if="subscriptionData" scroll-y class="scroll-view-content">
-      <!-- [MODIFIED] 3. 订阅名、rename紧挨着 -->
+      <!-- 1. 订阅名、rename紧挨着, 可编辑 -->
       <view class="subscription-name-bar">
-        <text class="subscription-name">{{ subscriptionData.subscription.name }}</text>
-        <button class="btn-text-link btn-rename">重命名</button>
+        <input
+          v-if="isRenaming"
+          v-model="tempSubscriptionName"
+          class="subscription-name-input"
+          auto-focus
+        />
+        <text v-else class="subscription-name">{{ subscriptionData.subscription.name }}</text>
+        <button class="btn-text-link btn-rename" @click="handleRenameClick">
+          {{ isRenaming ? '保存' : '重命名' }}
+        </button>
       </view>
 
-      <!-- [MODIFIED] 4. 展示successMessage -->
+      <!-- 4. 展示successMessage -->
       <view v-if="successMessage" class="success-banner">
         <uni-icons type="checkbox-filled" color="#4cd964" size="20"></uni-icons>
         <text>{{ successMessage }}</text>
@@ -28,19 +36,28 @@
         ></uni-icons>
       </view>
 
-      <!-- [MODIFIED] 5. 下次订单管理 -->
+      <!-- 5. 下次订单管理 -->
       <uni-card padding="15px" margin="10px">
         <view class="section">
           <text class="section-label">下次订单</text>
+          <!-- 0 & 2. 智能日期格式, 字体已加粗 -->
           <text class="section-value-large">{{
-            formatShortDate(subscriptionData.subscription.fulfillment.nextShipment)
+            formatSmartDate(subscriptionData.subscription.fulfillment.nextShipment)
           }}</text>
+          <!-- 0 & 2. 智能日期时间格式, 字体加粗 -->
           <text class="section-subtitle">
-            请在 {{ formatDateTime(subscriptionData.subscription.authorizationDate) }} 前编辑或跳过
+            请在
+            <text class="text-bold">{{
+              formatDateTime(subscriptionData.subscription.authorizationDate)
+            }}</text>
+            前编辑或跳过
           </text>
           <text class="section-subtitle">
             将在
-            {{ formatShortDate(subscriptionData.subscription.fulfillment.nextShipment) }} 处理付款
+            <text class="text-bold">{{
+              formatSmartDate(subscriptionData.subscription.fulfillment.nextShipment)
+            }}</text>
+            处理付款
           </text>
           <view class="button-group-row">
             <button class="btn-secondary" @click="handleOrderNow">立即配送</button>
@@ -53,15 +70,17 @@
       </uni-card>
 
       <!-- 配送频率 -->
-      <uni-card padding="15px" margin="10px">
+      <uni-card padding="15px" margin="10px" class="frequency-card">
         <view class="row-flex-between">
           <view>
             <text class="section-label">配送频率</text>
-            <text class="section-value">{{
+            <!-- 3. 字体加大加粗加黑 -->
+            <text class="section-value text-bold">{{
               formatFrequency(subscriptionData.subscription.fulfillment.frequency)
             }}</text>
           </view>
-          <button class="btn-text-link" @click="openChangeFreqPopup">更改</button>
+          <!-- 1 & 4. 按钮加长 -->
+          <button class="btn-text-link btn-long" @click="openChangeFreqPopup">更改</button>
         </view>
       </uni-card>
 
@@ -70,17 +89,25 @@
         <view class="row-flex-between">
           <view>
             <text class="section-label">上次订单</text>
-            <text class="section-value">{{
-              formatShortDate(subscriptionData.subscription.orders[0].placed)
+            <!-- 0 & 4. 智能日期格式, 字体加大加粗加黑 -->
+            <text class="section-value text-bold">{{
+              formatSmartDate(subscriptionData.subscription.orders[0].placed)
             }}</text>
           </view>
-          <button class="btn-text-link">查看</button>
+          <!-- 1 & 4. 按钮加长 -->
+          <button
+            class="btn-text-link btn-long"
+            @click="goToOrderDetails(subscriptionData.subscription.orders[0].id)"
+          >
+            查看
+          </button>
         </view>
       </uni-card>
 
-      <!-- [MODIFIED] 7. next order商品列表 -->
+      <!-- 7. next order商品列表 -->
       <view class="list-title">
-        下次订单 {{ formatShortDate(subscriptionData.subscription.fulfillment.nextShipment) }}
+        <!-- 0 & 5. 智能日期格式 -->
+        下次订单 {{ formatSmartDate(subscriptionData.subscription.fulfillment.nextShipment) }}
       </view>
       <uni-card
         v-for="item in activeItems"
@@ -92,14 +119,14 @@
           <image :src="item.item.thumbnail" class="item-image" mode="aspectFit"></image>
           <view class="item-info">
             <text class="item-name">{{ item.item.name }}</text>
-            <!-- [MODIFIED] 7. 划线价 -->
+            <!-- 7. 划线价 -->
             <view class="item-price-row">
               <text class="item-price-final">{{ getItemDisplayPrice(item).finalPrice }}</text>
               <text v-if="getItemDisplayPrice(item).originalPrice" class="item-price-original">
                 {{ getItemDisplayPrice(item).originalPrice }}
               </text>
             </view>
-            <!-- [MODIFIED] 7. QuantityInput -->
+            <!-- 7. QuantityInput -->
             <view class="quantity-stepper">
               <QuantityInput
                 :modelValue="item.quantity"
@@ -113,7 +140,7 @@
             </view>
           </view>
         </view>
-        <!-- [MODIFIED] 7. 按钮平分空间 -->
+        <!-- 7. 按钮平分空间 -->
         <view class="item-actions">
           <button class="btn-text-link" @click="openSkipItemPopup(item)">跳过一次</button>
           <button class="btn-text-link">替换</button>
@@ -121,14 +148,13 @@
         </view>
       </uni-card>
 
-      <!-- [MODIFIED] 7. 虚线框的 add more item -->
+      <!-- 6. 添加更多商品框 (高度加倍) -->
       <view class="add-more-items-card" @click="navigateToAddItems">
-        <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
         <uni-icons type="plus" size="24" class="add-item-icon"></uni-icons>
         <text>添加更多商品</text>
       </view>
 
-      <!-- [MODIFIED] 7. skiped once商品列表 -->
+      <!-- 7. skiped once商品列表 -->
       <template v-if="skippedItems.length > 0">
         <view class="list-title">已跳过商品</view>
         <uni-card
@@ -174,17 +200,17 @@
         </uni-card>
       </template>
 
-      <!-- [MODIFIED] 7. 免运费进度条 (移到列表下方) -->
-      <uni-card padding="15px" margin="10px" class="free-shipping-card">
-        <view class="row-flex-between">
-          <text class="shipping-progress-text"
-            >距免运费还差 ${{ freeShippingShortfall.toFixed(2) }}</text
-          >
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
-          <uni-icons type="info" size="20"></uni-icons>
+      <!-- 7. 免运费进度条 -->
+      <!-- 5. 文字移动到进度条上方 -->
+      <view class="shipping-progress-wrapper">
+        <text class="progress-text" v-if="shippingDifference > 0">
+          还差 <text class="highlight">¥{{ shippingDifference.toFixed(2) }}</text> 即可免运费
+        </text>
+        <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
+        <view class="progress-bar">
+          <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
         </view>
-        <!-- 这里可以放一个进度条 -->
-      </uni-card>
+      </view>
 
       <!-- 订单总览 -->
       <uni-card padding="15px" margin="10px">
@@ -207,22 +233,31 @@
         </view>
       </uni-card>
 
-      <!-- 配送地址 -->
-      <uni-card padding="15px" margin="10px">
-        <view class="row-flex-between">
-          <view>
-            <text class="section-label">配送地址</text>
-            <view class="address-details">
-              <text>{{ subscriptionData.subscription.address.receiver }}</text>
+      <!-- 5. 增加收货地址header -->
+      <view class="list-title">收货地址</view>
+      <!-- 8. 配送地址 -->
+      <view class="section-card address-section" @click="goToAddressManagement">
+        <view class="address-display">
+          <view class="address-info">
+            <view class="address-line-1">
+              <text class="name">{{ subscriptionData.subscription.address.receiver }}</text>
+              <text class="phone">{{ subscriptionData.subscription.address.contact }}</text>
+            </view>
+            <view class="address-line-2">
+              <text class="default-tag" v-if="subscriptionData.subscription.address.isDefault">
+                默认
+              </text>
+              <text> {{ subscriptionData.subscription.address.fullLocation }} </text>
+            </view>
+            <view class="address-line-3">
               <text>{{ subscriptionData.subscription.address.address }}</text>
-              <text>{{ subscriptionData.subscription.address.fullLocation }}</text>
             </view>
           </view>
-          <button class="btn-text-link">更改</button>
+          <uni-icons type="right" size="18" color="#999"></uni-icons>
         </view>
-      </uni-card>
+      </view>
 
-      <!-- [MODIFIED] 8. 删除 Promote code, Gift Card, Payment -->
+      <!-- 8. 删除 Promote code, Gift Card, Payment -->
 
       <!-- 节省横幅 -->
       <view class="savings-banner">
@@ -252,7 +287,6 @@
       <view class="popup-content popup-calendar">
         <view class="popup-header">
           <text class="popup-title">更改下次订单日期</text>
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
           <uni-icons
             type="closeempty"
             size="24"
@@ -277,7 +311,6 @@
       <view class="popup-content popup-center">
         <view class="popup-header">
           <text class="popup-title">跳过下次订单？</text>
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
           <uni-icons
             type="closeempty"
             size="24"
@@ -289,9 +322,10 @@
           <view class="popup-date-box">
             <text class="popup-date-label">新订单日期</text>
             <text class="popup-date-value">
+              <!-- 0. 智能日期格式 -->
               {{
                 subscriptionData
-                  ? formatShortDate(subscriptionData.subscription.fulfillment.followingShipment)
+                  ? formatSmartDate(subscriptionData.subscription.fulfillment.followingShipment)
                   : ''
               }}
             </text>
@@ -304,7 +338,7 @@
       </view>
     </uni-popup>
 
-    <!-- [MODIFIED] 6. 弹窗：修改配送频率 -->
+    <!-- 3. 弹窗：修改配送频率 -->
     <uni-popup
       ref="changeFreqPopupRef"
       type="bottom"
@@ -314,7 +348,6 @@
       <view class="popup-content popup-frequency">
         <view class="popup-header">
           <text class="popup-title">更改配送频率</text>
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
           <uni-icons
             type="closeempty"
             size="24"
@@ -322,12 +355,12 @@
           ></uni-icons>
         </view>
         <scroll-view scroll-y style="max-height: 400px">
+          <!-- [MODIFIED] 3. 修复: 重新添加 :localdata, 插槽使用 options -->
           <uni-data-checkbox
             v-model="tempSelectedFrequencyInterval"
             :localdata="frequencyOptions"
             @change="onFrequencyChange"
           >
-            <!-- [MODIFIED] 4. 移除 data, error -->
             <template #default="{ options }">
               <view
                 v-for="(item, index) in options"
@@ -343,6 +376,7 @@
                 >
                   <text
                     >下次订单:
+                    <!-- [MODIFIED] 3. 修复: 插槽数据源是 item -->
                     {{ getFrequencyPreviewDates(item.originalFrequency).nextDateFormatted }}</text
                   >
                   <text
@@ -373,7 +407,6 @@
       <view class="popup-content popup-center" v-if="selectedItem">
         <view class="popup-header">
           <text class="popup-title">跳过此商品一次？</text>
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
           <uni-icons
             type="closeempty"
             size="24"
@@ -392,9 +425,10 @@
           <view class="popup-date-box">
             <text class="popup-date-label">新订单日期</text>
             <text class="popup-date-value">
+              <!-- 0. 智能日期格式 -->
               {{
                 subscriptionData
-                  ? formatShortDate(subscriptionData.subscription.fulfillment.followingShipment)
+                  ? formatSmartDate(subscriptionData.subscription.fulfillment.followingShipment)
                   : ''
               }}
             </text>
@@ -414,7 +448,6 @@
       <view class="popup-content popup-center" v-if="selectedItem">
         <view class="popup-header">
           <text class="popup-title">移除此商品？</text>
-          <!-- [MODIFIED] 2. 移除 :color 绑定, 改用 SCSS -->
           <uni-icons
             type="closeempty"
             size="24"
@@ -453,19 +486,19 @@ import type {
   Payment,
   UpdateSubscriptionParams,
   UpdateType,
-  // [MODIFIED] 5. 从 subscription 移除
+  // 5. 从 subscription 移除
 } from '@/types/subscription'
-// [MODIFIED] 5. 修复 AddressItem 导入路径
+// 5. 修复 AddressItem 导入路径
 import type { AddressItem } from '@/types/address'
 
-// [MODIFIED] 定义 HTTP 响应类型
+// 定义 HTTP 响应类型
 type Data<T> = {
   code: string
   msg: string
   result: T
 }
 
-// [MODIFIED] 使用你提供的抓包数据作为 Mock Data
+// [MODIFIED] 2. 修复日期不可选: 更新 Mock 数据日期到未来 (2025年12月)
 const userJsonData = {
   data: {
     autoship: {
@@ -473,25 +506,25 @@ const userJsonData = {
         id: '8216735700',
         fulfillmentRequestId: '9401704878',
         name: 'Autoship #1',
-        authorizationDate: '2025-06-30',
-        startDate: '2025-06-30',
+        authorizationDate: '2025-12-04', // [MODIFIED] 2
+        startDate: '2025-11-01', // [MODIFIED] 2
         fulfillment: {
-          nextShipment: '2025-08-06',
-          followingShipment: '2025-09-10',
+          nextShipment: '2025-12-06', // [MODIFIED] 2
+          followingShipment: '2026-01-10', // [MODIFIED] 2
           frequency: {
             unit: 'Week',
             interval: 5,
           },
           frequencyPairings: [
-            { frequency: { interval: 1, unit: 'Week' }, date: '2025-08-13' },
-            { frequency: { interval: 2, unit: 'Week' }, date: '2025-08-20' },
-            { frequency: { interval: 3, unit: 'Week' }, date: '2025-08-27' },
-            { frequency: { interval: 4, unit: 'Week' }, date: '2025-09-03' },
-            { frequency: { interval: 5, unit: 'Week' }, date: '2025-09-10' },
-            { frequency: { interval: 6, unit: 'Week' }, date: '2025-09-17' },
-            { frequency: { interval: 7, unit: 'Week' }, date: '2025-09-24' },
-            { frequency: { interval: 8, unit: 'Week' }, date: '2025-10-01' },
-            { frequency: { interval: 5, unit: 'Mon' }, date: '2026-01-06' },
+            { frequency: { interval: 1, unit: 'Week' }, date: '2025-12-13' }, // [MODIFIED] 2
+            { frequency: { interval: 2, unit: 'Week' }, date: '2025-12-20' }, // [MODIFIED] 2
+            { frequency: { interval: 3, unit: 'Week' }, date: '2025-12-27' }, // [MODIFIED] 2
+            { frequency: { interval: 4, unit: 'Week' }, date: '2026-01-03' }, // [MODIFIED] 2
+            { frequency: { interval: 5, unit: 'Week' }, date: '2026-01-10' }, // [MODIFIED] 2
+            { frequency: { interval: 6, unit: 'Week' }, date: '2026-01-17' }, // [MODIFIED] 2
+            { frequency: { interval: 7, unit: 'Week' }, date: '2026-01-24' }, // [MODIFIED] 2
+            { frequency: { interval: 8, unit: 'Week' }, date: '2026-01-31' }, // [MODIFIED] 2
+            { frequency: { interval: 5, unit: 'Mon' }, date: '2026-05-06' }, // [MODIFIED] 2
           ],
         },
         address: {
@@ -550,7 +583,7 @@ const userJsonData = {
             ],
             siteId: '10',
             totalAdjustments: '-0.65',
-            totalDiscountAdjustment: '-0.65', // [MODIFIED] 7. 有折扣
+            totalDiscountAdjustment: '-0.65',
             totalProduct: '16.18',
             price: '12.99',
             quantity: 1,
@@ -563,7 +596,6 @@ const userJsonData = {
             },
           },
           {
-            // [MODIFIED] 7. 添加一个已跳过的商品
             adjustments: [],
             siteId: '10',
             totalAdjustments: '0.00',
@@ -571,7 +603,7 @@ const userJsonData = {
             totalProduct: '9.99',
             price: '9.99',
             quantity: 1,
-            skipNext: true, // [MODIFIED] 7.
+            skipNext: true,
             item: {
               id: '301450',
               name: 'Frisco Hide and Seek Plush Chewy Box Toy',
@@ -581,19 +613,18 @@ const userJsonData = {
           },
         ],
         orders: [
-          { id: '1697820544', status: 'DEPOSITED', placed: '2025-06-30', shipped: '2025-07-01' },
+          { id: '1697820544', status: 'DEPOSITED', placed: '2025-11-01', shipped: '2025-11-02' }, // [MODIFIED] 2
         ],
         totalOrder: '35.20',
         totalProduct: '27.98',
         totalShipping: '4.95',
         totalTax: '2.48',
         totalTaxShipping: '0.44',
-        // [MODIFIED] 6. 补全抓包数据
         totalLoyaltyHealthcareAdjustment: { amount: 0, currency: 'USD' },
         totalLoyaltyRewardsAdjustment: { amount: 0, currency: 'USD' },
         totalLoyaltyEarnedRewards: { amount: 0, currency: 'USD' },
         orderedWithinLastSevenDays: true,
-        placed: '2025-06-30',
+        placed: '2025-11-01', // [MODIFIED] 2
         paymentFailureCount: 0,
         payments: [
           {
@@ -645,7 +676,7 @@ const mockAddress: AddressItem = {
   isDefault: 1, // 假设是默认
 }
 
-// [MODIFIED] 6. 修复 Mock AutoshipData 构造
+// 6. 修复 Mock AutoshipData 构造
 const mockAutoshipData: AutoshipData = {
   currentUser: {
     lifetimeSavings: {
@@ -667,7 +698,7 @@ const mockAutoshipData: AutoshipData = {
   subscription: {
     ...userJsonData.data.autoship.subscription, // 展开抓包数据中的所有 subscription 字段
     address: mockAddress, // 覆盖 address
-    // [MODIFIED] 7. 修复 Item 类型
+    // 7. 修复 Item 类型
     items: userJsonData.data.autoship.subscription.items.map((item: any) => ({
       ...item,
       // 1. 修复 adjustments (补充 null)
@@ -722,6 +753,10 @@ const subscriptionId = ref('')
 const successMessage = ref('')
 const FREE_SHIPPING_THRESHOLD = 49.0
 
+// 1. 重命名状态
+const isRenaming = ref(false)
+const tempSubscriptionName = ref('')
+
 // 弹窗 Refs
 type PopupRef = InstanceType<typeof UniPopup> | null
 const changeDatePopupRef = ref<PopupRef>(null)
@@ -733,7 +768,8 @@ const removeItemPopupRef = ref<PopupRef>(null)
 // 弹窗内部状态
 const tempSelectedDate = ref('')
 const tempSelectedFrequency = ref<Frequency | null>(null)
-const tempSelectedFrequencyInterval = ref<number | null>(null)
+// 3. 频率 Bug 修复: v-model 类型改为 string
+const tempSelectedFrequencyInterval = ref<string | null>(null)
 const selectedItem = ref<Item | null>(null)
 
 // --- 1. 数据加载 ---
@@ -746,7 +782,11 @@ onLoad(async (options) => {
   // 初始化弹窗的默认值
   tempSelectedDate.value = mockAutoshipData.subscription.fulfillment.nextShipment
   tempSelectedFrequency.value = mockAutoshipData.subscription.fulfillment.frequency
-  tempSelectedFrequencyInterval.value = mockAutoshipData.subscription.fulfillment.frequency.interval
+  // 3. 频率 Bug 修复: 初始化 v-model
+  tempSelectedFrequencyInterval.value =
+    mockAutoshipData.subscription.fulfillment.frequency.unit +
+    '-' +
+    mockAutoshipData.subscription.fulfillment.frequency.interval
   isLoading.value = false
   // [MODIFIED] 注释掉 API 调用
   // await fetchSubscriptionDetails(id || 'default-id')
@@ -767,7 +807,10 @@ async function fetchSubscriptionDetails(id: string) {
       subscriptionData.value = res.result
       tempSelectedDate.value = res.result.subscription.fulfillment.nextShipment
       tempSelectedFrequency.value = res.result.subscription.fulfillment.frequency
-      tempSelectedFrequencyInterval.value = res.result.subscription.fulfillment.frequency.interval
+      tempSelectedFrequencyInterval.value =
+        res.result.subscription.fulfillment.frequency.unit +
+        '-' +
+        res.result.subscription.fulfillment.frequency.interval
     } else {
       throw new Error(res.msg || '加载失败')
     }
@@ -791,7 +834,7 @@ async function callUpdateApi(
     uni.showLoading({ title: '正在处理...' })
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const type = params.type
+    const type = (params as any).type // 使用 as any 容纳新 type
     if (type === 'SKIP_ONCE_ITEM' && params.itemId) {
       const item = subscriptionData.value.subscription.items.find(
         (i) => i.fulfillmentItemId === params.itemId,
@@ -807,7 +850,10 @@ async function callUpdateApi(
     } else if (type === 'CHANGE_FREQUENCY' && params.frequency) {
       subscriptionData.value.subscription.fulfillment.frequency = params.frequency
     }
-    // ... 可以添加更多模拟逻辑 ...
+    // 1. 添加重命名 Mock 逻辑
+    else if (type === 'CHANGE_SUBSCRIPTION_NAME' && (params as any).newName) {
+      subscriptionData.value.subscription.name = (params as any).newName
+    }
 
     uni.hideLoading()
     closeAllPopups()
@@ -886,6 +932,8 @@ function openChangeFreqPopup() {
   if (!subscriptionData.value) return
   tempSelectedFrequency.value = subscriptionData.value.subscription.fulfillment.frequency
   tempSelectedFrequencyInterval.value =
+    subscriptionData.value.subscription.fulfillment.frequency.unit +
+    '-' +
     subscriptionData.value.subscription.fulfillment.frequency.interval
   changeFreqPopupRef.value?.open()
 }
@@ -901,8 +949,48 @@ function openRemoveItemPopup(item: Item) {
 }
 
 // --- 5. 事件处理器 - 弹窗内操作 ---
+
+// 1. 重命名点击
+async function handleRenameClick() {
+  if (!subscriptionData.value) return
+
+  if (isRenaming.value) {
+    // 点击 "保存"
+    if (
+      !tempSubscriptionName.value ||
+      tempSubscriptionName.value === subscriptionData.value.subscription.name
+    ) {
+      isRenaming.value = false
+      return // 没有变化，直接退出
+    }
+    await callUpdateApi(
+      {
+        type: 'CHANGE_SUBSCRIPTION_NAME',
+        newName: tempSubscriptionName.value,
+      } as any, // 使用 as any 绕过 d.ts 限制
+      '订阅已重命名',
+    )
+    isRenaming.value = false
+  } else {
+    // 点击 "重命名"
+    isRenaming.value = true
+    tempSubscriptionName.value = subscriptionData.value.subscription.name
+  }
+}
+
 function navigateToAddItems() {
   uni.showToast({ title: '跳转到添加商品页 (未实现)', icon: 'none' })
+}
+
+// 8. 跳转到地址管理
+const goToAddressManagement = () => {
+  uni.navigateTo({ url: '/pages/account/address_list/address_list?source=subscription' })
+}
+
+// 4. 跳转到订单详情
+function goToOrderDetails(orderId: string) {
+  console.log('Mock: Navigating to order details for ID:', orderId)
+  // uni.navigateTo({ url: `/pages/order/details?id=${orderId}` });
 }
 
 // 修改日期
@@ -929,14 +1017,14 @@ async function handleOrderNow() {
   await callUpdateApi({ type: 'ORDER_NOW' }, '订单已提交')
 }
 
-// [MODIFIED] 3. 修复 onFrequencyChange 类型
+// 3. 修复 onFrequencyChange 类型
 function onFrequencyChange(e: { detail: { value: string | number } }) {
-  const newInterval = Number(e.detail.value)
-  tempSelectedFrequencyInterval.value = newInterval
+  const newIntervalKey = String(e.detail.value) // 总是转为 string
+  tempSelectedFrequencyInterval.value = newIntervalKey
 
-  const pairing = frequencyOptions.value.find((f) => f.value === newInterval)
+  const pairing = frequencyOptions.value.find((f) => f.value === newIntervalKey)
   if (pairing) {
-    // [MODIFIED] 6. 更新 tempSelectedFrequency
+    // 6. 更新 tempSelectedFrequency
     tempSelectedFrequency.value = pairing.originalFrequency
   }
 }
@@ -1013,7 +1101,7 @@ async function handleCancelSubscription() {
 
 // --- 6. 计算属性和格式化 ---
 
-// [MODIFIED] 7. 拆分商品列表
+// 7. 拆分商品列表
 const activeItems = computed(() => {
   if (!subscriptionData.value) return []
   return subscriptionData.value.subscription.items.filter((item) => !item.skipNext)
@@ -1023,7 +1111,7 @@ const skippedItems = computed(() => {
   return subscriptionData.value.subscription.items.filter((item) => item.skipNext)
 })
 
-// [MODIFIED] 7. 计算划线价
+// 7. 计算划线价
 const getItemDisplayPrice = (item: Item) => {
   const price = parseFloat(item.price)
   const discount = parseFloat(item.totalDiscountAdjustment) || 0
@@ -1040,12 +1128,20 @@ const getItemDisplayPrice = (item: Item) => {
   }
 }
 
-// 免运费还差多少
-const freeShippingShortfall = computed(() => {
+// 7. 重命名为 shippingDifference
+const shippingDifference = computed(() => {
   if (!subscriptionData.value) return 0
   const total = parseFloat(subscriptionData.value.subscription.totalOrder)
   const shortfall = FREE_SHIPPING_THRESHOLD - total
   return shortfall > 0 ? shortfall : 0
+})
+
+// 7. 添加 shippingProgress
+const shippingProgress = computed(() => {
+  if (!subscriptionData.value) return 0
+  const total = parseFloat(subscriptionData.value.subscription.totalOrder)
+  const progress = (total / FREE_SHIPPING_THRESHOLD) * 100
+  return Math.min(progress, 100)
 })
 
 // 预估税费
@@ -1056,7 +1152,7 @@ const estimatedTax = computed(() => {
   return (tax + shippingTax).toFixed(2)
 })
 
-// [MODIFIED] 6. 频率助手函数
+// 6. 频率助手函数
 function addFrequencyToDate(date: Date, freq: Frequency): Date {
   const newDate = new Date(date.getTime())
   if (freq.unit === 'Week') {
@@ -1068,7 +1164,7 @@ function addFrequencyToDate(date: Date, freq: Frequency): Date {
   return newDate
 }
 
-// [MODIFIED] 6. 计算频率预览日期
+// 6. 计算频率预览日期
 function getFrequencyPreviewDates(freq: Frequency) {
   if (!subscriptionData.value) return { nextDateFormatted: '', followingDateFormatted: '' }
 
@@ -1082,8 +1178,8 @@ function getFrequencyPreviewDates(freq: Frequency) {
   const followingDate = addFrequencyToDate(nextDate, freq)
 
   return {
-    nextDateFormatted: formatShortDate(nextDate.toISOString()),
-    followingDateFormatted: formatShortDate(followingDate.toISOString()),
+    nextDateFormatted: formatSmartDate(nextDate.toISOString()),
+    followingDateFormatted: formatSmartDate(followingDate.toISOString()),
   }
 }
 
@@ -1091,45 +1187,72 @@ function getFrequencyPreviewDates(freq: Frequency) {
 const frequencyOptions = computed(() => {
   if (!subscriptionData.value) return []
   return subscriptionData.value.subscription.fulfillment.frequencyPairings.map((pairing) => ({
-    value: pairing.frequency.interval, // 假设 interval 在 unit 内部是唯一的
+    // 3. 频率 Bug 修复: 使用组合键
+    value: pairing.frequency.unit + '-' + pairing.frequency.interval,
     text: formatFrequency(pairing.frequency),
     originalFrequency: pairing.frequency,
   }))
 })
 
-// 修改日期的最小可选日期 (例如: 明天)
+// [MODIFIED] 1. 日期规则: 当前日期 + 2
 const minChangeDate = computed(() => {
   const today = new Date()
-  today.setDate(today.getDate() + 1)
+  today.setDate(today.getDate() + 2) // [MODIFIED] 1.
   return today.toISOString().split('T')[0]
 })
 
-// [MODIFIED] 1. 中文日期格式
-function formatShortDate(dateStr: string): string {
+// 0 & 3. 新的智能日期格式化函数
+function formatSmartDate(dateStr: string): string {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
+  const now = new Date()
+
+  const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
-    weekday: 'short',
     timeZone: 'UTC', // 假设传入的是UTC日期
-  })
+  }
+
+  if (date.getFullYear() !== now.getFullYear()) {
+    options.year = 'numeric'
+  }
+
+  const datePart = date.toLocaleDateString('zh-CN', options)
+  const weekdayPart = date.toLocaleDateString('zh-CN', { weekday: 'long', timeZone: 'UTC' })
+
+  return `${datePart} ${weekdayPart}`
 }
 
+// 0 & 3. 更新日期时间格式化函数
 function formatDateTime(dateStr: string): string {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
+  const now = new Date()
+
+  const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
-    weekday: 'short',
     timeZone: 'UTC', // 假设传入的是UTC日期
-  })
+  }
+
+  if (date.getFullYear() !== now.getFullYear()) {
+    options.year = 'numeric'
+  }
+
+  const dateTimePart = date.toLocaleString('zh-CN', options)
+  const weekdayPart = date.toLocaleDateString('zh-CN', { weekday: 'long', timeZone: 'UTC' })
+
+  // 检查是否已包含星期 (toLocaleString 可能会自动包含)
+  if (dateTimePart.includes(weekdayPart.slice(2))) {
+    return dateTimePart
+  }
+
+  return `${dateTimePart} ${weekdayPart}`
 }
+
+// (原 formatShortDate 已被 formatSmartDate 替代)
 
 function formatFrequency(freq: Frequency): string {
   if (!freq) return ''
@@ -1137,7 +1260,6 @@ function formatFrequency(freq: Frequency): string {
   return `每 ${freq.interval} ${unit}`
 }
 
-// 支付方式格式化 (虽然删了，但保留函数以防万一)
 function formatPayment(payment: Payment): string {
   if (!payment) return 'N/A'
   switch (payment.paymentMethodType) {
@@ -1152,8 +1274,6 @@ function formatPayment(payment: Payment): string {
 </script>
 
 <style lang="scss" scoped>
-/* [MODIFIED] 1. 移除所有自定义变量 */
-
 // 页面和滚动容器
 page {
   background-color: $uni-bg-color-grey;
@@ -1175,10 +1295,11 @@ page {
   height: 100vh;
 }
 
-// [MODIFIED] 3. 订阅名称
+// 1. 订阅名称
 .subscription-name-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start; // 1
+  gap: $uni-spacing-row-base; // 1
   align-items: center;
   padding: $uni-spacing-col-lg $uni-spacing-row-lg;
   background-color: $uni-bg-color;
@@ -1188,18 +1309,34 @@ page {
     color: $uni-text-color;
     font-weight: bold;
   }
+  // 1. 输入框样式
+  .subscription-name-input {
+    font-size: $uni-font-size-title;
+    color: $uni-text-color;
+    font-weight: bold;
+    border-bottom: 1px solid $uni-color-primary;
+    flex: 1;
+    padding: 0;
+  }
   .btn-rename {
     font-size: $uni-font-size-sm !important;
+    flex-shrink: 0; // 防止按钮被压缩
   }
+}
+
+// 2. 加粗文本
+.text-bold {
+  font-weight: bold;
+  color: $uni-text-color;
 }
 
 // 通用按钮样式
 button {
   font-size: $uni-font-size-base;
-  border-radius: 20px;
+  border-radius: 22px; // 9
   padding: 0 $uni-spacing-row-lg;
-  height: 40px;
-  line-height: 40px;
+  height: 44px; // 9
+  line-height: 44px; // 9
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1223,18 +1360,32 @@ button {
   color: $uni-text-color-inverse;
 }
 .btn-text-link {
+  // 1. 按钮样式: 半圆形(药丸形)
   background-color: $uni-bg-color;
   color: $uni-color-primary;
   border: 1px solid $uni-color-primary;
   margin: 0;
-  height: auto;
-  line-height: 2.5;
+  height: 40px; // 1
+  line-height: 40px; // 1
   font-size: $uni-font-size-base;
+  border-radius: 20px; // 1 (height / 2)
+  padding: 0 $uni-spacing-row-lg; // 1 (增加内边距)
+
+  // 1 & 4. 加长按钮
+  &.btn-long {
+    padding: 0 $uni-spacing-row-lg * 2;
+  }
+
   &.btn-rename {
     font-size: $uni-font-size-sm;
+    height: 32px; // 1
+    line-height: 32px; // 1
+    border-radius: 16px; // 1
   }
+
   &.btn-remove {
     color: $uni-color-error;
+    border-color: $uni-color-error; // 边框也变红
   }
 }
 .btn-full {
@@ -1269,7 +1420,16 @@ button {
 .section-value {
   font-size: $uni-font-size-lg;
   color: $uni-text-color;
-  font-weight: 500;
+  font-weight: 500; // 默认
+  // 3 & 4. 加粗
+  &.text-bold {
+    font-weight: bold;
+    color: $uni-text-color;
+  }
+}
+// 2. 配送频率字体加大
+.frequency-card .section-value {
+  font-size: 20px;
 }
 .section-value-large {
   font-size: 22px;
@@ -1289,7 +1449,6 @@ button {
     display: flex;
     flex-direction: column;
   }
-  // [MODIFIED] 2. 修复 icon 颜色
   uni-icons {
     color: $uni-text-color-grey;
   }
@@ -1385,25 +1544,57 @@ button {
   justify-content: center;
   gap: $uni-spacing-row-base;
   margin: $uni-spacing-row-base;
-  padding: $uni-spacing-row-lg;
+  // 6. 高度加倍
+  padding: ($uni-spacing-row-lg * 2) $uni-spacing-row-lg;
   background-color: $uni-bg-color;
   border: 1px dashed $uni-color-primary;
   border-radius: $uni-border-radius-lg;
   color: $uni-color-primary;
   font-size: $uni-font-size-base;
   font-weight: 500;
-  // [MODIFIED] 2. 修复 icon 颜色
   .add-item-icon {
     color: $uni-color-primary;
   }
 }
 
-// 免运费卡
-.free-shipping-card {
-  .shipping-progress-text {
-    font-size: $uni-font-size-base;
-    font-weight: 500;
-    color: $uni-text-color;
+// 7. 免运费进度条
+.shipping-progress-wrapper {
+  background-color: $uni-bg-color;
+  padding: $uni-spacing-row-lg;
+  // 4. 布局调整
+  margin: ($uni-spacing-row-lg * 2) $uni-spacing-row-base 0 $uni-spacing-row-base;
+  border-radius: $uni-border-radius-lg;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  // 5. 文字样式
+  .progress-text {
+    font-size: $uni-font-size-sm;
+    color: $uni-text-color-grey;
+    margin-bottom: $uni-spacing-col-base; // 5
+    display: block;
+    text-align: left; // 5
+    .highlight {
+      color: $uni-color-error;
+      font-weight: 500;
+    }
+    &.success {
+      color: $uni-color-success;
+      font-weight: 500;
+    }
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: $uni-bg-color-grey;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    background-color: $uni-color-success;
+    border-radius: 4px;
+    transition: width 0.3s ease;
   }
 }
 
@@ -1426,21 +1617,65 @@ button {
   color: $uni-text-color;
 }
 
-// 地址
-.address-details {
+// 8. 配送地址
+.section-card {
+  // 通用卡片样式 (用于地址)
+  background-color: $uni-bg-color;
+  margin: $uni-spacing-row-base;
+  border-radius: $uni-border-radius-lg;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.address-section {
+  padding: $uni-spacing-row-lg;
+  // 5. 布局调整
+  margin-top: 0 !important;
+}
+.address-display {
   display: flex;
-  flex-direction: column;
-  font-size: $uni-font-size-base;
-  color: $uni-text-color;
-  margin-top: $uni-spacing-col-sm;
-  text {
-    line-height: 1.5;
+  align-items: center;
+  justify-content: space-between;
+  .address-info {
+    flex: 1;
+    font-size: $uni-font-size-base;
+    color: $uni-text-color;
+  }
+  .address-line-1 {
+    display: flex;
+    align-items: center;
+    gap: $uni-spacing-row-base;
+    margin-bottom: $uni-spacing-col-sm;
+    .name {
+      font-size: $uni-font-size-lg;
+      font-weight: bold;
+    }
+    .phone {
+      font-size: $uni-font-size-base;
+      color: $uni-text-color-grey;
+    }
+  }
+  .address-line-2 {
+    display: flex;
+    align-items: center;
+    gap: $uni-spacing-row-sm;
+    font-size: $uni-font-size-sm;
+    color: $uni-text-color-grey;
+    .default-tag {
+      background-color: mix($uni-color-primary, $uni-bg-color, 10%);
+      color: $uni-color-primary;
+      font-size: 10px;
+      padding: 2px 4px;
+      border-radius: $uni-border-radius-sm;
+    }
+  }
+  .address-line-3 {
+    margin-top: $uni-spacing-col-sm;
+    font-size: $uni-font-size-base;
   }
 }
 
 // 底部区域
 .savings-banner {
-  background-color: mix($uni-color-success, $uni-bg-color, 15%); // 使用 mix 替代 $app-color-info-bg
+  background-color: mix($uni-color-success, $uni-bg-color, 15%);
   border: 1px solid $uni-color-success;
   border-radius: $uni-border-radius-lg;
   padding: $uni-spacing-row-lg;
@@ -1457,15 +1692,20 @@ button {
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  padding-bottom: 40px; // 增加底部留白
+  padding-bottom: 40px;
   .cancel-prompt {
     font-size: $uni-font-size-base;
     color: $uni-text-color-grey;
     margin-bottom: $uni-spacing-row-base;
   }
   .btn-cancel-subscription {
+    // 9. 确保 "取消" 按钮是纯文本, 覆盖 .btn-text-link
+    background-color: transparent;
+    border: none;
     color: $uni-color-error;
     font-weight: 500;
+    line-height: 1.5;
+    padding: 0; // 移除 .btn-text-link 带来的 padding
   }
 }
 
@@ -1502,7 +1742,6 @@ button {
     font-weight: bold;
     color: $uni-text-color;
   }
-  // [MODIFIED] 2. 修复 icon 颜色
   uni-icons {
     color: $uni-text-color-grey;
   }
@@ -1598,7 +1837,7 @@ button {
   }
 }
 
-// [MODIFIED] 6. 频率弹窗
+// 3. 频率弹窗
 .popup-frequency {
   .frequency-option {
     padding: $uni-spacing-col-lg $uni-spacing-row-lg;
@@ -1633,5 +1872,10 @@ button {
 // 日历弹窗
 .popup-calendar {
   padding-bottom: env(safe-area-inset-bottom);
+  // 2. 修复 "今天" 按钮位置
+  :deep(.uni-calendar__header-btn-box) {
+    justify-content: flex-start;
+    padding-left: $uni-spacing-row-base;
+  }
 }
 </style>
