@@ -43,11 +43,11 @@
             {{ formatShortDate(subscriptionData.subscription.fulfillment.nextShipment) }} 处理付款
           </text>
           <view class="button-group-row">
-            <button class="btn-primary" @click="openChangeDatePopup">更改日期</button>
+            <button class="btn-secondary" @click="handleOrderNow">立即配送</button>
             <button class="btn-secondary" @click="openSkipOrderPopup">跳过订单</button>
           </view>
           <view class="button-group-row" style="margin-top: 10px">
-            <button class="btn-secondary btn-full" @click="handleOrderNow">立即配送</button>
+            <button class="btn-primary btn-full" @click="openChangeDatePopup">更改日期</button>
           </view>
         </view>
       </uni-card>
@@ -1223,13 +1223,12 @@ button {
   color: $uni-text-color-inverse;
 }
 .btn-text-link {
-  background-color: transparent;
+  background-color: $uni-bg-color;
   color: $uni-color-primary;
-  border: none;
-  padding: 0;
+  border: 1px solid $uni-color-primary;
   margin: 0;
   height: auto;
-  line-height: 1.5;
+  line-height: 2.5;
   font-size: $uni-font-size-base;
   &.btn-rename {
     font-size: $uni-font-size-sm;
