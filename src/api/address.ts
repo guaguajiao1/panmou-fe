@@ -22,7 +22,7 @@ export const addressApi = {
    * 为当前账户添加新的收货地址
    * @param data 地址信息
    */
-  create(data: AddressParams) {
+  create(data: AddressItem) {
     return http({
       method: 'POST',
       url: '/account/addresses',
@@ -46,7 +46,7 @@ export const addressApi = {
    * @param id 地址的唯一标识ID
    * @param data 要更新的地址信息
    */
-  update(id: string, data: AddressParams) {
+  update(id: string, data: AddressItem) {
     return http({
       method: 'PUT', // 使用PUT更新
       url: `/account/addresses/${id}`,

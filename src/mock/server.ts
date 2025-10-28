@@ -1,6 +1,5 @@
 import type { AddressItem } from '@/types/address'
 import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
-import type { it } from 'node:test'
 import type { Cart } from '@/types/cart'
 // Development mock server implementing Address, Cart and Checkout APIs
 // Returns Data<T> objects that match the http wrapper expectations
@@ -104,11 +103,15 @@ const computePreview = (orderPreview: OrderPreview) => {
   }
 
   if (!orderPreview.shippingAddress) {
-    const defaultShippingAddress = addresses.reduce(
-      (def: AddressItem | null, a) => (a.isDefault ? a : def),
-      null,
-    )
-    orderPreview.shippingAddress = defaultShippingAddress
+    // 使用 find() 来查找 isDefault 为 1 的第一个地址
+    const defaultShippingAddress = addresses.find((a: AddressItem) => a.isDefault === 1)
+
+    // console.log('Default shipping address=', defaultShippingAddress)
+
+    // 如果 find() 没找到，它会返回 undefined。
+    // 我们把它设置为 null，或者保持 undefined，这取决于您的后续逻辑。
+    // (假设您希望在找不到时，shippingAddress 保持为 null 或 undefined)
+    orderPreview.shippingAddress = defaultShippingAddress || null
   }
 
   return orderPreview
@@ -277,9 +280,11 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
   if (url === '/account/addresses' && String(options.method || 'POST').toUpperCase() === 'POST') {
     const body = (options.data as any) || {}
     const id = Date.now()
-    const item = { id, ...body, isDefault: !!body.isDefault }
-    if (item.isDefault) addresses.forEach((a) => (a.isDefault = false))
+    const item = { ...body }
+    item.id = id.toString()
+    if (item.isDefault) addresses.forEach((a) => (a.isDefault = 1))
     addresses.push(item)
+    console.log('Address created:', item)
     return { code: '0', msg: 'created', result: item }
   }
 
@@ -304,7 +309,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     addresses[idx] = { ...addresses[idx], ...body }
     if (addresses[idx].isDefault)
       addresses.forEach((a, i) => {
-        if (i !== idx) a.isDefault = false
+        if (i !== idx) a.isDefault = 1
       })
     return { code: '0', msg: 'updated', result: clone(addresses[idx]) }
   }
@@ -317,7 +322,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     const idx = addresses.findIndex((a) => a.id === id)
     if (idx === -1) return { code: '1', msg: 'not found', result: null }
     const removed = addresses.splice(idx, 1)[0]
-    if (removed.isDefault && addresses.length > 0) addresses[0].isDefault = true
+    if (removed.isDefault && addresses.length > 0) addresses[0].isDefault = 1
     return { code: '0', msg: 'deleted', result: clone(removed) }
   }
 
@@ -371,10 +376,10 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     console.log('[[[server berore orderPreview=', previews[previewId])
 
     if (!action && method === 'GET') {
-      const source = previews[previewId]
+      previews[previewId] = computePreview(previews[previewId])
       console.log('[[[server get berore orderPreview=', previews[previewId])
-      if (!source) return { code: '1', msg: 'preview not found', result: null }
-      return { code: '0', msg: 'ok', result: clone(source) }
+      if (!previews[previewId]) return { code: '1', msg: 'preview not found', result: null }
+      return { code: '0', msg: 'ok', result: clone(previews[previewId]) }
     }
 
     if (action === 'update' && method === 'POST') {
@@ -439,6 +444,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
           })
         }
       } else if (updateField === 'ADDRESS' && body.addressId) {
+        console.log('Updating address to id=', body.addressId)
         const addr = addresses.find((a) => String(a.id) === String(body.addressId))
         console.log('address=', addr)
         if (addr) previews[previewId].shippingAddress = addr

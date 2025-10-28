@@ -11,7 +11,10 @@
           <AddressForm :saveText="'使用这个地址'" @save="onAddressFormSave" />
         </template>
         <template v-else>
-          <view class="section-card address-section" @click="goToAddressManagement">
+          <view
+            class="section-card address-section"
+            @click="goToAddressManagement(orderPreview.shippingAddress.id)"
+          >
             <view class="address-display">
               <view class="address-info">
                 <view class="address-line-1">
@@ -22,10 +25,10 @@
                   <text class="default-tag" v-if="orderPreview.shippingAddress.isDefault">
                     默认
                   </text>
-                  <text> {{ orderPreview.shippingAddress.fullLocation }} </text>
-                </view>
-                <view class="address-line-3">
-                  <text>{{ orderPreview.shippingAddress.address }}</text>
+                  <text>
+                    {{ orderPreview.shippingAddress.fullLocation }}
+                    {{ orderPreview.shippingAddress.address }}</text
+                  >
                 </view>
               </view>
               <uni-icons type="right" size="18" color="#999"></uni-icons>
@@ -229,9 +232,9 @@ watch(
   () => addressStore.selectedAddress,
   (newAddress) => {
     if (newAddress && newAddress.id !== orderPreview.value.shippingAddress?.id) {
-      console.log('Address store changed, updating server preview.')
-      orderPreview.value.shippingAddress = newAddress
+      // orderPreview.value.shippingAddress = newAddress
       updateAddressOnServer(newAddress.id)
+      console.log('Address store changed, updating server preview.')
     }
   },
   { deep: true },
@@ -332,6 +335,7 @@ const updateAddressOnServer = async (addressId: string | number) => {
   isLoading.value = true
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
+    console.log('updateAddressOnServer response=', res)
     if (res && res.code === '0') orderPreview.value = res.result
   } catch (e) {
     console.warn('updateAddressOnServer error', e)
@@ -393,7 +397,7 @@ const onFrequencyChange = () => {
   updateGlobalSubscription(true)
 }
 
-const onAddressFormSave = async (formData: AddressParams) => {
+const onAddressFormSave = async (formData: AddressItem) => {
   uni.showLoading({ title: '保存地址...' })
   try {
     const res = await addressApi.create(formData)
@@ -414,10 +418,9 @@ const onAddressFormSave = async (formData: AddressParams) => {
   }
 }
 
-const navigateBack = () => uni.navigateBack()
-
-const goToAddressManagement = () => {
-  uni.navigateTo({ url: '/pages/account/address_list/address_list?source=checkout' })
+const goToAddressManagement = (id: string) => {
+  console.log('Navigating to address management with id=', id)
+  uni.navigateTo({ url: `/pages/account/address_list/address_list?source=checkout&id=${id}` })
 }
 
 const goToProductDetail = (item: Item) =>
@@ -523,8 +526,8 @@ onShow(() => {
           margin-right: 20rpx;
         }
         .phone {
-          font-size: $uni-font-size-base;
-          color: $uni-text-color-grey;
+          font-size: $uni-font-size-lg;
+          font-weight: bold;
         }
       }
       .address-line-2 {
@@ -533,17 +536,12 @@ onShow(() => {
         margin-top: 8rpx;
         font-size: $uni-font-size-sm;
         .default-tag {
-          background-color: #ffefe6;
-          color: #d84f1a;
+          background-color: mix($uni-color-primary, $uni-bg-color, 10%);
+          color: $uni-color-primary;
           padding: 2rpx 10rpx;
           border-radius: $uni-border-radius-sm;
           margin-right: 12rpx;
         }
-      }
-      .address-line-3 {
-        margin-top: 8rpx;
-        font-size: $uni-font-size-base;
-        color: $uni-text-color;
       }
     }
   }

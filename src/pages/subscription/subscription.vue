@@ -293,10 +293,12 @@
             @click="closePopup('changeDatePopupRef')"
           ></uni-icons>
         </view>
+        <!-- [MODIFIED] 3. 尝试添加 end-date -->
         <uni-calendar
           :date="tempSelectedDate"
           :insert="true"
           :start-date="minChangeDate"
+          :end-date="maxChangeDate"
           @change="onCalendarChange"
         />
         <view class="popup-footer">
@@ -355,45 +357,46 @@
           ></uni-icons>
         </view>
         <scroll-view scroll-y style="max-height: 400px">
-          <!-- [MODIFIED] 3. 修复: 重新添加 :localdata, 插槽使用 options -->
-          <uni-data-checkbox
-            v-model="tempSelectedFrequencyInterval"
-            :localdata="frequencyOptions"
-            @change="onFrequencyChange"
-          >
-            <template #default="{ options }">
-              <view
-                v-for="(item, index) in options"
-                :key="index"
-                class="frequency-option"
-                :class="{ 'is-checked': tempSelectedFrequencyInterval === item.value }"
-                @click="onFrequencyChange({ detail: { value: item.value } })"
-              >
+          <!-- 3. 修复: 替换为 <radio-group> -->
+          <radio-group @change="onFrequencyRadioChange">
+            <label
+              v-for="(item, index) in frequencyOptions"
+              :key="index"
+              class="frequency-option"
+              :class="{ 'is-checked': tempSelectedFrequencyInterval === item.value }"
+            >
+              <!-- 2. Radio 移到前面 -->
+              <radio :value="item.value" :checked="tempSelectedFrequencyInterval === item.value" />
+              <view class="frequency-option-content">
+                <!-- 2. 文本加大加宽 -->
                 <view class="frequency-option-text">{{ item.text }}</view>
+                <!-- 2. 日期水平排列 -->
                 <view
                   v-if="tempSelectedFrequencyInterval === item.value"
                   class="frequency-preview-dates"
                 >
-                  <text
-                    >下次订单:
-                    <!-- [MODIFIED] 3. 修复: 插槽数据源是 item -->
-                    {{ getFrequencyPreviewDates(item.originalFrequency).nextDateFormatted }}</text
-                  >
-                  <text
-                    >后续订单:
-                    {{
-                      getFrequencyPreviewDates(item.originalFrequency).followingDateFormatted
-                    }}</text
-                  >
+                  <view class="preview-date-item">
+                    <text class="preview-date-label">下次订单</text>
+                    <text class="preview-date-value">
+                      <!-- 2. 日期不显示星期 -->
+                      {{
+                        getFrequencyPreviewDates(item.originalFrequency, true).nextDateFormatted
+                      }}</text
+                    >
+                  </view>
+                  <view class="preview-date-item">
+                    <text class="preview-date-label">后续订单</text>
+                    <text class="preview-date-value">
+                      {{
+                        getFrequencyPreviewDates(item.originalFrequency, true)
+                          .followingDateFormatted
+                      }}</text
+                    >
+                  </view>
                 </view>
-                <radio
-                  :value="item.value"
-                  :checked="tempSelectedFrequencyInterval === item.value"
-                  style="display: none"
-                />
               </view>
-            </template>
-          </uni-data-checkbox>
+            </label>
+          </radio-group>
         </scroll-view>
         <view class="popup-footer">
           <button class="btn-secondary" @click="closePopup('changeFreqPopupRef')">取消</button>
@@ -498,7 +501,7 @@ type Data<T> = {
   result: T
 }
 
-// [MODIFIED] 2. 修复日期不可选: 更新 Mock 数据日期到未来 (2025年12月)
+// 2. 修复日期不可选: 更新 Mock 数据日期到未来 (2025年12月)
 const userJsonData = {
   data: {
     autoship: {
@@ -776,11 +779,11 @@ const selectedItem = ref<Item | null>(null)
 onLoad(async (options) => {
   const id = options?.id
 
-  // [MODIFIED] 使用 Mock Data
+  // 使用 Mock Data
   subscriptionData.value = mockAutoshipData
   subscriptionId.value = mockAutoshipData.subscription.id
   // 初始化弹窗的默认值
-  tempSelectedDate.value = mockAutoshipData.subscription.fulfillment.nextShipment
+  // [MODIFIED] 2. 日期弹窗默认值=minChangeDate (将在下面 openChangeDatePopup 中设置，因为 minChangeDate 是 computed)
   tempSelectedFrequency.value = mockAutoshipData.subscription.fulfillment.frequency
   // 3. 频率 Bug 修复: 初始化 v-model
   tempSelectedFrequencyInterval.value =
@@ -788,7 +791,7 @@ onLoad(async (options) => {
     '-' +
     mockAutoshipData.subscription.fulfillment.frequency.interval
   isLoading.value = false
-  // [MODIFIED] 注释掉 API 调用
+  // 注释掉 API 调用
   // await fetchSubscriptionDetails(id || 'default-id')
 })
 
@@ -805,7 +808,7 @@ async function fetchSubscriptionDetails(id: string) {
     const res = (await subscriptionApi.getSubscriptionDetails(id)) as unknown as Data<AutoshipData> // 类型断言
     if (res.code === '0') {
       subscriptionData.value = res.result
-      tempSelectedDate.value = res.result.subscription.fulfillment.nextShipment
+      tempSelectedDate.value = res.result.subscription.fulfillment.nextShipment // 保持 API 加载时的逻辑
       tempSelectedFrequency.value = res.result.subscription.fulfillment.frequency
       tempSelectedFrequencyInterval.value =
         res.result.subscription.fulfillment.frequency.unit +
@@ -829,7 +832,7 @@ async function callUpdateApi(
 ) {
   if (!subscriptionData.value) return
 
-  // [MODIFIED] 在 Mock 模式下模拟 API 行为
+  // 在 Mock 模式下模拟 API 行为
   if (subscriptionId.value === mockAutoshipData.subscription.id) {
     uni.showLoading({ title: '正在处理...' })
     await new Promise((resolve) => setTimeout(resolve, 500))
@@ -920,7 +923,8 @@ const popupRefs = {
 // --- 4. 事件处理器 - 打开弹窗 ---
 function openChangeDatePopup() {
   if (!subscriptionData.value) return
-  tempSelectedDate.value = subscriptionData.value.subscription.fulfillment.nextShipment
+  // [MODIFIED] 2. 设置默认选中日期为最小可选日期
+  tempSelectedDate.value = minChangeDate.value
   changeDatePopupRef.value?.open()
 }
 
@@ -1017,14 +1021,13 @@ async function handleOrderNow() {
   await callUpdateApi({ type: 'ORDER_NOW' }, '订单已提交')
 }
 
-// 3. 修复 onFrequencyChange 类型
-function onFrequencyChange(e: { detail: { value: string | number } }) {
-  const newIntervalKey = String(e.detail.value) // 总是转为 string
+// 3. 修复: 替换为 radio-group 处理器
+function onFrequencyRadioChange(e: { detail: { value: string } }) {
+  const newIntervalKey = e.detail.value
   tempSelectedFrequencyInterval.value = newIntervalKey
 
   const pairing = frequencyOptions.value.find((f) => f.value === newIntervalKey)
   if (pairing) {
-    // 6. 更新 tempSelectedFrequency
     tempSelectedFrequency.value = pairing.originalFrequency
   }
 }
@@ -1165,7 +1168,8 @@ function addFrequencyToDate(date: Date, freq: Frequency): Date {
 }
 
 // 6. 计算频率预览日期
-function getFrequencyPreviewDates(freq: Frequency) {
+// 2. 添加 noWeekday 参数
+function getFrequencyPreviewDates(freq: Frequency, noWeekday = false) {
   if (!subscriptionData.value) return { nextDateFormatted: '', followingDateFormatted: '' }
 
   const pairing = subscriptionData.value.subscription.fulfillment.frequencyPairings.find(
@@ -1176,10 +1180,11 @@ function getFrequencyPreviewDates(freq: Frequency) {
 
   const nextDate = new Date(pairing.date)
   const followingDate = addFrequencyToDate(nextDate, freq)
+  const formatFunc = noWeekday ? formatShortDateWithoutWeekday : formatSmartDate
 
   return {
-    nextDateFormatted: formatSmartDate(nextDate.toISOString()),
-    followingDateFormatted: formatSmartDate(followingDate.toISOString()),
+    nextDateFormatted: formatFunc(nextDate.toISOString()),
+    followingDateFormatted: formatFunc(followingDate.toISOString()),
   }
 }
 
@@ -1194,10 +1199,17 @@ const frequencyOptions = computed(() => {
   }))
 })
 
-// [MODIFIED] 1. 日期规则: 当前日期 + 2
+// 1. 日期规则: 当前日期 + 2
 const minChangeDate = computed(() => {
   const today = new Date()
-  today.setDate(today.getDate() + 2) // [MODIFIED] 1.
+  today.setDate(today.getDate() + 2) // 1.
+  return today.toISOString().split('T')[0]
+})
+
+// [MODIFIED] 3. 新增: 最大可选日期 (例如: 5年后)
+const maxChangeDate = computed(() => {
+  const today = new Date()
+  today.setFullYear(today.getFullYear() + 5)
   return today.toISOString().split('T')[0]
 })
 
@@ -1221,6 +1233,24 @@ function formatSmartDate(dateStr: string): string {
   const weekdayPart = date.toLocaleDateString('zh-CN', { weekday: 'long', timeZone: 'UTC' })
 
   return `${datePart} ${weekdayPart}`
+}
+
+// 2. 新增: 不带星期的日期格式
+function formatShortDateWithoutWeekday(dateStr: string): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const now = new Date()
+
+  const options: Intl.DateTimeFormatOptions = {
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }
+
+  if (date.getFullYear() !== now.getFullYear()) {
+    options.year = 'numeric'
+  }
+  return date.toLocaleDateString('zh-CN', options)
 }
 
 // 0 & 3. 更新日期时间格式化函数
@@ -1839,34 +1869,74 @@ button {
 
 // 3. 频率弹窗
 .popup-frequency {
+  // 3. 修复: <radio-group> 样式
   .frequency-option {
+    display: flex; // 使用 flex 布局
+    align-items: center; // 垂直居中
     padding: $uni-spacing-col-lg $uni-spacing-row-lg;
     border-bottom: 1px solid mix($uni-border-color, $uni-bg-color, 20%);
+
+    // 2. Radio 按钮样式 (如果需要覆盖默认)
+    radio {
+      margin-right: $uni-spacing-row-base; // 与文本的间距
+      transform: scale(0.8); // 稍微缩小一点
+    }
+
     &.is-checked {
       background-color: mix($uni-color-primary, $uni-bg-color, 10%); // 选中背景色
     }
   }
-  .frequency-option-text {
-    font-size: $uni-font-size-base;
-    color: $uni-text-color;
-  }
-  .frequency-preview-dates {
+  .frequency-option-content {
+    flex: 1; // 占据剩余空间
     display: flex;
     flex-direction: column;
-    gap: $uni-spacing-col-sm;
+  }
+  .frequency-option-text {
+    // [MODIFIED] 1. 字体加大, 宽度调整
+    font-size: $uni-font-size-lg + 2px; // 1
+    font-weight: 500; // 1
+    color: $uni-text-color;
+    flex-basis: 50%; // 1
+    margin-bottom: $uni-spacing-col-base; // 为日期留出空间
+  }
+  .frequency-preview-dates {
+    display: flex; // 2. 水平排列
+    gap: $uni-spacing-row-base; // 日期间隔
     background-color: $uni-bg-color-grey;
     border-radius: $uni-border-radius-base;
     padding: $uni-spacing-row-base $uni-spacing-row-lg;
     margin-top: $uni-spacing-col-base;
-    font-size: $uni-font-size-sm;
-    color: $uni-text-color-grey;
-  }
-  :deep(.uni-data-checklist) {
-    // 隐藏默认的 radio
-    .checklist-box {
-      display: none;
+
+    .preview-date-item {
+      // 2. 每个日期占一半
+      flex: 1;
+      text-align: center;
+    }
+    .preview-date-label {
+      display: block;
+      font-size: $uni-font-size-sm;
+      color: $uni-text-color-grey;
+      margin-bottom: $uni-spacing-col-sm;
+    }
+    .preview-date-value {
+      font-size: $uni-font-size-base; // 2. 加大日期字体
+      color: $uni-text-color;
+      font-weight: bold; // 2. 加粗
     }
   }
+  // 隐藏默认的 radio 圆点 (小程序/App) - 保留
+  // #ifdef MP || APP-PLUS
+  radio ::v-deep .uni-radio-input {
+    // 可能需要调整样式以适配新布局, 但隐藏逻辑不变
+    margin-right: 5px; // 示例调整
+  }
+  // #endif
+  // 隐藏默认的 radio 圆点 (H5) - 保留
+  // #ifdef H5
+  input[type='radio'] {
+    // 可能需要调整样式以适配新布局, 但隐藏逻辑不变
+  }
+  // #endif
 }
 
 // 日历弹窗

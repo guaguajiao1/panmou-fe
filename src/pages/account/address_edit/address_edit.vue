@@ -1,5 +1,6 @@
 <template>
   <view class="address-edit-page">
+    <CustomNavigationBar :title="title"></CustomNavigationBar>
     <AddressForm :address-data="formData" @save="onSave" />
   </view>
 </template>
@@ -8,13 +9,14 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AddressForm from '@/components/AddressForm/AddressForm.vue'
-import { addressApi } from '@/api/address' // 导入 addressApi
-import type { AddressItem, AddressParams } from '@/types/address'
+import { addressApi } from '@/api/address'
+import type { AddressItem } from '@/types/address'
 import { useAddressStore } from '@/stores/modules/address'
 
 const formData = ref<Partial<AddressItem>>({})
-const pageSource = ref('') // 页面来源
+const pageSource = ref('')
 const addressStore = useAddressStore()
+const title = ref('')
 
 // 页面加载时，获取ID和来源
 onLoad(async (options) => {
@@ -23,10 +25,10 @@ onLoad(async (options) => {
     const addressId = options.id
     // 如果有 id，说明是编辑模式，需要获取地址详情
     if (addressId) {
-      uni.setNavigationBarTitle({ title: '编辑地址' })
+      title.value = '编辑地址'
       await getAddressDetail(addressId)
     } else {
-      uni.setNavigationBarTitle({ title: '新建地址' })
+      title.value = '新建地址'
     }
   }
 })
@@ -35,7 +37,6 @@ onLoad(async (options) => {
 const getAddressDetail = async (id: string) => {
   uni.showLoading({ title: '加载中...' })
   try {
-    // 【重构】使用 addressApi.getById() 替代 http 请求
     const res = await addressApi.getById(id)
     if (res.code === '0') {
       formData.value = res.result
@@ -50,14 +51,13 @@ const getAddressDetail = async (id: string) => {
 }
 
 // 点击保存按钮的回调
-const onSave = async (data: AddressParams) => {
+const onSave = async (data: AddressItem) => {
   const addressId = formData.value.id
 
   uni.showLoading({ title: '保存中...' })
   try {
     if (addressId) {
       // 编辑地址
-      // 【重构】使用 addressApi.update() 替代 http 请求
       const res = await addressApi.update(addressId, data)
       if (res.code === '0') {
         handleSaveSuccess(res.result as AddressItem)
@@ -66,7 +66,6 @@ const onSave = async (data: AddressParams) => {
       }
     } else {
       // 新建地址
-      // 【重构】使用 addressApi.create() 替代 http 请求
       const res = await addressApi.create(data)
       if (res.code === '0') {
         handleSaveSuccess(res.result as AddressItem)
@@ -86,12 +85,11 @@ const handleSaveSuccess = (savedAddress: AddressItem) => {
   uni.showToast({ icon: 'success', title: '保存成功' })
 
   // 如果来源是结算页，需要特殊处理
-  if (pageSource.value === 'checkout') {
+  if (pageSource.value === 'checkout' || pageSource.value === 'subscription') {
     // 更新 Pinia store 中的地址
     addressStore.changeSelectedAddress(savedAddress)
-    // 根据是新建还是编辑，决定返回几层
-    const delta = formData.value.id ? 1 : 2 // 编辑返回1层，新建返回2层
-    uni.navigateBack({ delta })
+    console.log('Address saved and selected in store. savedAddress=', savedAddress)
+    uni.navigateBack({ delta: 2 })
   } else {
     // 其他情况，直接返回上一页（地址列表）
     uni.navigateBack()

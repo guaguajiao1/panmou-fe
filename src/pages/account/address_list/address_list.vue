@@ -1,39 +1,54 @@
 <template>
   <view class="address-list-page">
+    <CustomNavigationBar title="收货地址"></CustomNavigationBar>
+
     <scroll-view scroll-y class="address-scroll">
       <view v-if="addressList.length === 0" class="empty-view">
         <text>您还没有收货地址</text>
       </view>
+
       <view v-else class="address-list">
-        <uni-swipe-action>
-          <uni-swipe-action-item v-for="item in addressList" :key="item.id">
-            <view class="address-item" @click="onAddressClick(item)">
-              <view class="info">
-                <view class="user-info">
-                  <text class="name">{{ item.receiver }}</text>
-                  <text class="phone">{{ item.contact }}</text>
-                  <text v-if="item.isDefault" class="default-tag">默认</text>
-                </view>
-                <view class="location">
-                  <text>{{ item.fullLocation }} {{ item.address }}</text>
-                </view>
-              </view>
-              <view class="actions">
-                <uni-icons
-                  type="compose"
-                  size="22"
-                  color="#666"
-                  @click.stop="goToEdit(item.id)"
-                ></uni-icons>
-              </view>
+        <view class="address-item" v-for="item in addressList" :key="item.id">
+          <view
+            class="selector"
+            v-if="selectorSources.includes(pageSource)"
+            @click.stop="onAddressClick(item)"
+          >
+            <radio
+              :checked="item.id === currentSelectedId"
+              :color="uniColorPrimary"
+              style="transform: scale(0.85)"
+            />
+          </view>
+
+          <view class="info" @click="onAddressClick(item)">
+            <view class="user-info">
+              <text class="name">{{ item.receiver }}</text>
+              <text class="phone">{{ item.contact }}</text>
+              <text v-if="item.isDefault" class="default-tag">默认</text>
             </view>
-            <template #right>
-              <view class="swipe-action-buttons">
-                <button class="delete-button" @click="onDelete(item.id)">删除</button>
-              </view>
-            </template>
-          </uni-swipe-action-item>
-        </uni-swipe-action>
+            <view class="location">
+              <text>{{ item.fullLocation }} {{ item.address }}</text>
+            </view>
+          </view>
+
+          <view class="actions">
+            <uni-icons
+              type="compose"
+              size="22"
+              :color="iconColor"
+              @click="goToEdit(item.id)"
+            ></uni-icons>
+
+            <uni-icons
+              class="delete-icon"
+              type="trash"
+              size="22"
+              :color="iconColor"
+              @click="onDelete(item.id)"
+            ></uni-icons>
+          </view>
+        </view>
       </view>
     </scroll-view>
 
@@ -50,13 +65,28 @@ import { useAddressStore } from '@/stores/modules/address'
 import { addressApi } from '@/api/address'
 import type { AddressItem } from '@/types/address'
 
+const iconColor = '#666'
+const uniColorPrimary = '#004a99'
+
 const addressStore = useAddressStore()
 const addressList = ref<AddressItem[]>([])
 const pageSource = ref('')
+const currentSelectedId = ref<string | null>(null)
+
+// (Req 1)
+// 可配置的来源列表
+// 凡是在这个数组里的 source，都会显示 radio 选择器
+const selectorSources = ['checkout', 'subscription']
 
 onLoad((options) => {
-  if (options?.source === 'checkout') {
-    pageSource.value = 'checkout'
+  // (Req 1)
+  // 修复：捕获所有 source，而不只是 checkout
+  if (options?.source) {
+    pageSource.value = options.source
+  }
+
+  if (options?.id) {
+    currentSelectedId.value = options.id
   }
 })
 
@@ -67,8 +97,20 @@ onShow(() => {
 const getAddressList = async () => {
   try {
     const res = await addressApi.list()
-    if (res.code === '0') {
-      addressList.value = res.result
+    let rawList: AddressItem[] = res.result || []
+
+    if (currentSelectedId.value) {
+      const selectedAddress = rawList.find((item) => item.id === currentSelectedId.value)
+
+      if (selectedAddress) {
+        const otherAddresses = rawList.filter((item) => item.id !== currentSelectedId.value)
+        addressList.value = [selectedAddress, ...otherAddresses]
+      } else {
+        addressList.value = rawList
+        currentSelectedId.value = null
+      }
+    } else {
+      addressList.value = rawList
     }
   } catch (error) {
     uni.showToast({ icon: 'none', title: '加载失败' })
@@ -85,10 +127,12 @@ const onDelete = (id: string) => {
           const deleteRes = await addressApi.delete(id)
           if (deleteRes.code === '0') {
             uni.showToast({ icon: 'success', title: '删除成功' })
-            if (addressStore.selectedAddress?.id === id) {
-              // This line is now valid after fixing the store
+
+            if (currentSelectedId.value === id) {
+              currentSelectedId.value = null
               addressStore.changeSelectedAddress(undefined)
             }
+
             getAddressList()
           } else {
             uni.showToast({ icon: 'none', title: deleteRes.msg || '删除失败' })
@@ -102,11 +146,12 @@ const onDelete = (id: string) => {
 }
 
 const onAddressClick = (address: AddressItem) => {
-  if (pageSource.value === 'checkout') {
+  // (Req 1)
+  // 优化：同样使用 selectorSources 数组来判断
+  if (selectorSources.includes(pageSource.value)) {
+    currentSelectedId.value = address.id
     addressStore.changeSelectedAddress(address)
     uni.navigateBack()
-  } else {
-    goToEdit(address.id)
   }
 }
 
@@ -122,12 +167,12 @@ const goToCreate = () => {
 </script>
 
 <style lang="scss" scoped>
-/* Styles are unchanged */
+/* (Style 保持不变) */
 .address-list-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f7f8fa;
+  background-color: $uni-bg-color-grey;
 }
 
 .address-scroll {
@@ -135,20 +180,31 @@ const goToCreate = () => {
   overflow-y: auto;
 }
 
+.address-list {
+  padding: $uni-spacing-row-base;
+}
+
 .empty-view {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 400rpx;
-  color: #999;
+  color: $uni-text-color-grey;
 }
 
 .address-item {
   display: flex;
   align-items: center;
-  padding: 30rpx;
-  background-color: #fff;
-  border-bottom: 1rpx solid #eee;
+  padding: $uni-spacing-row-lg;
+  background-color: $uni-bg-color;
+  border-bottom: none;
+  border-radius: $uni-border-radius-lg;
+  margin-bottom: $uni-spacing-row-base;
+
+  .selector {
+    margin-right: $uni-spacing-row-base;
+    margin-left: -5rpx;
+  }
 
   .info {
     flex: 1;
@@ -157,51 +213,42 @@ const goToCreate = () => {
   .user-info {
     display: flex;
     align-items: center;
-    margin-bottom: 10rpx;
+    margin-bottom: $uni-spacing-col-base;
     .name {
-      font-size: 30rpx;
-      font-weight: 500;
-      margin-right: 20rpx;
+      font-size: $uni-font-size-lg;
+      font-weight: bold;
+      color: $uni-text-color;
+      margin-right: $uni-spacing-row-base;
     }
     .phone {
-      font-size: 28rpx;
-      color: #666;
+      font-size: $uni-font-size-lg;
+      font-weight: bold;
+      color: $uni-text-color;
     }
     .default-tag {
-      font-size: 22rpx;
-      margin-left: 20rpx;
-      padding: 4rpx 10rpx;
-      background-color: #fdece8;
-      color: #d84f1a;
-      border-radius: 4rpx;
+      font-size: $uni-font-size-sm;
+      margin-left: $uni-spacing-row-base;
+      padding: $uni-spacing-col-sm $uni-spacing-row-base;
+      background-color: mix($uni-color-primary, $uni-bg-color, 10%);
+      color: $uni-color-primary;
+      border-radius: $uni-border-radius-sm;
     }
   }
 
   .location {
-    font-size: 26rpx;
-    color: #333;
+    font-size: $uni-font-size-base;
+    color: $uni-text-color;
     line-height: 1.5;
   }
 
   .actions {
-    padding-left: 30rpx;
-  }
-}
-
-.swipe-action-buttons {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  .delete-button {
     display: flex;
-    justify-content: center;
     align-items: center;
-    width: 160rpx;
-    height: 100%;
-    background-color: #dd524d;
-    color: #fff;
-    border-radius: 0;
-    font-size: 28rpx;
+    padding-left: $uni-spacing-row-lg;
+
+    .delete-icon {
+      margin-left: $uni-spacing-row-lg;
+    }
   }
 }
 
@@ -210,20 +257,20 @@ const goToCreate = () => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
-  background-color: #fff;
-  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #eee;
+  padding: $uni-spacing-row-base;
+  background-color: $uni-bg-color;
+  padding-bottom: calc($uni-spacing-row-base + constant(safe-area-inset-bottom));
+  padding-bottom: calc($uni-spacing-row-base + env(safe-area-inset-bottom));
+  border-top: 1rpx solid $uni-border-color;
 }
 
 .add-button {
   width: 100%;
   height: 80rpx;
   line-height: 80rpx;
-  font-size: 30rpx;
-  color: #fff;
-  background-color: #2c6fdb;
+  font-size: $uni-font-size-lg;
+  color: $uni-text-color-inverse;
+  background-color: $uni-color-primary;
   border-radius: 40rpx;
 }
 </style>
