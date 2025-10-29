@@ -73,6 +73,8 @@ export const http = async <T>(options: UniApp.RequestOptions): Promise<Data<T>> 
     try {
       const mockRes = await mockRequest(options)
       console.debug && console.debug('[http] mockRes=', mockRes)
+      console.log('[http] mock request', options.method, options.url)
+      console.log('[http] mock response', mockRes)
       if (mockRes !== null) {
         return { code: '0', msg: mockRes.msg || 'ok', result: (mockRes as any).result }
       }

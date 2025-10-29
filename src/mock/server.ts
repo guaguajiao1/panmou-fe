@@ -269,7 +269,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
   } catch (e) {
     // keep original
   }
-
+  console.log(`Mock request: ${options.method} ${url}`)
   await delay()
 
   // --- Address APIs (/account/addresses) ---
@@ -292,7 +292,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     url.match(/^\/account\/addresses\/\d+$/) &&
     String(options.method || 'GET').toUpperCase() === 'GET'
   ) {
-    const id = Number(url.split('/').pop())
+    const id = url.split('/').pop()
     const found = addresses.find((a) => a.id === id)
     if (found) return { code: '0', msg: 'ok', result: clone(found) }
     return { code: '1', msg: 'not found', result: null }
@@ -302,7 +302,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     url.match(/^\/account\/addresses\/\d+$/) &&
     String(options.method || 'PUT').toUpperCase() === 'PUT'
   ) {
-    const id = Number(url.split('/').pop())
+    const id = url.split('/').pop()
     const idx = addresses.findIndex((a) => a.id === id)
     if (idx === -1) return { code: '1', msg: 'not found', result: null }
     const body = (options.data as any) || {}
@@ -318,11 +318,13 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     url.match(/^\/account\/addresses\/\d+$/) &&
     String(options.method || 'DELETE').toUpperCase() === 'DELETE'
   ) {
-    const id = Number(url.split('/').pop())
+    const id = url.split('/').pop()
     const idx = addresses.findIndex((a) => a.id === id)
     if (idx === -1) return { code: '1', msg: 'not found', result: null }
     const removed = addresses.splice(idx, 1)[0]
     if (removed.isDefault && addresses.length > 0) addresses[0].isDefault = 1
+    console.log('Address deleted:', removed)
+    console.log('Remaining addresses:', addresses)
     return { code: '0', msg: 'deleted', result: clone(removed) }
   }
 
@@ -443,11 +445,15 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
             }
           })
         }
-      } else if (updateField === 'ADDRESS' && body.addressId) {
+      } else if (updateField === 'ADDRESS') {
         console.log('Updating address to id=', body.addressId)
-        const addr = addresses.find((a) => String(a.id) === String(body.addressId))
-        console.log('address=', addr)
-        if (addr) previews[previewId].shippingAddress = addr
+        if (!body.addressId || body.addressId === '') {
+          previews[previewId].shippingAddress = null
+        } else {
+          const addr = addresses.find((a) => String(a.id) === String(body.addressId))
+          console.log('address=', addr)
+          if (addr) previews[previewId].shippingAddress = addr
+        }
       }
 
       // after mutations, recompute totals

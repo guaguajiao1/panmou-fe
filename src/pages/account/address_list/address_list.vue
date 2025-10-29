@@ -73,14 +73,9 @@ const addressList = ref<AddressItem[]>([])
 const pageSource = ref('')
 const currentSelectedId = ref<string | null>(null)
 
-// (Req 1)
-// 可配置的来源列表
-// 凡是在这个数组里的 source，都会显示 radio 选择器
 const selectorSources = ['checkout', 'subscription']
 
 onLoad((options) => {
-  // (Req 1)
-  // 修复：捕获所有 source，而不只是 checkout
   if (options?.source) {
     pageSource.value = options.source
   }
@@ -98,7 +93,6 @@ const getAddressList = async () => {
   try {
     const res = await addressApi.list()
     let rawList: AddressItem[] = res.result || []
-
     if (currentSelectedId.value) {
       const selectedAddress = rawList.find((item) => item.id === currentSelectedId.value)
 
@@ -107,7 +101,6 @@ const getAddressList = async () => {
         addressList.value = [selectedAddress, ...otherAddresses]
       } else {
         addressList.value = rawList
-        currentSelectedId.value = null
       }
     } else {
       addressList.value = rawList
@@ -124,16 +117,37 @@ const onDelete = (id: string) => {
     success: async (res) => {
       if (res.confirm) {
         try {
+          const isDeletingSelected = currentSelectedId.value === id
+
           const deleteRes = await addressApi.delete(id)
           if (deleteRes.code === '0') {
             uni.showToast({ icon: 'success', title: '删除成功' })
 
-            if (currentSelectedId.value === id) {
-              currentSelectedId.value = null
-              addressStore.changeSelectedAddress(undefined)
-            }
+            if (isDeletingSelected) {
+              const listRes = await addressApi.list()
+              const newList: AddressItem[] = listRes.result || []
 
-            getAddressList()
+              if (newList.length === 0) {
+                addressList.value = []
+                currentSelectedId.value = null
+                addressStore.changeSelectedAddress(undefined)
+                return
+              }
+
+              let newSelectedAddress = newList.find((item) => item.isDefault === 1)
+
+              if (!newSelectedAddress) {
+                newSelectedAddress = newList[0]
+              }
+
+              currentSelectedId.value = newSelectedAddress.id
+              addressStore.changeSelectedAddress(newSelectedAddress)
+
+              const otherAddresses = newList.filter((item) => item.id !== newSelectedAddress.id)
+              addressList.value = [newSelectedAddress, ...otherAddresses]
+            } else {
+              getAddressList()
+            }
           } else {
             uni.showToast({ icon: 'none', title: deleteRes.msg || '删除失败' })
           }
@@ -146,8 +160,6 @@ const onDelete = (id: string) => {
 }
 
 const onAddressClick = (address: AddressItem) => {
-  // (Req 1)
-  // 优化：同样使用 selectorSources 数组来判断
   if (selectorSources.includes(pageSource.value)) {
     currentSelectedId.value = address.id
     addressStore.changeSelectedAddress(address)
@@ -167,7 +179,6 @@ const goToCreate = () => {
 </script>
 
 <style lang="scss" scoped>
-/* (Style 保持不变) */
 .address-list-page {
   display: flex;
   flex-direction: column;

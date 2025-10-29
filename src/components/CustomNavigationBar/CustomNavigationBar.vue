@@ -23,7 +23,18 @@ const navBarHeight = computed(() => {
 const navigateBack = () => {
   // uni.navigateBack() 用于返回上一页或关闭当前页面
   uni.navigateBack({
-    fail: () => {
+    delta: 1,
+    success: () => {
+      console.log('返回上一页成功')
+    },
+
+    fail: (err) => {
+      // 核心：在这里打印失败日志
+      console.error('navigateBack 失败，无法返回上一页。原因:', err.errMsg || err)
+
+      // 常见的 errMsg 可能是:
+      // "navigateBack:fail cannot navigate back at the first page."
+
       // 如果栈内没有页面可返回（比如当前页是首页），则跳转到首页
       uni.switchTab({ url: '/pages/index/index' })
     },
@@ -32,20 +43,13 @@ const navigateBack = () => {
 </script>
 
 <template>
-  <!-- 占位元素，防止内容被固定导航栏遮挡。通过 margin-bottom 增加下方间隔 -->
-  <!-- height 属性通过 style 动态计算，与固定导航栏主体高度一致 -->
   <view :style="{ height: navBarHeight + 'px' }" class="navbar-placeholder"></view>
 
-  <!-- 固定导航栏主体 -->
   <view class="navbar-container" :style="{ height: navBarHeight + 'px' }">
-    <!-- 状态栏占位 -->
     <view :style="{ height: statusBarHeight + 'px' }"></view>
 
-    <!-- 导航栏内容区 -->
     <view class="navbar-content" :style="{ height: navContentHeight + 'px' }">
-      <!-- 退出图标 -->
-      <view class="navbar-left" @tap="navigateBack">
-        <!-- 使用 uni-icons 作为关闭图标，颜色保持蓝色 #007aff -->
+      <view class="navbar-left">
         <uni-icons
           class="close-icon"
           type="closeempty"
@@ -55,12 +59,10 @@ const navigateBack = () => {
         ></uni-icons>
       </view>
 
-      <!-- 标题 -->
       <view class="navbar-title">
         <text class="title-text">{{ props.title }}</text>
       </view>
 
-      <!-- 右侧占位，保持标题居中 -->
       <view class="navbar-right"></view>
     </view>
   </view>

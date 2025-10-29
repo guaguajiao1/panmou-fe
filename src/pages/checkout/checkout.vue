@@ -231,7 +231,9 @@ const paymentButtonText = computed(() => {
 watch(
   () => addressStore.selectedAddress,
   (newAddress) => {
-    if (newAddress && newAddress.id !== orderPreview.value.shippingAddress?.id) {
+    if (!newAddress) {
+      updateAddressOnServer('')
+    } else if (newAddress && newAddress.id !== orderPreview.value.shippingAddress?.id) {
       // orderPreview.value.shippingAddress = newAddress
       updateAddressOnServer(newAddress.id)
       console.log('Address store changed, updating server preview.')
