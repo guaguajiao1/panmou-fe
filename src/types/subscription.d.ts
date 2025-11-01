@@ -24,6 +24,7 @@ export interface AutoshipData {
  */
 export interface Subscription {
   id: string
+  state: string // "ACTIVE"
   fulfillmentRequestId: string
   name: string // "Autoship #1"
   authorizationDate: string
@@ -339,4 +340,27 @@ export interface UpdateSubscriptionParams {
   nextOrderDate?: string
   frequency?: SubscriptionFrequency
   itemId?: string
+}
+
+export interface SimpleAutoshipData {
+  subscription: {
+    id: string
+    state: string
+    name: string
+    address: AddressItem
+    fulfillment: {
+      frequency: Frequency
+      nextShipment: string
+    }
+    items: {
+      id: string
+      item: {
+        id: string
+        name: string
+        partNumber: string
+        thumbnail: string
+      }
+    }[]
+  }
+  currentUser: CurrentUser
 }

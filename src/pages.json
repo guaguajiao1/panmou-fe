@@ -34,8 +34,7 @@
 			"path": "pages/cart/cart",
 			"style": {
 				"navigationBarTitleText": "购物车",
-        "enablePullDownRefresh": false
-
+				"enablePullDownRefresh": false
 			}
 		},
 		{
@@ -48,7 +47,7 @@
 			"path": "pages/checkout/checkout",
 			"style": {
 				"navigationBarTitleText": "确认订单",
-         "enablePullDownRefresh": false
+				"enablePullDownRefresh": false
 			}
 		},
 		{
@@ -62,15 +61,22 @@
 			"style": {
 				"navigationBarTitleText": "address"
 			}
-		}, {
-      "path": "pages/subscription/subscription",
-      "style": {
-        "navigationBarTitleText": "订阅管理"
-      }
-    }
+		},
+		{
+			"path": "pages/subscription/subscription",
+			"style": {
+				"navigationBarTitleText": "订阅管理"
+			}
+		},
+		{
+			"path": "pages/subscription-list/subscription-list",
+			"style": {
+				"navigationBarTitleText": "subscription-list"
+			}
+		}
 	],
 	"globalStyle": {
-    "navigationStyle": "custom"
+		"navigationStyle": "custom"
 	},
 	"uniIdRouter": {
 		"loginPage": "pages/login/login",

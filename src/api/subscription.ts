@@ -1,7 +1,17 @@
-import type { AutoshipData, UpdateSubscriptionParams } from '@/types/subscription'
+import type {
+  SimpleAutoshipData,
+  AutoshipData,
+  UpdateSubscriptionParams,
+} from '@/types/subscription'
 import { http } from '@/utils/http'
 
 export const subscriptionApi = {
+  getSubscriptions(state: string) {
+    return http<SimpleAutoshipData[]>({
+      method: 'GET',
+      url: `/subscriptions?state=${state}`,
+    })
+  },
   /**
    * 获取 Autoship 订阅详情
    * 请求路径：GET /subscriptions/{id}

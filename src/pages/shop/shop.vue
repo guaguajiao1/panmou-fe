@@ -26,6 +26,9 @@
   <view class="navigate_subscription">
     <button @click="goSubscription()">Go to Subscription</button>
   </view>
+  <view class="navigate_sub_list">
+    <button @click="goSubList()">Go to Sub list</button>
+  </view>
 </template>
 
 <script lang="ts" setup>
@@ -52,6 +55,12 @@ function goPlaceOrder() {
 function goSubscription() {
   uni.navigateTo({
     url: '/pages/subscription/subscription',
+  })
+}
+
+function goSubList() {
+  uni.navigateTo({
+    url: '/pages/subscription-list/subscription-list',
   })
 }
 </script>

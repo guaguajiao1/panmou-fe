@@ -29,16 +29,11 @@
     </scroll-view>
 
     <view class="cart-footer" v-if="cartData.items.length > 0">
-      <view class="shipping-progress-wrapper">
-        <view class="progress-bar">
-          <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
-        </view>
-        <text class="progress-text" v-if="shippingDifference > 0">
-          还差 <text class="highlight">¥{{ shippingDifference.toFixed(2) }}</text> 即可免运费
-        </text>
-        <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
-      </view>
-
+      <ShippingProgress
+        :currentTotal="cartData.freeShippingEligibleAmount"
+        :threshold="cartData.freeShippingThreshold"
+        variant="compact"
+      />
       <view class="subtotal-info">
         <view class="top-row">
           <text class="subtotal-label">合计:</text>
@@ -296,41 +291,6 @@ onMounted(() => {
     font-size: $uni-font-size-lg;
     font-weight: 600;
     color: $uni-text-color;
-  }
-}
-
-/* 运费进度条 (需求 1: 减小 padding 和 height) */
-.shipping-progress-wrapper {
-  padding: $uni-spacing-col-sm $uni-spacing-row-lg;
-  background-color: $uni-bg-color;
-  // margin-top: $uni-spacing-col-base; // 被移入 footer，不再需要
-  width: 100%;
-
-  .progress-bar {
-    height: 10px; // 变小
-    background-color: $uni-bg-color-grey;
-    border-radius: $uni-border-radius-lg;
-    overflow: hidden;
-    .progress-bar-inner {
-      height: 100%;
-      background-color: $uni-color-primary;
-      border-radius: $uni-border-radius-lg;
-      transition: width 0.3s ease;
-    }
-  }
-  .progress-text {
-    font-size: $uni-font-size-sm; // 变小
-    color: $uni-text-color;
-    text-align: center;
-    margin-top: $uni-spacing-col-sm; // 变小
-    display: block;
-    .highlight {
-      color: $uni-color-warning;
-      font-weight: bold;
-    }
-    &.success {
-      color: $uni-color-primary;
-    }
   }
 }
 

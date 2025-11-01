@@ -200,16 +200,11 @@
         </uni-card>
       </template>
 
-      <!-- 7. 免运费进度条 -->
-      <!-- 5. 文字移动到进度条上方 -->
-      <view class="shipping-progress-wrapper">
-        <text class="progress-text" v-if="shippingDifference > 0">
-          还差 <text class="highlight">¥{{ shippingDifference.toFixed(2) }}</text> 即可免运费
-        </text>
-        <text class="progress-text success" v-else> 🎉 已满足免运费条件 </text>
-        <view class="progress-bar">
-          <view class="progress-bar-inner" :style="{ width: shippingProgress + '%' }"></view>
-        </view>
+      <view class="progress-container">
+        <ShippingProgress
+          :currentTotal="parseFloat(subscriptionData.subscription.totalOrder)"
+          :threshold="FREE_SHIPPING_THRESHOLD"
+        />
       </view>
 
       <!-- 订单总览 -->
@@ -293,7 +288,7 @@
             @click="closePopup('changeDatePopupRef')"
           ></uni-icons>
         </view>
-        <!-- [MODIFIED] 3. 尝试添加 end-date -->
+        <!-- 3. 尝试添加 end-date -->
         <uni-calendar
           :date="tempSelectedDate"
           :insert="true"
@@ -783,7 +778,7 @@ onLoad(async (options) => {
   subscriptionData.value = mockAutoshipData
   subscriptionId.value = mockAutoshipData.subscription.id
   // 初始化弹窗的默认值
-  // [MODIFIED] 2. 日期弹窗默认值=minChangeDate (将在下面 openChangeDatePopup 中设置，因为 minChangeDate 是 computed)
+  // 2. 日期弹窗默认值=minChangeDate (将在下面 openChangeDatePopup 中设置，因为 minChangeDate 是 computed)
   tempSelectedFrequency.value = mockAutoshipData.subscription.fulfillment.frequency
   // 3. 频率 Bug 修复: 初始化 v-model
   tempSelectedFrequencyInterval.value =
@@ -1131,21 +1126,8 @@ const getItemDisplayPrice = (item: Item) => {
   }
 }
 
-// 7. 重命名为 shippingDifference
-const shippingDifference = computed(() => {
-  if (!subscriptionData.value) return 0
-  const total = parseFloat(subscriptionData.value.subscription.totalOrder)
-  const shortfall = FREE_SHIPPING_THRESHOLD - total
-  return shortfall > 0 ? shortfall : 0
-})
-
-// 7. 添加 shippingProgress
-const shippingProgress = computed(() => {
-  if (!subscriptionData.value) return 0
-  const total = parseFloat(subscriptionData.value.subscription.totalOrder)
-  const progress = (total / FREE_SHIPPING_THRESHOLD) * 100
-  return Math.min(progress, 100)
-})
+// [MODIFIED] 移除 shippingDifference
+// [MODIFIED] 移除 shippingProgress
 
 // 预估税费
 const estimatedTax = computed(() => {
@@ -1206,7 +1188,7 @@ const minChangeDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-// [MODIFIED] 3. 新增: 最大可选日期 (例如: 5年后)
+// 3. 新增: 最大可选日期 (例如: 5年后)
 const maxChangeDate = computed(() => {
   const today = new Date()
   today.setFullYear(today.getFullYear() + 5)
@@ -1587,45 +1569,10 @@ button {
   }
 }
 
-// 7. 免运费进度条
-.shipping-progress-wrapper {
-  background-color: $uni-bg-color;
-  padding: $uni-spacing-row-lg;
-  // 4. 布局调整
+// [MODIFIED] 为进度条添加上边距
+.progress-container {
   margin: ($uni-spacing-row-lg * 2) $uni-spacing-row-base 0 $uni-spacing-row-base;
-  border-radius: $uni-border-radius-lg;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-
-  // 5. 文字样式
-  .progress-text {
-    font-size: $uni-font-size-sm;
-    color: $uni-text-color-grey;
-    margin-bottom: $uni-spacing-col-base; // 5
-    display: block;
-    text-align: left; // 5
-    .highlight {
-      color: $uni-color-error;
-      font-weight: 500;
-    }
-    &.success {
-      color: $uni-color-success;
-      font-weight: 500;
-    }
-  }
-
-  .progress-bar {
-    width: 100%;
-    height: 8px;
-    background-color: $uni-bg-color-grey;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .progress-bar-inner {
-    height: 100%;
-    background-color: $uni-color-success;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-  }
+  // 你可以根据需要调整 margin-top 的值 ($uni-spacing-row-lg * 2)
 }
 
 // 订单总览
@@ -1876,7 +1823,7 @@ button {
     padding: $uni-spacing-col-lg $uni-spacing-row-lg;
     border-bottom: 1px solid mix($uni-border-color, $uni-bg-color, 20%);
 
-    // 2. Radio 按钮样式 (如果需要覆盖默认)
+    // 2. Radio 按钮样式
     radio {
       margin-right: $uni-spacing-row-base; // 与文本的间距
       transform: scale(0.8); // 稍微缩小一点
@@ -1896,7 +1843,7 @@ button {
     font-size: $uni-font-size-lg + 2px; // 1
     font-weight: 500; // 1
     color: $uni-text-color;
-    flex-basis: 50%; // 1
+    // flex-basis: 50%; // 1 (移除固定宽度，让flex布局自动处理)
     margin-bottom: $uni-spacing-col-base; // 为日期留出空间
   }
   .frequency-preview-dates {
