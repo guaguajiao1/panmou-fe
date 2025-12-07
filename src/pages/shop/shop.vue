@@ -48,7 +48,7 @@ function goChewyCart() {
 
 function goPlaceOrder() {
   uni.navigateTo({
-    url: '/pages/checkout/checkout?previewId=1',
+    url: '/orderPages/checkout/checkout?previewId=1',
   })
 }
 
@@ -59,7 +59,7 @@ function goSubscription() {
 }
 
 function goSubList() {
-  uni.navigateTo({
+  uni.switchTab({
     url: '/pages/subscription-list/subscription-list',
   })
 }

@@ -357,6 +357,7 @@ export interface SimpleAutoshipData {
       item: {
         id: string
         name: string
+        quantity: number
         partNumber: string
         thumbnail: string
       }

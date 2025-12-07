@@ -169,12 +169,12 @@ const onAddressClick = (address: AddressItem) => {
 
 const goToEdit = (id: string) => {
   uni.navigateTo({
-    url: `/pages/account/address_edit/address_edit?id=${id}&source=${pageSource.value}`,
+    url: `/accountPages/address_edit/address_edit?id=${id}&source=${pageSource.value}`,
   })
 }
 
 const goToCreate = () => {
-  uni.navigateTo({ url: `/pages/account/address_edit/address_edit?source=${pageSource.value}` })
+  uni.navigateTo({ url: `/accountPages/address_edit/address_edit?source=${pageSource.value}` })
 }
 </script>
 

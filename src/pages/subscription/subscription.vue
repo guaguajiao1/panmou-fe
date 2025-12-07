@@ -983,7 +983,7 @@ function navigateToAddItems() {
 
 // 8. 跳转到地址管理
 const goToAddressManagement = () => {
-  uni.navigateTo({ url: '/pages/account/address_list/address_list?source=subscription' })
+  uni.navigateTo({ url: '/accountPages/address_list/address_list?source=subscription' })
 }
 
 // 4. 跳转到订单详情

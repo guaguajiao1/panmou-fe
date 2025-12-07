@@ -422,7 +422,7 @@ const onAddressFormSave = async (formData: AddressItem) => {
 
 const goToAddressManagement = (id: string) => {
   console.log('Navigating to address management with id=', id)
-  uni.navigateTo({ url: `/pages/account/address_list/address_list?source=checkout&id=${id}` })
+  uni.navigateTo({ url: `/accountPages/address_list/address_list?source=checkout&id=${id}` })
 }
 
 const goToProductDetail = (item: Item) =>

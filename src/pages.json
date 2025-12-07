@@ -1,85 +1,152 @@
 {
-	// 组件自动引入规则
-	"easycom": {
-		// 是否开启自动扫描
-		"autoscan": true,
-		// 以正则方式自定义组件匹配规则
-		"custom": {
-			// uni-ui 规则如下配置
-			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue",
-			// 以 Xtx 开头的组件，在 components 文件夹中查找引入（需要重启服务器）
-			"^Xtx(.*)": "@/components/Xtx$1.vue"
-		}
-	},
-	"pages": [
-		{
-			"path": "pages/shop/shop",
-			"style": {
-				"navigationBarTitleText": "shop"
-			}
-		},
-		{
-			"path": "pages/index/index",
-			"style": {
-				"navigationBarTitleText": "uni-app"
-			}
-		},
-		{
-			"path": "pages/product/product",
-			"style": {
-				"navigationBarTitleText": "商品详情"
-			}
-		},
-		{
-			"path": "pages/cart/cart",
-			"style": {
-				"navigationBarTitleText": "购物车",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/chewy_cart/chewy_cart",
-			"style": {
-				"navigationBarTitleText": "购物车"
-			}
-		},
-		{
-			"path": "pages/checkout/checkout",
-			"style": {
-				"navigationBarTitleText": "确认订单",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/account/address_list/address_list",
-			"style": {
-				"navigationBarTitleText": "收货地址"
-			}
-		},
-		{
-			"path": "pages/account/address_edit/address_edit",
-			"style": {
-				"navigationBarTitleText": "address"
-			}
-		},
-		{
-			"path": "pages/subscription/subscription",
-			"style": {
-				"navigationBarTitleText": "订阅管理"
-			}
-		},
-		{
-			"path": "pages/subscription-list/subscription-list",
-			"style": {
-				"navigationBarTitleText": "subscription-list"
-			}
-		}
-	],
-	"globalStyle": {
-		"navigationStyle": "custom"
-	},
-	"uniIdRouter": {
-		"loginPage": "pages/login/login",
-		"needLogin": []
-	}
+  // 组件自动引入规则
+  "easycom": {
+    // 是否开启自动扫描
+    "autoscan": true,
+    // 以正则方式自定义组件匹配规则
+    "custom": {
+      // uni-ui 规则如下配置
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue",
+      // 以 Xtx 开头的组件，在 components 文件夹中查找引入（需要重启服务器）
+      "^Xtx(.*)": "@/components/Xtx$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/shop/shop",
+      "style": {}
+    },
+    {
+      "path": "pages/product/product",
+      "style": {}
+    },
+    {
+      "path": "pages/cart/cart",
+      "style": {
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/subscription/subscription",
+      "style": {}
+    },
+    {
+      "path": "pages/subscription-list/subscription-list",
+      "style": {}
+    },
+    {
+      "path": "pages/my/my",
+      "style": {}
+    },
+    {
+      "path": "pages/login/login",
+      "style": {}
+    },
+    {
+      "path": "pages/login/panmou_protocal",
+      "style": {}
+    },
+    {
+      "path": "pages/login/panmou_privacy",
+      "style": {}
+    }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  // 设置 TabBar
+  "tabBar": {
+    "color": "#333",
+    "selectedColor": "#004a99",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "text": "首页",
+        "pagePath": "pages/shop/shop",
+        "iconPath": "static/tabs/shouye.png",
+        "selectedIconPath": "static/tabs/shouye_selected.png"
+      },
+      {
+        "text": "订阅",
+        "pagePath": "pages/subscription-list/subscription-list",
+        "iconPath": "static/tabs/duoxunhuan.png",
+        "selectedIconPath": "static/tabs/duoxunhuan_selected.png"
+      },
+      {
+        "text": "我的",
+        "pagePath": "pages/my/my",
+        "iconPath": "static/tabs/account.png",
+        "selectedIconPath": "static/tabs/account_selected.png"
+      }
+    ]
+  },
+  // 分包加载规则
+  "subPackages": [
+    {
+      // 子包的根目录
+      "root": "accountPages",
+      // 页面路径和窗口表现
+      "pages": [
+        {
+          "path": "settings/settings",
+          "style": {}
+        },
+        {
+          "path": "profile/profile",
+          "style": {}
+        },
+        {
+          "path": "address_list/address_list",
+          "style": {}
+        },
+        {
+          "path": "address_edit/address_edit",
+          "style": {}
+        }
+      ]
+    },
+    {
+      "root": "orderPages",
+      "pages": [
+        {
+          "path": "checkout/checkout",
+          "style": {
+            "navigationBarTitleText": "填写订单"
+          }
+        },
+        {
+          "path": "detail/detail",
+          "style": {
+            "navigationBarTitleText": "订单详情"
+          }
+        },
+        {
+          "path": "payment/payment",
+          "style": {
+            "navigationBarTitleText": "支付结果"
+          }
+        },
+        {
+          "path": "list/list",
+          "style": {
+            "navigationBarTitleText": "订单列表"
+          }
+        }
+      ]
+    }
+  ],
+  // 分包预下载规则
+  "preloadRule": {
+    "pages/my/my": {
+      "network": "all",
+      "packages": [
+        "accountPages"
+      ]
+    }
+  }
 }

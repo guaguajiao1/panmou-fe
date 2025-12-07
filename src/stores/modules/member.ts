@@ -1,9 +1,9 @@
-import type { LoginResult } from '@/types/member'
+import type { LoginResult } from '@/types/account'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 // 定义 Store
-export const useMemberStore = defineStore(
+export const useAccountStore = defineStore(
   'member',
   () => {
     // 会员信息

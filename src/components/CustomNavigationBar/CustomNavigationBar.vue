@@ -36,7 +36,7 @@ const navigateBack = () => {
       // "navigateBack:fail cannot navigate back at the first page."
 
       // 如果栈内没有页面可返回（比如当前页是首页），则跳转到首页
-      uni.switchTab({ url: '/pages/index/index' })
+      uni.switchTab({ url: '/pages/shop/shop' })
     },
   })
 }
@@ -115,7 +115,7 @@ const navigateBack = () => {
   .title-text {
     font-size: 32rpx;
     font-weight: bold;
-    color: #007aff; /* 标题颜色：蓝色 */
+    color: #004a99; /* 标题颜色：蓝色 */
   }
 }
 
