@@ -1,6 +1,9 @@
 import type { AddressItem } from '@/types/address'
 import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
 import type { Cart } from '@/types/cart'
+import type { OrderDetail, OrderSkuItem, DiscountDetail } from '@/types/order'
+import type { OrderShipment, ShipmentTrace } from '@/types/logistics'
+import { OrderState, OrderItemState, ItemType, ShipmentState } from '@/types/order-state'
 // Development mock server implementing Address, Cart and Checkout APIs
 // Returns Data<T> objects that match the http wrapper expectations
 
@@ -10,12 +13,13 @@ type Data<T> = {
   result: T
 }
 
-const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms))
+const delay = (ms = 150) => new Promise((r) => setTimeout(r, ms))
 
 // In-memory stores
 const addresses: Array<any> = []
 let globalCart: any = {}
 const previews: Record<string, any> = {}
+const orders: Map<string, OrderDetail> = new Map()
 
 // Helpers
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
@@ -261,6 +265,282 @@ const computeCart = (cart: Cart) => {
   console.log('server init', previews['1'])
 })()
 
+// 初始化Mock订单数据
+;(function createSampleOrders() {
+  const now = new Date()
+  const mockAddress: AddressItem = {
+    id: '1',
+    receiver: '张三',
+    contact: '13800138000',
+    provinceCode: '110000',
+    cityCode: '110100',
+    countyCode: '110101',
+    address: '朝阳区建国门外大街1号',
+    fullLocation: '北京市 北京市 东城区',
+    isDefault: 1,
+  }
+
+  // 订单1: 待付款
+  const order1: OrderDetail = {
+    orderId: 'ORDER-001',
+    userId: 'USER-001',
+    orderState: OrderState.PENDING,
+    payChannel: 2,
+    payType: 1,
+    totalItemQuantity: 2,
+    totalAmount: 120,
+    discountAmount: 10,
+    shippingFee: 0,
+    payAmount: 110,
+    discountDetails: [
+      {
+        discountId: 'D001',
+        discountType: 1,
+        sourceId: 'COUPON-001',
+        sourceName: '新人优惠券',
+        discountAmount: 10,
+      },
+    ],
+    shippingAddress: mockAddress,
+    items: [
+      {
+        itemId: 'ITEM-001',
+        orderId: 'ORDER-001',
+        itemType: ItemType.NORMAL,
+        itemState: OrderItemState.NORMAL,
+        skuId: 'SKU-001',
+        productId: 'PROD-001',
+        productName: '高级狗咀嚼棒',
+        skuAttrs: '规格:大号',
+        productImage: 'https://placehold.co/160x160?text=Chew',
+        unitPrice: 60,
+        quantity: 2,
+        discountAmount: 10,
+        actualAmount: 110,
+        discountDetails: [],
+      },
+    ],
+    createdAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
+    expiredAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
+    countdown: 1800,
+  }
+
+  // 订单2: 待发货
+  const order2: OrderDetail = {
+    orderId: 'ORDER-002',
+    userId: 'USER-001',
+    orderState: OrderState.PAID,
+    payChannel: 2,
+    payType: 1,
+    payTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    totalItemQuantity: 1,
+    totalAmount: 30,
+    discountAmount: 0,
+    shippingFee: 5,
+    payAmount: 35,
+    discountDetails: [],
+    shippingAddress: mockAddress,
+    items: [
+      {
+        itemId: 'ITEM-002',
+        orderId: 'ORDER-002',
+        itemType: ItemType.NORMAL,
+        itemState: OrderItemState.NORMAL,
+        skuId: 'SKU-002',
+        productId: 'PROD-002',
+        productName: '猫抓板',
+        skuAttrs: '规格:中号',
+        productImage: 'https://placehold.co/160x160?text=Scratch',
+        unitPrice: 30,
+        quantity: 1,
+        discountAmount: 0,
+        actualAmount: 30,
+        discountDetails: [],
+      },
+    ],
+    createdAt: new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+  }
+
+  // 订单3: 待收货（含物流信息）
+  const order3: OrderDetail = {
+    orderId: 'ORDER-003',
+    userId: 'USER-001',
+    orderState: OrderState.SHIPPED,
+    payChannel: 1,
+    payType: 1,
+    payTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    totalItemQuantity: 3,
+    totalAmount: 180,
+    discountAmount: 20,
+    shippingFee: 0,
+    payAmount: 160,
+    discountDetails: [
+      {
+        discountId: 'D002',
+        discountType: 2,
+        sourceId: 'PROMO-001',
+        sourceName: '满100减20',
+        discountAmount: 20,
+      },
+    ],
+    shippingAddress: mockAddress,
+    items: [
+      {
+        itemId: 'ITEM-003',
+        orderId: 'ORDER-003',
+        itemType: ItemType.NORMAL,
+        itemState: OrderItemState.SHIPPED,
+        skuId: 'SKU-001',
+        productId: 'PROD-001',
+        productName: '高级狗咀嚼棒',
+        skuAttrs: '规格:大号',
+        productImage: 'https://placehold.co/160x160?text=Chew',
+        unitPrice: 60,
+        quantity: 3,
+        discountAmount: 20,
+        actualAmount: 160,
+        discountDetails: [],
+      },
+    ],
+    shipments: [
+      {
+        shipmentId: 'SHIP-001',
+        orderId: 'ORDER-003',
+        carrierCode: 'SF',
+        carrierName: '顺丰速运',
+        trackingNo: 'SF1234567890',
+        shipmentState: ShipmentState.DELIVERING,
+        shippedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        items: [
+          {
+            orderItemId: 'ITEM-003',
+            productName: '高级狗咀嚼棒',
+            productImage: 'https://placehold.co/160x160?text=Chew',
+            skuAttrs: '规格:大号',
+            quantity: 3,
+          },
+        ],
+        traces: [
+          {
+            traceId: 'T003',
+            traceTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.DELIVERING,
+            traceDesc: '【北京市】快件正在派送中，快递员：李四，电话：138****1234',
+            location: '北京市朝阳区',
+          },
+          {
+            traceId: 'T002',
+            traceTime: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.IN_TRANSIT,
+            traceDesc: '【北京市】快件已到达北京朝阳分拨中心',
+            location: '北京市朝阳区',
+          },
+          {
+            traceId: 'T001',
+            traceTime: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.COLLECTED,
+            traceDesc: '【上海市】顺丰速运已揽收',
+            location: '上海市浦东新区',
+          },
+        ],
+      },
+    ],
+    createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+
+  // 订单4: 已完成
+  const order4: OrderDetail = {
+    orderId: 'ORDER-004',
+    userId: 'USER-001',
+    orderState: OrderState.COMPLETED,
+    payChannel: 2,
+    payType: 1,
+    payTime: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    totalItemQuantity: 1,
+    totalAmount: 60,
+    discountAmount: 0,
+    shippingFee: 0,
+    payAmount: 60,
+    discountDetails: [],
+    shippingAddress: mockAddress,
+    items: [
+      {
+        itemId: 'ITEM-004',
+        orderId: 'ORDER-004',
+        itemType: ItemType.NORMAL,
+        itemState: OrderItemState.RECEIVED,
+        skuId: 'SKU-001',
+        productId: 'PROD-001',
+        productName: '高级狗咀嚼棒',
+        skuAttrs: '规格:大号',
+        productImage: 'https://placehold.co/160x160?text=Chew',
+        unitPrice: 60,
+        quantity: 1,
+        discountAmount: 0,
+        actualAmount: 60,
+        discountDetails: [],
+      },
+    ],
+    shipments: [
+      {
+        shipmentId: 'SHIP-002',
+        orderId: 'ORDER-004',
+        carrierCode: 'YTO',
+        carrierName: '圆通速递',
+        trackingNo: 'YT9876543210',
+        shipmentState: ShipmentState.DELIVERED,
+        shippedAt: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+        deliveredAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+        items: [
+          {
+            orderItemId: 'ITEM-004',
+            productName: '高级狗咀嚼棒',
+            productImage: 'https://placehold.co/160x160?text=Chew',
+            skuAttrs: '规格:大号',
+            quantity: 1,
+          },
+        ],
+        traces: [
+          {
+            traceId: 'T006',
+            traceTime: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.DELIVERED,
+            traceDesc: '【北京市】快件已签收，签收人：本人签收',
+            location: '北京市朝阳区',
+          },
+          {
+            traceId: 'T005',
+            traceTime: new Date(now.getTime() - 4.5 * 24 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.DELIVERING,
+            traceDesc: '【北京市】快件正在派送中',
+            location: '北京市朝阳区',
+          },
+          {
+            traceId: 'T004',
+            traceTime: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+            traceState: ShipmentState.COLLECTED,
+            traceDesc: '【上海市】圆通速递已揽收',
+            location: '上海市浦东新区',
+          },
+        ],
+      },
+    ],
+    createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+
+  // 将订单添加到存储
+  orders.set(order1.orderId, order1)
+  orders.set(order2.orderId, order2)
+  orders.set(order3.orderId, order3)
+  orders.set(order4.orderId, order4)
+
+  console.log('Mock orders initialized:', orders.size)
+})()
+
 export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<any> | null> => {
   let url = String(options.url || '')
   try {
@@ -487,6 +767,314 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     }
   }
 
-  // Not mocked
+  // --- Order APIs (/account/orders) ---
+  console.warn('order url=', url)
+  console.warn('order options=', options)
+  console.warn(
+    'if=',
+    url.match(/^\/account\/orders(\?.*)?$/) &&
+      String(options.method || 'GET').toUpperCase() === 'GET',
+  )
+  // 查询订单列表 GET /account/orders
+  if (
+    url.match(/^\/account\/orders(\?.*)?$/) &&
+    String(options.method || 'GET').toUpperCase() === 'GET'
+  ) {
+    // 支持从URL查询参数或options.data获取参数
+    // 小程序环境不支持 URL 构造函数，使用简单的解析方式
+    const parseQueryParams = (urlStr: string): Record<string, string> => {
+      const params: Record<string, string> = {}
+      const queryIndex = urlStr.indexOf('?')
+      if (queryIndex === -1) return params
+      const queryString = urlStr.slice(queryIndex + 1)
+      queryString.split('&').forEach((pair) => {
+        const [key, value] = pair.split('=')
+        if (key) params[decodeURIComponent(key)] = decodeURIComponent(value || '')
+      })
+      return params
+    }
+
+    const urlParams = parseQueryParams(url)
+    const data = (options.data as any) || {}
+
+    const page = parseInt(data.page || urlParams['page'] || '1')
+    const pageSize = parseInt(data.pageSize || urlParams['pageSize'] || '10')
+    const orderState = data.orderState ?? urlParams['orderState']
+
+    let filteredOrders = Array.from(orders.values())
+    console.warn('filteredOrders=', filteredOrders)
+
+    // 按订单状态筛选
+    if (
+      orderState !== null &&
+      orderState !== undefined &&
+      orderState !== 'null' &&
+      orderState !== ''
+    ) {
+      const stateNum = typeof orderState === 'number' ? orderState : parseInt(orderState)
+      if (!isNaN(stateNum)) {
+        filteredOrders = filteredOrders.filter((o) => o.orderState === stateNum)
+      }
+    }
+
+    // 按创建时间倒序排序
+    filteredOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    // 分页
+    const total = filteredOrders.length
+    const totalPages = Math.ceil(total / pageSize) || 1
+    const startIndex = (page - 1) * pageSize
+    const items = filteredOrders.slice(startIndex, startIndex + pageSize)
+
+    console.warn('order items=', items)
+    return {
+      code: '0',
+      msg: 'ok',
+      result: { items: clone(items), total, page, pageSize, totalPages },
+    }
+  }
+
+  // 获取订单详情 GET /account/orders/{orderId}
+  const orderDetailMatch = url.match(/^\/account\/orders\/([^/:]+)$/)
+  if (orderDetailMatch && String(options.method || 'GET').toUpperCase() === 'GET') {
+    const orderId = orderDetailMatch[1]
+    const order = orders.get(orderId)
+    if (!order) return { code: '1', msg: '订单不存在', result: null }
+    return { code: '0', msg: 'ok', result: clone(order) }
+  }
+
+  // 确认收货 POST /account/orders/{orderId}:confirm
+  const confirmMatch = url.match(/^\/account\/orders\/([^/:]+):confirm$/)
+  if (confirmMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
+    const orderId = confirmMatch[1]
+    const order = orders.get(orderId)
+    if (!order) return { code: '1', msg: '订单不存在', result: null }
+    if (order.orderState !== OrderState.SHIPPED) {
+      return { code: '2', msg: '订单状态不允许确认收货', result: null }
+    }
+    order.orderState = OrderState.COMPLETED
+    order.updatedAt = new Date().toISOString()
+    order.items.forEach((item) => {
+      item.itemState = OrderItemState.RECEIVED
+    })
+    return { code: '0', msg: '已确认收货', result: clone(order) }
+  }
+
+  // 取消订单 POST /account/orders/{orderId}:cancel
+  const cancelMatch = url.match(/^\/account\/orders\/([^/:]+):cancel$/)
+  if (cancelMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
+    const orderId = cancelMatch[1]
+    const order = orders.get(orderId)
+    if (!order) return { code: '1', msg: '订单不存在', result: null }
+    if (order.orderState !== OrderState.PENDING && order.orderState !== OrderState.PAID) {
+      return { code: '2', msg: '订单状态不允许取消', result: null }
+    }
+    order.orderState = OrderState.CANCELLED
+    order.updatedAt = new Date().toISOString()
+    return { code: '0', msg: '订单已取消', result: clone(order) }
+  }
+
+  // 删除订单 DELETE /account/orders/{orderId}
+  const deleteOrderMatch = url.match(/^\/account\/orders\/([^/:]+)$/)
+  if (deleteOrderMatch && String(options.method || 'DELETE').toUpperCase() === 'DELETE') {
+    const orderId = deleteOrderMatch[1]
+    const order = orders.get(orderId)
+    if (!order) return { code: '1', msg: '订单不存在', result: null }
+    if (order.orderState !== OrderState.COMPLETED && order.orderState !== OrderState.CANCELLED) {
+      return { code: '2', msg: '只能删除已完成或已取消的订单', result: null }
+    }
+    orders.delete(orderId)
+    return { code: '0', msg: '订单已删除', result: { success: true } }
+  }
+
+  // 获取订单物流 GET /account/orders/{orderId}/logistics
+  const logisticsMatch = url.match(/^\/account\/orders\/([^/:]+)\/logistics$/)
+  if (logisticsMatch && String(options.method || 'GET').toUpperCase() === 'GET') {
+    const orderId = logisticsMatch[1]
+    const order = orders.get(orderId)
+    if (!order) return { code: '1', msg: '订单不存在', result: null }
+    if (!order.shipments || order.shipments.length === 0) {
+      return { code: '2', msg: '暂无物流信息', result: { orderId, shipments: [] } }
+    }
+    return { code: '0', msg: 'ok', result: { orderId, shipments: clone(order.shipments) } }
+  }
+
+  // --- Account Auth APIs (/account/auth) ---
+
+  // 微信小程序手机号登录 POST /account/auth/wx-phone
+  if (
+    url.match(/^\/account\/auth\/wx-phone$/) &&
+    String(options.method || 'POST').toUpperCase() === 'POST'
+  ) {
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        mobile: '13888888888',
+        token: 'mock-token-' + Date.now(),
+        profile: {
+          uid: '888',
+          nickname: '盼眸用户',
+          avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+          account: 'panmou_user',
+          gender: '男',
+          birthday: '1995-01-01',
+          fullLocation: '北京市 市辖区 东城区',
+          profession: '工程师',
+        },
+      },
+    }
+  }
+
+  // 微信小程序静默登录 POST /account/auth/wx-silent
+  if (
+    url.match(/^\/account\/auth\/wx-silent$/) &&
+    String(options.method || 'POST').toUpperCase() === 'POST'
+  ) {
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        mobile: '13888888888',
+        token: 'mock-token-' + Date.now(),
+        profile: {
+          uid: '888',
+          nickname: '盼眸用户',
+          avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+          account: 'panmou_user',
+          gender: '男',
+        },
+      },
+    }
+  }
+
+  // 退出登录 POST /account/auth/logout
+  if (
+    url.match(/^\/account\/auth\/logout$/) &&
+    String(options.method || 'POST').toUpperCase() === 'POST'
+  ) {
+    return { code: '0', msg: 'ok', result: null }
+  }
+
+  // --- Account Profile APIs (/account/profile) ---
+
+  // 获取用户资料 GET /account/profile
+  if (
+    url.match(/^\/account\/profile$/) &&
+    String(options.method || 'GET').toUpperCase() === 'GET'
+  ) {
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        uid: '888',
+        nickname: '盼眸用户',
+        avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+        account: 'panmou_user',
+        gender: '男',
+        birthday: '1995-01-01',
+        fullLocation: '北京市 市辖区 东城区',
+        profession: '工程师',
+      },
+    }
+  }
+
+  // 更新用户资料 PUT /account/profile
+  if (
+    url.match(/^\/account\/profile$/) &&
+    String(options.method || 'PUT').toUpperCase() === 'PUT'
+  ) {
+    const data = (options.data as any) || {}
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        uid: '888',
+        nickname: data.nickname || '盼眸用户',
+        avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+        account: 'panmou_user',
+        gender: data.gender || '男',
+        birthday: data.birthday || '1995-01-01',
+        fullLocation: '北京市 市辖区 东城区',
+        profession: data.profession || '工程师',
+      },
+    }
+  }
+
+  // 更新用户头像 PUT /account/profile/avatar
+  if (
+    url.match(/^\/account\/profile\/avatar$/) &&
+    String(options.method || 'PUT').toUpperCase() === 'PUT'
+  ) {
+    const data = (options.data as any) || {}
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        avatar:
+          data.avatar ||
+          'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+      },
+    }
+  }
+
+  // --- Legacy APIs (保持向后兼容) ---
+
+  // 旧版登录 POST /login/wxMin
+  if (url.match(/^\/login\/wxMin/) && String(options.method || 'POST').toUpperCase() === 'POST') {
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        mobile: '13888888888',
+        token: 'mock-token-' + Date.now(),
+        profile: {
+          uid: '888',
+          nickname: '盼眸用户',
+          avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+          account: 'panmou_user',
+          gender: '男',
+        },
+      },
+    }
+  }
+
+  // 旧版用户资料 GET /member/profile
+  if (url.match(/^\/member\/profile/) && String(options.method || 'GET').toUpperCase() === 'GET') {
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        uid: '888',
+        nickname: '盼眸用户',
+        avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+        account: 'panmou_user',
+        gender: '男',
+        birthday: '1995-01-01',
+        fullLocation: '北京市 市辖区 东城区',
+        profession: '工程师',
+      },
+    }
+  }
+
+  // 旧版用户资料 PUT /member/profile
+  if (url.match(/^\/member\/profile/) && String(options.method || 'PUT').toUpperCase() === 'PUT') {
+    const data = (options.data as any) || {}
+    return {
+      code: '0',
+      msg: 'ok',
+      result: {
+        uid: '888',
+        nickname: data.nickname || '盼眸用户',
+        avatar: 'https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/uploads/avatar_3.jpg',
+        account: 'panmou_user',
+        gender: data.gender || '男',
+        birthday: data.birthday || '1995-01-01',
+        fullLocation: '北京市 市辖区 东城区',
+        profession: data.profession || '工程师',
+      },
+    }
+  }
+
   return null
 }

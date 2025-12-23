@@ -8,36 +8,27 @@
           <text class="greeting">你好, {{ accountStore.profile.profile.nickname }}</text>
         </view>
 
-        <view class="section-card">
-          <view class="section-header" @click="goToOrders">
-            <text class="section-title">你的订单</text>
-            <uni-icons type="right" size="18" color="#999"></uni-icons>
+        <!-- 我的订单 -->
+        <view class="orders-card">
+          <view class="orders-header">
+            <text class="orders-title">我的订单</text>
+            <navigator class="orders-more" url="/orderPages/list/list" hover-class="none">
+              查看全部订单<uni-icons type="right" size="14" color="#939393"></uni-icons>
+            </navigator>
           </view>
-          <view v-if="recentOrders.length > 0" class="section-content-filled">
+          <view class="orders-section">
             <view
-              v-for="order in recentOrders"
-              :key="order.id"
-              class="order-item"
-              @click="goToOrders"
+              v-for="item in orderStatusMenu"
+              :key="item.type"
+              class="order-nav-item"
+              @click="goToOrderList(item.type)"
             >
-              <view class="item-images">
-                <image
-                  v-for="item in order.items.slice(0, 3)"
-                  :key="item.id"
-                  :src="item.thumbnail"
-                  class="item-image"
-                  mode="aspectFill"
-                ></image>
+              <view class="icon-wrapper">
+                <uni-icons :type="item.icon" size="28" color="#333"></uni-icons>
+                <view v-if="item.count > 0" class="badge">{{ item.count }}</view>
               </view>
-              <view class="order-info">
-                <text class="order-status">{{ order.statusText }}</text>
-                <text class="order-date">预计 {{ order.arrivalDate }} 送达</text>
-              </view>
+              <text class="order-nav-text">{{ item.text }}</text>
             </view>
-          </view>
-          <view v-else class="section-content-empty">
-            <text class="empty-text">你还没有最近的订单</text>
-            <button class="empty-action-button" @click="goToHome">去逛逛</button>
           </view>
         </view>
 
@@ -144,10 +135,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useAccountStore } from '@/stores'
 import { onShow } from '@dcloudio/uni-app'
 import type { SimpleAutoshipData } from '@/types/subscription'
+import { OrderState } from '@/types/order-state'
 
 // 1. 获取登录信息
 const accountStore = useAccountStore()
@@ -169,7 +161,13 @@ interface PetProfile {
 type AutoshipSummary = SimpleAutoshipData // 复用订阅列表的数据结构
 
 // --- Mock 数据 ---
-const recentOrders = ref<OrderSummary[]>([])
+const orderStatusMenu = ref([
+  { type: OrderState.PENDING, text: '待付款', icon: 'wallet', count: 0 },
+  { type: OrderState.PAID, text: '待发货', icon: 'gift-filled', count: 0 },
+  { type: OrderState.SHIPPED, text: '待收货', icon: 'paperplane', count: 0 },
+  { type: OrderState.COMPLETED, text: '已完成', icon: 'checkbox-filled', count: 0 },
+  { type: OrderState.REFUNDING, text: '售后', icon: 'headphones', count: 0 },
+])
 const nextAutoship = ref<AutoshipSummary | null>(null)
 const pets = ref<PetProfile[]>([])
 const isLoading = ref(true)
@@ -182,7 +180,6 @@ onShow(() => {
   } else {
     // 未登录，清空数据
     isLoading.value = false
-    recentOrders.value = []
     nextAutoship.value = null
     pets.value = []
   }
@@ -191,20 +188,10 @@ onShow(() => {
 // --- Mock 数据获取 ---
 const fetchAccountData = () => {
   isLoading.value = true
+  fetchOrderCounts() // 获取订单数量
   // 模拟 API 延迟
   setTimeout(() => {
     // --- MOCK CASE 1: 用户有数据 (用于测试) ---
-    recentOrders.value = [
-      {
-        id: 'order_123',
-        statusText: '运输中',
-        arrivalDate: '11月10日',
-        items: [
-          { id: 'p_001', thumbnail: 'https://placehold.co/100x100/007aff/fff?text=狗粮' },
-          { id: 'p_002', thumbnail: 'https://placehold.co/100x100/4cd964/fff?text=玩具' },
-        ],
-      },
-    ]
     nextAutoship.value = {
       subscription: {
         id: 'sub_001',
@@ -251,13 +238,30 @@ const fetchAccountData = () => {
       { id: 'pet_001', name: '旺财', avatar: 'https://placehold.co/100x100/f0ad4e/fff?text=旺财' },
     ]
 
-    // --- MOCK CASE 2: 用户无数据 (用于测试 Req 3.1) ---
-    // recentOrders.value = []
-    // nextAutoship.value = null
-    // pets.value = []
-
     isLoading.value = false
   }, 500)
+}
+
+// 获取订单数量 Mock
+const fetchOrderCounts = () => {
+  // 模拟接口返回
+  setTimeout(() => {
+    // 使用OrderState枚举作为key
+    const counts: Record<OrderState, number> = {
+      [OrderState.PENDING]: 2,
+      [OrderState.PAID]: 0,
+      [OrderState.SHIPPED]: 5,
+      [OrderState.COMPLETED]: 1,
+      [OrderState.CANCELLED]: 0,
+      [OrderState.REFUNDING]: 0,
+      [OrderState.REFUNDED]: 0,
+    }
+    orderStatusMenu.value.forEach((item) => {
+      if (counts[item.type] !== undefined) {
+        item.count = counts[item.type]
+      }
+    })
+  }, 300)
 }
 
 // --- 事件处理器 ---
@@ -279,7 +283,11 @@ const handleSignOut = () => {
 }
 
 // 导航
-const goToOrders = () => uni.navigateTo({ url: '/pages/order/list' }) // 假设路径
+const goToOrderList = (type: OrderState) => {
+  // 跳转到订单列表页，并传递状态参数
+  uni.navigateTo({ url: `/orderPages/list/list?state=${type}` })
+}
+
 const goToAutoship = () => uni.navigateTo({ url: '/pages/subscription/list' }) // 假设路径
 const goToPets = () => uni.navigateTo({ url: '/pages/pet/list' }) // 假设路径
 const goToCreatePet = () => uni.navigateTo({ url: '/pages/pet/create' }) // 假设路径
@@ -345,6 +353,83 @@ function formatSmartDate(dateStr: string): string {
   padding: $uni-spacing-row-lg;
   margin-bottom: $uni-spacing-col-lg;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 我的订单卡片 */
+.orders-card {
+  background-color: #fff;
+  border-radius: 10rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .orders-header {
+    height: 40rpx;
+    line-height: 40rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+
+    .orders-title {
+      font-size: 28rpx;
+      color: #1e1e1e;
+      font-weight: bold;
+    }
+
+    .orders-more {
+      font-size: 24rpx;
+      color: #939393;
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .orders-section {
+    display: flex;
+    justify-content: space-between;
+    padding: 10rpx 0;
+  }
+
+  .order-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 120rpx;
+  }
+
+  .icon-wrapper {
+    position: relative;
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10rpx;
+  }
+
+  .order-nav-text {
+    font-size: 24rpx;
+    color: #333;
+  }
+
+  /* 徽标样式 */
+  .badge {
+    position: absolute;
+    top: -6rpx;
+    right: -10rpx;
+    background-color: #ff0000;
+    color: #ffffff;
+    font-size: 20rpx;
+    height: 28rpx;
+    min-width: 28rpx;
+    line-height: 28rpx;
+    text-align: center;
+    border-radius: 14rpx;
+    padding: 0 6rpx;
+    box-sizing: border-box;
+    z-index: 10;
+  }
 }
 .section-header {
   display: flex;

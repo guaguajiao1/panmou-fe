@@ -13,10 +13,11 @@
 import { useAccountStore } from '@/stores'
 import { mockRequest } from '@/mock/server'
 
-const baseURL = 'https://pcapi-xiaotuxian-front-devtest.itheima.net'
+const baseURL = 'https://localhost:7071/api/v1'
+
 // enable local mock when not in production
 // enable mock when not in production OR when runtime flag __UNI_MOCK__ is set (useful for debugging)
-const ENABLE_MOCK = process.env.NODE_ENV !== 'production' || !!(globalThis as any).__UNI_MOCK__
+const ENABLE_MOCK = true // process.env.NODE_ENV !== 'production' || !!(globalThis as any).__UNI_MOCK__
 
 // 添加拦截器
 const httpInterceptor = {

@@ -1,830 +1,681 @@
+<template>
+  <view class="order-detail-page">
+    <CustomNavigationBar :title="statusText" />
+
+    <scroll-view scroll-y class="detail-scroll">
+      <!-- 加载中 -->
+      <view v-if="isLoading" class="loading-container">
+        <uni-load-more status="loading" />
+      </view>
+
+      <template v-else-if="order">
+        <!-- 订单状态头部 -->
+        <view class="order-status-header" :class="statusClass">
+          <view class="status-info">
+            <uni-icons :type="statusIcon" size="24" color="#fff" />
+            <text class="status-text">{{ statusText }}</text>
+          </view>
+          <text
+            v-if="order.orderState === OrderState.PENDING && order.countdown"
+            class="countdown-text"
+          >
+            剩余支付时间：{{ countdownText }}
+          </text>
+          <text v-else-if="order.orderState === OrderState.SHIPPED" class="status-desc">
+            商品已发出，请注意查收
+          </text>
+        </view>
+
+        <!-- 收货地址 -->
+        <view class="section-card address-section">
+          <view class="address-icon">
+            <uni-icons type="location" size="20" :color="themeColor" />
+          </view>
+          <view class="address-info">
+            <view class="address-contact">
+              <text class="name">{{ order.shippingAddress?.receiver }}</text>
+              <text class="phone">{{ order.shippingAddress?.contact }}</text>
+            </view>
+            <text class="address-detail">
+              {{ order.shippingAddress?.fullLocation }} {{ order.shippingAddress?.address }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 商品列表 -->
+        <view class="section-card goods-section">
+          <view class="section-title">
+            <text>商品信息</text>
+          </view>
+          <view class="goods-list">
+            <view v-for="item in order.items" :key="item.itemId" class="goods-item">
+              <image :src="item.productImage" class="goods-image" mode="aspectFill" />
+              <view class="goods-info">
+                <text class="goods-name">{{ item.productName }}</text>
+                <text class="goods-attrs">{{ item.skuAttrs }}</text>
+                <view class="goods-price-row">
+                  <text class="goods-price">¥{{ item.unitPrice.toFixed(2) }}</text>
+                  <text class="goods-quantity">x{{ item.quantity }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 商品操作按钮 -->
+          <view v-if="order.orderState === OrderState.COMPLETED" class="goods-actions">
+            <button class="action-tag">评价晒单</button>
+            <button class="action-tag">加购物车</button>
+            <button class="action-tag">申请售后</button>
+          </view>
+        </view>
+
+        <!-- 价格明细 -->
+        <view class="section-card price-section">
+          <view class="price-row">
+            <text class="label">商品金额</text>
+            <text class="value">¥{{ order.totalAmount.toFixed(2) }}</text>
+          </view>
+          <view class="price-row">
+            <text class="label">运费</text>
+            <text class="value">¥{{ order.shippingFee.toFixed(2) }}</text>
+          </view>
+          <view v-if="order.discountAmount > 0" class="price-row">
+            <text class="label">优惠</text>
+            <text class="value discount">-¥{{ order.discountAmount.toFixed(2) }}</text>
+          </view>
+          <view class="price-row total">
+            <text class="label">实付款</text>
+            <text class="value total-value">¥{{ order.payAmount.toFixed(2) }}</text>
+          </view>
+        </view>
+
+        <!-- 订单信息 -->
+        <view class="section-card info-section">
+          <view class="info-row">
+            <text class="label">订单编号</text>
+            <view class="value-with-copy">
+              <text class="value">{{ order.orderId }}</text>
+              <text class="copy-btn" @click="copyOrderId">复制</text>
+            </view>
+          </view>
+          <view class="info-row">
+            <text class="label">下单时间</text>
+            <text class="value">{{ formatTime(order.createdAt) }}</text>
+          </view>
+          <view v-if="order.payTime" class="info-row">
+            <text class="label">支付时间</text>
+            <text class="value">{{ formatTime(order.payTime) }}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">支付方式</text>
+            <text class="value">{{ order.payChannel === 1 ? '支付宝' : '微信支付' }}</text>
+          </view>
+        </view>
+      </template>
+    </scroll-view>
+
+    <!-- 底部操作栏 -->
+    <view v-if="order" class="footer-actions">
+      <!-- 待付款 -->
+      <template v-if="order.orderState === OrderState.PENDING">
+        <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
+        <button class="footer-btn primary" @click="goToPay">去支付</button>
+      </template>
+
+      <!-- 待发货 -->
+      <template v-else-if="order.orderState === OrderState.PAID">
+        <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
+        <button class="footer-btn secondary" @click="contactService">联系客服</button>
+      </template>
+
+      <!-- 待收货 -->
+      <template v-else-if="order.orderState === OrderState.SHIPPED">
+        <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
+        <button class="footer-btn primary" @click="confirmReceive">确认收货</button>
+      </template>
+
+      <!-- 已完成 -->
+      <template v-else-if="order.orderState === OrderState.COMPLETED">
+        <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
+        <button class="footer-btn secondary" @click="applyAftersale">退换/售后</button>
+        <button class="footer-btn primary" @click="buyAgain">再次购买</button>
+      </template>
+
+      <!-- 已取消 -->
+      <template v-else-if="order.orderState === OrderState.CANCELLED">
+        <button class="footer-btn secondary" @click="deleteOrder">删除订单</button>
+        <button class="footer-btn primary" @click="buyAgain">再次购买</button>
+      </template>
+    </view>
+  </view>
+</template>
+
 <script setup lang="ts">
-import { OrderState, orderStateList } from '@/services/constants'
-import {
-  deleteMemberOrderAPI,
-  getMemberOrderByIdAPI,
-  getMemberOrderCancelByIdAPI,
-  getMemberOrderLogisticsByIdAPI,
-  getMemberOrderConsignmentByIdAPI,
-  putMemberOrderReceiptByIdAPI,
-} from '@/services/order'
-import type { LogisticItem, OrderResult } from '@/types/order'
-import { onLoad, onReady } from '@dcloudio/uni-app'
-import { ref } from 'vue'
-import PageSkeleton from './components/PageSkeleton.vue'
-import { getPayMockAPI, getPayWxPayMiniPayAPI } from '@/services/pay'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { orderApi } from '@/api/order'
+import { OrderState, OrderStateText } from '@/types/order-state'
+import type { OrderDetail } from '@/types/order'
 
-// 获取屏幕边界到安全区域距离
-const { safeAreaInsets } = uni.getSystemInfoSync()
-// 猜你喜欢
-// 弹出层组件
-const popup = ref<UniHelper.UniPopupInstance>()
-// 取消原因列表
-const reasonList = ref([
-  '商品无货',
-  '不想要了',
-  '商品信息填错了',
-  '地址信息填写错误',
-  '商品降价',
-  '其它',
-])
-// 订单取消原因
-const reason = ref('')
-// 复制内容
-const onCopy = (id: string) => {
-  // 设置系统剪贴板的内容
-  uni.setClipboardData({ data: id })
-}
-// 获取页面参数
-const query = defineProps<{
-  id: string
-}>()
+const themeColor = '#004a99'
 
-// 获取页面栈
-const pages = getCurrentPages()
+// 状态
+const orderId = ref('')
+const order = ref<OrderDetail | null>(null)
+const isLoading = ref(false)
+const remainingSeconds = ref(0)
 
-// 基于小程序的 Page 类型扩展 uni-app 的 Page
-type PageInstance = Page.PageInstance & WechatMiniprogram.Page.InstanceMethods<any>
-
-// #ifdef MP-WEIXIN
-// 获取当前页面实例，数组最后一项
-const pageInstance = pages.at(-1) as PageInstance
-
-// 页面渲染完毕，绑定动画效果
-onReady(() => {
-  // 动画效果,导航栏背景色
-  pageInstance.animate(
-    '.navbar',
-    [{ backgroundColor: 'transparent' }, { backgroundColor: '#f8f8f8' }],
-    1000,
-    {
-      scrollSource: '#scroller',
-      timeRange: 1000,
-      startScrollOffset: 0,
-      endScrollOffset: 50,
-    },
-  )
-  // 动画效果,导航栏标题
-  pageInstance.animate('.navbar .title', [{ color: 'transparent' }, { color: '#000' }], 1000, {
-    scrollSource: '#scroller',
-    timeRange: 1000,
-    startScrollOffset: 0,
-    endScrollOffset: 50,
-  })
-  // 动画效果,导航栏返回按钮
-  pageInstance.animate('.navbar .back', [{ color: '#fff' }, { color: '#000' }], 1000, {
-    scrollSource: '#scroller',
-    timeRange: 1000,
-    startScrollOffset: 0,
-    endScrollOffset: 50,
-  })
-})
-// #endif
-
-// 获取订单详情
-const order = ref<OrderResult>()
-const getMemberOrderByIdData = async () => {
-  const res = await getMemberOrderByIdAPI(query.id)
-  order.value = res.result
-  if (
-    [OrderState.DaiShouHuo, OrderState.DaiPingJia, OrderState.YiWanCheng].includes(
-      order.value.orderState,
-    )
-  ) {
-    getMemberOrderLogisticsByIdData()
-  }
-}
-
-// 获取物流信息
-const logisticList = ref<LogisticItem[]>([])
-const getMemberOrderLogisticsByIdData = async () => {
-  const res = await getMemberOrderLogisticsByIdAPI(query.id)
-  logisticList.value = res.result.list
-}
-
-onLoad(() => {
-  getMemberOrderByIdData()
+// 计算属性
+const statusText = computed(() => {
+  if (!order.value) return '订单详情'
+  return OrderStateText[order.value.orderState] || '订单详情'
 })
 
-// 倒计时结束事件
-const onTimeup = () => {
-  // 修改订单状态为已取消
-  order.value!.orderState = OrderState.YiQuXiao
-}
-
-// 订单支付
-const onOrderPay = async () => {
-  if (import.meta.env.DEV) {
-    // 开发环境模拟支付
-    await getPayMockAPI({ orderId: query.id })
-  } else {
-    // #ifdef MP-WEIXIN
-
-    // 正式环境支付：1.获取支付订单信息，2.调用微信支付API
-    // const res = await getPayWxPayMiniPayAPI({ orderId: query.id })
-    // await wx.requestPayment(res.result)
-
-    // 注意：因小程序上线后被恶意投诉：理由为支付 0.01 元后不发货，现调整为模拟支付
-    await getPayMockAPI({ orderId: query.id })
-    // #endif
-
-    // #ifdef H5 || APP-PLUS
-    // H5端 和 App 端未开通支付-模拟支付体验
-    await getPayMockAPI({ orderId: query.id })
-    // #endif
+const statusClass = computed(() => {
+  if (!order.value) return ''
+  switch (order.value.orderState) {
+    case OrderState.PENDING:
+      return 'status-pending'
+    case OrderState.PAID:
+      return 'status-paid'
+    case OrderState.SHIPPED:
+      return 'status-shipped'
+    case OrderState.COMPLETED:
+      return 'status-completed'
+    case OrderState.CANCELLED:
+      return 'status-cancelled'
+    default:
+      return ''
   }
-  // 关闭当前页，再跳转支付结果页
-  uni.redirectTo({ url: `/orderPages/payment/payment?id=${query.id}` })
-}
+})
 
-// 是否为开发环境
-const isDev = import.meta.env.DEV
-// 模拟发货
-const onOrderSend = async () => {
-  if (isDev) {
-    await getMemberOrderConsignmentByIdAPI(query.id)
-    uni.showToast({ icon: 'success', title: '模拟发货完成' })
-    // 主动更新订单状态
-    order.value!.orderState = OrderState.DaiShouHuo
+const statusIcon = computed(() => {
+  if (!order.value) return 'info'
+  switch (order.value.orderState) {
+    case OrderState.PENDING:
+      return 'wallet'
+    case OrderState.PAID:
+      return 'checkbox'
+    case OrderState.SHIPPED:
+      return 'cart'
+    case OrderState.COMPLETED:
+      return 'checkbox-filled'
+    case OrderState.CANCELLED:
+      return 'closeempty'
+    default:
+      return 'info'
   }
-}
-// 确认收货
-const onOrderConfirm = () => {
-  // 二次确认弹窗
-  uni.showModal({
-    content: '为保障您的权益，请收到货并确认无误后，再确认收货',
-    confirmColor: '#27BA9B',
-    success: async (success) => {
-      if (success.confirm) {
-        const res = await putMemberOrderReceiptByIdAPI(query.id)
-        // 更新订单状态
-        order.value = res.result
+})
+
+const countdownText = computed(() => {
+  if (remainingSeconds.value <= 0) return ''
+  const hours = Math.floor(remainingSeconds.value / 3600)
+  const minutes = Math.floor((remainingSeconds.value % 3600) / 60)
+  const seconds = remainingSeconds.value % 60
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds
+    .toString()
+    .padStart(2, '0')}`
+})
+
+// 加载订单详情
+const loadOrder = async () => {
+  if (!orderId.value) return
+
+  isLoading.value = true
+  try {
+    const res = await orderApi.get(orderId.value)
+    if (res && res.code === '0') {
+      order.value = res.result
+      if (res.result.countdown) {
+        remainingSeconds.value = res.result.countdown
       }
+    } else {
+      uni.showToast({ title: res?.msg || '加载失败', icon: 'none' })
+    }
+  } catch (e) {
+    console.error('加载订单详情失败', e)
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 格式化时间
+const formatTime = (isoString?: string) => {
+  if (!isoString) return '-'
+  const date = new Date(isoString)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes(),
+  ).padStart(2, '0')}`
+}
+
+// 复制订单号
+const copyOrderId = () => {
+  uni.setClipboardData({
+    data: orderId.value,
+    success: () => {
+      uni.showToast({ title: '已复制', icon: 'success' })
     },
   })
 }
-// 删除订单
-const onOrderDelete = () => {
-  // 二次确认
-  uni.showModal({
-    content: '是否删除订单',
-    confirmColor: '#27BA9B',
-    success: async (success) => {
-      if (success.confirm) {
-        await deleteMemberOrderAPI({ ids: [query.id] })
-        uni.redirectTo({ url: '/order/list/list' })
-      }
-    },
-  })
+
+// 去支付
+const goToPay = () => {
+  uni.showToast({ title: '模拟支付成功', icon: 'success' })
+  loadOrder()
 }
 
 // 取消订单
-const onOrderCancel = async () => {
-  // 发送请求
-  const res = await getMemberOrderCancelByIdAPI(query.id, { cancelReason: reason.value })
-  // 更新订单信息
-  order.value = res.result
-  // 关闭弹窗
-  popup.value?.close!()
-  // 轻提示
-  uni.showToast({ icon: 'none', title: '订单取消成功' })
+const cancelOrder = async () => {
+  try {
+    const { confirm } = await uni.showModal({
+      title: '提示',
+      content: '确定要取消此订单吗？',
+    })
+    if (!confirm) return
+
+    const res = await orderApi.cancel(orderId.value)
+    if (res && res.code === '0') {
+      uni.showToast({ title: '订单已取消', icon: 'success' })
+      loadOrder()
+    } else {
+      uni.showToast({ title: res?.msg || '取消失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '取消失败', icon: 'none' })
+  }
 }
+
+// 确认收货
+const confirmReceive = async () => {
+  try {
+    const { confirm } = await uni.showModal({
+      title: '提示',
+      content: '确定已收到商品吗？',
+    })
+    if (!confirm) return
+
+    const res = await orderApi.confirm(orderId.value)
+    if (res && res.code === '0') {
+      uni.showToast({ title: '已确认收货', icon: 'success' })
+      loadOrder()
+    } else {
+      uni.showToast({ title: res?.msg || '确认失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '确认失败', icon: 'none' })
+  }
+}
+
+// 删除订单
+const deleteOrder = async () => {
+  try {
+    const { confirm } = await uni.showModal({
+      title: '提示',
+      content: '确定要删除此订单吗？',
+    })
+    if (!confirm) return
+
+    const res = await orderApi.delete(orderId.value)
+    if (res && res.code === '0') {
+      uni.showToast({ title: '订单已删除', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 1500)
+    } else {
+      uni.showToast({ title: res?.msg || '删除失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '删除失败', icon: 'none' })
+  }
+}
+
+// 查看物流
+const viewLogistics = async () => {
+  try {
+    const res = await orderApi.getLogistics(orderId.value)
+    if (res && res.code === '0' && res.result.shipments.length > 0) {
+      const shipment = res.result.shipments[0]
+      uni.showModal({
+        title: `${shipment.carrierName}`,
+        content: `快递单号：${shipment.trackingNo}\n\n${
+          shipment.traces[0]?.traceDesc || '暂无物流信息'
+        }`,
+        showCancel: false,
+      })
+    } else {
+      uni.showToast({ title: '暂无物流信息', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '获取物流失败', icon: 'none' })
+  }
+}
+
+// 联系客服
+const contactService = () => {
+  uni.showToast({ title: '功能开发中', icon: 'none' })
+}
+
+// 申请售后
+const applyAftersale = () => {
+  uni.showToast({ title: '功能开发中', icon: 'none' })
+}
+
+// 再次购买
+const buyAgain = () => {
+  uni.showToast({ title: '功能开发中', icon: 'none' })
+}
+
+// 页面加载
+onLoad((options) => {
+  if (options?.id) {
+    orderId.value = options.id
+    loadOrder()
+  }
+})
 </script>
 
-<template>
-  <!-- 自定义导航栏: 默认透明不可见, scroll-view 滚动到 50 时展示 -->
-  <view class="navbar" :style="{ paddingTop: safeAreaInsets?.top + 'px' }">
-    <view class="wrap">
-      <navigator
-        v-if="pages.length > 1"
-        open-type="navigateBack"
-        class="back icon-left"
-      ></navigator>
-      <navigator v-else url="/pages/shop/shop" open-type="switchTab" class="back icon-home">
-      </navigator>
-      <view class="title">订单详情</view>
-    </view>
-  </view>
-  <scroll-view enable-back-to-top scroll-y class="viewport" id="scroller">
-    <template v-if="order">
-      <!-- 订单状态 -->
-      <view class="overview" :style="{ paddingTop: safeAreaInsets!.top + 20 + 'px' }">
-        <!-- 待付款状态:展示倒计时 -->
-        <template v-if="order.orderState === OrderState.DaiFuKuan">
-          <view class="status icon-clock">等待付款</view>
-          <view class="tips">
-            <text class="money">应付金额: ¥ {{ order.payMoney }}</text>
-            <text class="time">支付剩余</text>
-            <uni-countdown
-              :second="order.countdown"
-              color="#fff"
-              splitor-color="#fff"
-              :show-day="false"
-              :show-colon="false"
-              @timeup="onTimeup"
-            />
-          </view>
-          <view class="button" @tap="onOrderPay">去支付</view>
-        </template>
-        <!-- 其他订单状态:展示再次购买按钮 -->
-        <template v-else>
-          <!-- 订单状态文字 -->
-          <view class="status"> {{ orderStateList[order.orderState].text }} </view>
-          <view class="button-group">
-            <navigator
-              class="button"
-              :url="`/orderPages/create/create?orderId=${query.id}`"
-              hover-class="none"
-            >
-              再次购买
-            </navigator>
-            <!-- 待发货状态：模拟发货,开发期间使用,用于修改订单状态为已发货 -->
-            <view
-              v-if="isDev && order.orderState == OrderState.DaiFaHuo"
-              @tap="onOrderSend"
-              class="button"
-            >
-              模拟发货
-            </view>
-            <!-- 待收货状态: 展示确认收货按钮 -->
-            <view
-              v-if="order.orderState === OrderState.DaiShouHuo"
-              @tap="onOrderConfirm"
-              class="button"
-            >
-              确认收货
-            </view>
-          </view>
-        </template>
-      </view>
-      <!-- 配送状态 -->
-      <view class="shipment">
-        <!-- 订单物流信息 -->
-        <view v-for="item in logisticList" :key="item.id" class="item">
-          <view class="message">
-            {{ item.text }}
-          </view>
-          <view class="date"> {{ item.time }} </view>
-        </view>
-        <!-- 用户收货地址 -->
-        <view class="locate">
-          <view class="user"> {{ order.receiverContact }} {{ order.receiverMobile }} </view>
-          <view class="address"> {{ order.receiverAddress }} </view>
-        </view>
-      </view>
-
-      <!-- 商品信息 -->
-      <view class="goods">
-        <view class="item">
-          <navigator
-            class="navigator"
-            v-for="item in order.skus"
-            :key="item.id"
-            :url="`/pages/goods/goods?id=${item.spuId}`"
-            hover-class="none"
-          >
-            <image class="cover" :src="item.image"></image>
-            <view class="meta">
-              <view class="name ellipsis">{{ item.name }}</view>
-              <view class="type">{{ item.attrsText }}</view>
-              <view class="price">
-                <view class="actual">
-                  <text class="symbol">¥</text>
-                  <text>{{ item.curPrice }}</text>
-                </view>
-              </view>
-              <view class="quantity">x{{ item.quantity }}</view>
-            </view>
-          </navigator>
-          <!-- 待评价状态:展示按钮 -->
-          <view class="action" v-if="order.orderState === OrderState.DaiPingJia">
-            <view class="button primary">申请售后</view>
-            <navigator url="" class="button"> 去评价 </navigator>
-          </view>
-        </view>
-        <!-- 合计 -->
-        <view class="total">
-          <view class="row">
-            <view class="text">商品总价: </view>
-            <view class="symbol">{{ order.totalMoney }}</view>
-          </view>
-          <view class="row">
-            <view class="text">运费: </view>
-            <view class="symbol">{{ order.postFee }}</view>
-          </view>
-          <view class="row">
-            <view class="text">应付金额: </view>
-            <view class="symbol primary">{{ order.payMoney }}</view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 订单信息 -->
-      <view class="detail">
-        <view class="title">订单信息</view>
-        <view class="row">
-          <view class="item">
-            订单编号: {{ query.id }} <text class="copy" @tap="onCopy(query.id)">复制</text>
-          </view>
-          <view class="item">下单时间: {{ order.createTime }}</view>
-        </view>
-      </view>
-
-      <!-- 底部操作栏 -->
-      <view class="toolbar-height" :style="{ paddingBottom: safeAreaInsets?.bottom + 'px' }"></view>
-      <view class="toolbar" :style="{ paddingBottom: safeAreaInsets?.bottom + 'px' }">
-        <!-- 待付款状态:展示支付按钮 -->
-        <template v-if="order.orderState === OrderState.DaiFuKuan">
-          <view class="button primary" @tap="onOrderPay"> 去支付 </view>
-          <view class="button" @tap="popup?.open?.()"> 取消订单 </view>
-        </template>
-        <!-- 其他订单状态:按需展示按钮 -->
-        <template v-else>
-          <navigator
-            class="button secondary"
-            :url="`/orderPages/create/create?orderId=${query.id}`"
-            hover-class="none"
-          >
-            再次购买
-          </navigator>
-          <!-- 待收货状态: 展示确认收货 -->
-          <view
-            class="button primary"
-            v-if="order.orderState === OrderState.DaiShouHuo"
-            @tap="onOrderConfirm"
-          >
-            确认收货
-          </view>
-          <!-- 待评价状态: 展示去评价 -->
-          <view class="button" v-if="order.orderState === OrderState.DaiPingJia"> 去评价 </view>
-          <!-- 待评价/已完成/已取消 状态: 展示删除订单 -->
-          <view
-            class="button delete"
-            v-if="order.orderState >= OrderState.DaiPingJia"
-            @tap="onOrderDelete"
-          >
-            删除订单
-          </view>
-        </template>
-      </view>
-    </template>
-    <template v-else>
-      <!-- 骨架屏组件 -->
-      <PageSkeleton />
-    </template>
-  </scroll-view>
-  <!-- 取消订单弹窗 -->
-  <uni-popup ref="popup" type="bottom" background-color="#fff">
-    <view class="popup-root">
-      <view class="title">订单取消</view>
-      <view class="description">
-        <view class="tips">请选择取消订单的原因：</view>
-        <view class="cell" v-for="item in reasonList" :key="item" @tap="reason = item">
-          <text class="text">{{ item }}</text>
-          <text class="icon" :class="{ checked: item === reason }"></text>
-        </view>
-      </view>
-      <view class="footer">
-        <view class="button" @tap="popup?.close?.()">取消</view>
-        <view class="button primary" @tap="onOrderCancel">确认</view>
-      </view>
-    </view>
-  </uni-popup>
-</template>
-
-<style lang="scss">
-page {
+<style lang="scss" scoped>
+.order-detail-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  height: 100vh;
+  background-color: #f5f5f5;
 }
 
-.navbar {
-  width: 750rpx;
-  color: #000;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 9;
-  /* background-color: #f8f8f8; */
-  background-color: transparent;
-
-  .wrap {
-    position: relative;
-
-    .title {
-      height: 44px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 32rpx;
-      /* color: #000; */
-      color: transparent;
-    }
-
-    .back {
-      position: absolute;
-      left: 0;
-      height: 44px;
-      width: 44px;
-      font-size: 44rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      /* color: #000; */
-      color: #fff;
-    }
-  }
+.detail-scroll {
+  flex: 1;
+  padding-bottom: 120rpx;
 }
 
-.viewport {
-  background-color: #f7f7f8;
+.loading-container {
+  padding: 100rpx 0;
 }
 
-.overview {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  line-height: 1;
-  padding-bottom: 30rpx;
+// 订单状态头部
+.order-status-header {
+  padding: 40rpx 30rpx;
   color: #fff;
-  background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/order_bg.png);
-  background-size: cover;
 
-  .status {
-    font-size: 36rpx;
-  }
-
-  .status::before {
-    margin-right: 6rpx;
-    font-weight: 500;
-  }
-
-  .tips {
-    margin: 30rpx 0;
+  .status-info {
     display: flex;
-    font-size: 14px;
     align-items: center;
+    margin-bottom: 16rpx;
 
-    .money {
-      margin-right: 30rpx;
+    .status-text {
+      font-size: 36rpx;
+      font-weight: 600;
+      margin-left: 16rpx;
     }
   }
 
-  .button-group {
-    margin-top: 30rpx;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .countdown-text,
+  .status-desc {
+    font-size: 26rpx;
+    opacity: 0.9;
   }
 
-  .button {
-    width: 260rpx;
-    height: 64rpx;
-    margin: 0 10rpx;
-    text-align: center;
-    line-height: 64rpx;
+  &.status-pending {
+    background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  }
+
+  &.status-paid {
+    background: linear-gradient(135deg, #007aff 0%, #004a99 100%);
+  }
+
+  &.status-shipped {
+    background: linear-gradient(135deg, #34c759 0%, #07c160 100%);
+  }
+
+  &.status-completed {
+    background: linear-gradient(135deg, #8e8e93 0%, #636366 100%);
+  }
+
+  &.status-cancelled {
+    background: linear-gradient(135deg, #8e8e93 0%, #636366 100%);
+  }
+}
+
+// 通用卡片样式
+.section-card {
+  background-color: #fff;
+  margin: 20rpx;
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+
+// 收货地址
+.address-section {
+  display: flex;
+
+  .address-icon {
+    margin-right: 20rpx;
+    padding-top: 4rpx;
+  }
+
+  .address-info {
+    flex: 1;
+
+    .address-contact {
+      margin-bottom: 12rpx;
+
+      .name {
+        font-size: 30rpx;
+        font-weight: 600;
+        margin-right: 20rpx;
+      }
+
+      .phone {
+        font-size: 28rpx;
+        color: $uni-text-color-grey;
+      }
+    }
+
+    .address-detail {
+      font-size: 26rpx;
+      color: $uni-text-color-grey;
+      line-height: 1.5;
+    }
+  }
+}
+
+// 商品列表
+.goods-section {
+  .section-title {
     font-size: 28rpx;
-    color: #27ba9b;
-    border-radius: 68rpx;
-    background-color: #fff;
-  }
-}
-
-.shipment {
-  line-height: 1.4;
-  padding: 0 20rpx;
-  margin: 20rpx 20rpx 0;
-  border-radius: 10rpx;
-  background-color: #fff;
-
-  .locate,
-  .item {
-    min-height: 120rpx;
-    padding: 30rpx 30rpx 25rpx 75rpx;
-    background-size: 50rpx;
-    background-repeat: no-repeat;
-    background-position: 6rpx center;
+    font-weight: 600;
+    margin-bottom: 16rpx;
+    padding-bottom: 16rpx;
+    border-bottom: 1rpx solid #f0f0f0;
   }
 
-  .locate {
-    background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/locate.png);
+  .goods-item {
+    display: flex;
+    padding: 20rpx 0;
+    border-bottom: 1rpx solid #f5f5f5;
 
-    .user {
-      font-size: 26rpx;
-      color: #444;
+    &:last-child {
+      border-bottom: none;
     }
 
-    .address {
-      font-size: 24rpx;
-      color: #666;
-    }
-  }
-
-  .item {
-    background-image: url(https://pcapi-xiaotuxian-front-devtest.itheima.net/miniapp/images/car.png);
-    border-bottom: 1rpx solid #eee;
-    position: relative;
-
-    .message {
-      font-size: 26rpx;
-      color: #444;
-    }
-
-    .date {
-      font-size: 24rpx;
-      color: #666;
-    }
-  }
-}
-
-.goods {
-  margin: 20rpx 20rpx 0;
-  padding: 0 20rpx;
-  border-radius: 10rpx;
-  background-color: #fff;
-
-  .item {
-    padding: 30rpx 0;
-    border-bottom: 1rpx solid #eee;
-
-    .navigator {
-      display: flex;
-      margin: 20rpx 0;
-    }
-
-    .cover {
-      width: 170rpx;
-      height: 170rpx;
-      border-radius: 10rpx;
+    .goods-image {
+      width: 160rpx;
+      height: 160rpx;
+      border-radius: 8rpx;
+      background-color: #f5f5f5;
+      flex-shrink: 0;
       margin-right: 20rpx;
     }
 
-    .meta {
+    .goods-info {
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      position: relative;
-    }
-
-    .name {
-      height: 80rpx;
-      font-size: 26rpx;
-      color: #444;
-    }
-
-    .type {
-      line-height: 1.8;
-      padding: 0 15rpx;
-      margin-top: 6rpx;
-      font-size: 24rpx;
-      align-self: flex-start;
-      border-radius: 4rpx;
-      color: #888;
-      background-color: #f7f7f8;
-    }
-
-    .price {
-      display: flex;
-      margin-top: 6rpx;
-      font-size: 24rpx;
-    }
-
-    .symbol {
-      font-size: 20rpx;
-    }
-
-    .original {
-      color: #999;
-      text-decoration: line-through;
-    }
-
-    .actual {
-      margin-left: 10rpx;
-      color: #444;
-    }
-
-    .text {
-      font-size: 22rpx;
-    }
-
-    .quantity {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      font-size: 24rpx;
-      color: #444;
-    }
-
-    .action {
-      display: flex;
-      flex-direction: row-reverse;
-      justify-content: flex-start;
-      padding: 30rpx 0 0;
-
-      .button {
-        width: 200rpx;
-        height: 60rpx;
-        text-align: center;
-        justify-content: center;
-        line-height: 60rpx;
-        margin-left: 20rpx;
-        border-radius: 60rpx;
-        border: 1rpx solid #ccc;
-        font-size: 26rpx;
-        color: #444;
-      }
-
-      .primary {
-        color: #27ba9b;
-        border-color: #27ba9b;
-      }
-    }
-  }
-
-  .total {
-    line-height: 1;
-    font-size: 26rpx;
-    padding: 20rpx 0;
-    color: #666;
-
-    .row {
-      display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 10rpx 0;
-    }
 
-    .symbol::before {
-      content: '¥';
-      font-size: 80%;
-      margin-right: 3rpx;
-    }
+      .goods-name {
+        font-size: 28rpx;
+        color: $uni-text-color;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
 
-    .primary {
-      color: #cf4444;
-      font-size: 36rpx;
-    }
-  }
-}
+      .goods-attrs {
+        font-size: 24rpx;
+        color: $uni-text-color-grey;
+        margin-top: 8rpx;
+      }
 
-.detail {
-  line-height: 1;
-  padding: 30rpx 20rpx 0;
-  margin: 20rpx 20rpx 0;
-  font-size: 26rpx;
-  color: #666;
-  border-radius: 10rpx;
-  background-color: #fff;
+      .goods-price-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12rpx;
 
-  .title {
-    font-size: 30rpx;
-    color: #444;
-  }
+        .goods-price {
+          font-size: 28rpx;
+          color: $uni-text-color;
+        }
 
-  .row {
-    padding: 20rpx 0;
-
-    .item {
-      padding: 10rpx 0;
-      display: flex;
-      align-items: center;
-    }
-
-    .copy {
-      border-radius: 20rpx;
-      font-size: 20rpx;
-      border: 1px solid #ccc;
-      padding: 5rpx 10rpx;
-      margin-left: 10rpx;
+        .goods-quantity {
+          font-size: 26rpx;
+          color: $uni-text-color-grey;
+        }
+      }
     }
   }
-}
 
-.toolbar-height {
-  height: 100rpx;
-  box-sizing: content-box;
-}
-
-.toolbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--window-bottom));
-  z-index: 1;
-
-  height: 100rpx;
-  padding: 0 20rpx;
-  display: flex;
-  align-items: center;
-  flex-direction: row-reverse;
-  border-top: 1rpx solid #ededed;
-  border-bottom: 1rpx solid #ededed;
-  background-color: #fff;
-  box-sizing: content-box;
-
-  .button {
+  .goods-actions {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: flex-end;
+    gap: 16rpx;
+    margin-top: 20rpx;
+    padding-top: 20rpx;
+    border-top: 1rpx solid #f0f0f0;
 
-    width: 200rpx;
-    height: 72rpx;
-    margin-left: 15rpx;
-    font-size: 26rpx;
-    border-radius: 72rpx;
-    border: 1rpx solid #ccc;
-    color: #444;
-  }
+    .action-tag {
+      padding: 10rpx 24rpx;
+      font-size: 24rpx;
+      color: $uni-text-color-grey;
+      background-color: #fff;
+      border: 1rpx solid #ddd;
+      border-radius: 24rpx;
+      margin: 0;
 
-  .delete {
-    order: 4;
-    color: #cf4444;
-  }
-
-  .button {
-    order: 3;
-  }
-
-  .secondary {
-    order: 2;
-    color: #27ba9b;
-    border-color: #27ba9b;
-  }
-
-  .primary {
-    order: 1;
-    color: #fff;
-    background-color: #27ba9b;
+      &::after {
+        display: none;
+      }
+    }
   }
 }
 
-.popup-root {
-  padding: 30rpx 30rpx 0;
-  border-radius: 10rpx 10rpx 0 0;
-  overflow: hidden;
-
-  .title {
-    font-size: 30rpx;
-    text-align: center;
-    margin-bottom: 30rpx;
-  }
-
-  .description {
-    font-size: 28rpx;
-    padding: 0 20rpx;
-
-    .tips {
-      color: #444;
-      margin-bottom: 12rpx;
-    }
-
-    .cell {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15rpx 0;
-      color: #666;
-    }
-
-    .icon::before {
-      content: '\e6cd';
-      font-family: 'erabbit' !important;
-      font-size: 38rpx;
-      color: #999;
-    }
-
-    .icon.checked::before {
-      content: '\e6cc';
-      font-size: 38rpx;
-      color: #27ba9b;
-    }
-  }
-
-  .footer {
+// 价格明细
+.price-section {
+  .price-row {
     display: flex;
     justify-content: space-between;
-    padding: 30rpx 0 40rpx;
-    font-size: 28rpx;
-    color: #444;
+    align-items: center;
+    padding: 12rpx 0;
 
-    .button {
-      flex: 1;
-      height: 72rpx;
-      text-align: center;
-      line-height: 72rpx;
-      margin: 0 20rpx;
-      color: #444;
-      border-radius: 72rpx;
-      border: 1rpx solid #ccc;
+    .label {
+      font-size: 28rpx;
+      color: $uni-text-color-grey;
     }
 
-    .primary {
+    .value {
+      font-size: 28rpx;
+      color: $uni-text-color;
+
+      &.discount {
+        color: $uni-color-error;
+      }
+    }
+
+    &.total {
+      padding-top: 20rpx;
+      border-top: 1rpx solid #f0f0f0;
+      margin-top: 8rpx;
+
+      .label {
+        font-size: 30rpx;
+        color: $uni-text-color;
+      }
+
+      .total-value {
+        font-size: 36rpx;
+        font-weight: 600;
+        color: $uni-color-error;
+      }
+    }
+  }
+}
+
+// 订单信息
+.info-section {
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12rpx 0;
+
+    .label {
+      font-size: 26rpx;
+      color: $uni-text-color-grey;
+    }
+
+    .value {
+      font-size: 26rpx;
+      color: $uni-text-color;
+    }
+
+    .value-with-copy {
+      display: flex;
+      align-items: center;
+
+      .copy-btn {
+        font-size: 24rpx;
+        color: $uni-color-primary;
+        margin-left: 16rpx;
+      }
+    }
+  }
+}
+
+// 底部操作栏
+.footer-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: flex-end;
+  gap: 20rpx;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+
+  .footer-btn {
+    padding: 16rpx 36rpx;
+    border-radius: 40rpx;
+    font-size: 28rpx;
+    margin: 0;
+
+    &::after {
+      display: none;
+    }
+
+    &.secondary {
+      background-color: #fff;
+      color: $uni-text-color-grey;
+      border: 1rpx solid #ddd;
+    }
+
+    &.primary {
+      background-color: $uni-color-primary;
       color: #fff;
-      background-color: #27ba9b;
       border: none;
     }
   }

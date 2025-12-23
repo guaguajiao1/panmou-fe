@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getMemberProfileAPI, putMemberProfileAPI } from '@/services/profile'
+import { accountApi } from '@/api/account'
 import { useAccountStore } from '@/stores'
 import type { Gender, Profile } from '@/types/account'
 import { formatDate } from '@/utils'
@@ -12,7 +12,7 @@ const { safeAreaInsets } = uni.getSystemInfoSync()
 // 获取个人信息，修改个人信息需提供初始值
 const profile = ref({} as Profile)
 const getMemberProfileData = async () => {
-  const res = await getMemberProfileAPI()
+  const res = await accountApi.getProfile()
   profile.value = res.result
   // 同步 Store 的头像和昵称，用于我的页面展示
   memberStore.profile!.avatar = res.result.avatar
@@ -102,7 +102,7 @@ const onFullLocationChange: UniHelper.RegionPickerOnChange = (ev) => {
 // 点击保存提交表单
 const onSubmit = async () => {
   const { nickname, gender, birthday, profession } = profile.value
-  const res = await putMemberProfileAPI({
+  const res = await accountApi.updateProfile({
     nickname,
     gender,
     birthday,

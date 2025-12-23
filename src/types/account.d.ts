@@ -23,12 +23,17 @@ export type Profile = {
   birthday?: string
   /** 省市区 */
   fullLocation?: string
+  /** 职业 */
+  profession?: string
 }
 /** 性别 */
 export type Gender = '保密' | '女' | '男'
 
 /** 修改个人资料request */
-export type UpdateProfileRequest = Pick<Profile, 'nickname' | 'gender' | 'birthday'> & {
+export type UpdateProfileRequest = Pick<
+  Profile,
+  'nickname' | 'gender' | 'birthday' | 'profession'
+> & {
   /** 省份编码 */
   provinceCode?: string
   /** 城市编码 */
@@ -36,3 +41,6 @@ export type UpdateProfileRequest = Pick<Profile, 'nickname' | 'gender' | 'birthd
   /** 区/县编码 */
   countyCode?: string
 }
+
+/** ProfileParams 别名 */
+export type ProfileParams = UpdateProfileRequest

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { loginApi } from '@/services/login'
+import { accountApi } from '@/api/account'
 import { useAccountStore } from '@/stores'
 import type { LoginResult } from '@/types/account'
 import { ref } from 'vue'
