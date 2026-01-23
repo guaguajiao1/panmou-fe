@@ -107,6 +107,18 @@
         {
           "path": "address_edit/address_edit",
           "style": {}
+        },
+        {
+          "path": "pet_list/pet_list",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "pet_edit/pet_edit",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },
@@ -135,6 +147,12 @@
           "path": "list/list",
           "style": {
             "navigationBarTitleText": "订单列表"
+          }
+        },
+        {
+          "path": "logistics/logistics",
+          "style": {
+            "navigationBarTitleText": "物流详情"
           }
         }
       ]

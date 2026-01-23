@@ -153,4 +153,34 @@ export const orderApi = {
       url: `/account/orders/${orderId}/logistics`,
     })
   },
+
+  /**
+   * 获取各状态订单数量
+   *
+   * @description 获取当前用户各状态订单的数量，用于在"我的"页面显示徽标
+   * @returns 各状态订单数量对象
+   *
+   * @example
+   * orderApi.getCounts()
+   */
+  getCounts() {
+    return http<OrderCountsResult>({
+      method: 'GET',
+      url: '/account/orders:count',
+    })
+  },
+}
+
+/** 订单数量结果类型 */
+type OrderCountsResult = {
+  /** 待付款订单数 */
+  pending: number
+  /** 待发货订单数 */
+  paid: number
+  /** 待收货订单数 */
+  shipped: number
+  /** 已完成订单数 (不显示) */
+  completed: number
+  /** 退款/售后订单数 */
+  refunding: number
 }

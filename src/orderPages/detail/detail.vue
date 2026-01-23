@@ -9,25 +9,54 @@
       </view>
 
       <template v-else-if="order">
-        <!-- 订单状态头部 -->
-        <view class="order-status-header" :class="statusClass">
-          <view class="status-info">
-            <uni-icons :type="statusIcon" size="24" color="#fff" />
-            <text class="status-text">{{ statusText }}</text>
-          </view>
-          <text
-            v-if="order.orderState === OrderState.PENDING && order.countdown"
-            class="countdown-text"
-          >
-            剩余支付时间：{{ countdownText }}
-          </text>
-          <text v-else-if="order.orderState === OrderState.SHIPPED" class="status-desc">
-            商品已发出，请注意查收
-          </text>
+        <!-- 待付款状态头部 - 只显示倒计时 -->
+        <view
+          v-if="order.orderState === OrderState.PENDING && remainingSeconds > 0"
+          class="countdown-header"
+        >
+          <text class="countdown-label">剩余支付时间：</text>
+          <text class="countdown-time">{{ countdownText }}</text>
         </view>
 
-        <!-- 收货地址 -->
-        <view class="section-card address-section">
+        <!-- 物流信息 + 收货地址 (非待付款订单) -->
+        <view
+          v-if="order.orderState !== OrderState.PENDING"
+          class="section-card logistics-address-section"
+        >
+          <!-- 物流信息 -->
+          <view class="logistics-info" @click="goToLogistics">
+            <view class="logistics-icon">
+              <uni-icons type="checkbox-filled" size="24" color="#ff4d4f" />
+            </view>
+            <view class="logistics-content">
+              <text class="logistics-status">{{ latestLogisticsStatus }}</text>
+              <text class="logistics-desc">{{ latestLogisticsDesc }}</text>
+            </view>
+            <view class="logistics-arrow">
+              <uni-icons type="right" size="18" color="#999" />
+            </view>
+          </view>
+
+          <!-- 分隔线 -->
+          <view class="section-divider"></view>
+
+          <!-- 收货地址 -->
+          <view class="address-info">
+            <view class="address-dot"></view>
+            <view class="address-content">
+              <text class="address-detail">
+                {{ order.shippingAddress?.fullLocation }} {{ order.shippingAddress?.address }}
+              </text>
+              <view class="address-contact">
+                <text class="name">{{ order.shippingAddress?.receiver }}</text>
+                <text class="phone">{{ order.shippingAddress?.contact }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 收货地址 (待付款订单 - 无物流) -->
+        <view v-else class="section-card address-only-section">
           <view class="address-icon">
             <uni-icons type="location" size="20" :color="themeColor" />
           </view>
@@ -118,40 +147,50 @@
     <view v-if="order" class="footer-actions">
       <!-- 待付款 -->
       <template v-if="order.orderState === OrderState.PENDING">
-        <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
-        <button class="footer-btn primary" @click="goToPay">去支付</button>
+        <view class="footer-right">
+          <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
+          <button class="footer-btn primary" @click="goToPay">去支付</button>
+        </view>
       </template>
 
       <!-- 待发货 -->
       <template v-else-if="order.orderState === OrderState.PAID">
-        <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
-        <button class="footer-btn secondary" @click="contactService">联系客服</button>
+        <view class="footer-right">
+          <button class="footer-btn secondary" @click="remindShip">提醒发货</button>
+          <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
+          <button class="footer-btn secondary" @click="applyRefund">退款</button>
+        </view>
       </template>
 
       <!-- 待收货 -->
       <template v-else-if="order.orderState === OrderState.SHIPPED">
-        <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
-        <button class="footer-btn primary" @click="confirmReceive">确认收货</button>
+        <view class="footer-right">
+          <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
+          <button class="footer-btn secondary" @click="applyAftersale">申请售后</button>
+        </view>
       </template>
 
       <!-- 已完成 -->
       <template v-else-if="order.orderState === OrderState.COMPLETED">
-        <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
-        <button class="footer-btn secondary" @click="applyAftersale">退换/售后</button>
-        <button class="footer-btn primary" @click="buyAgain">再次购买</button>
+        <view class="footer-right">
+          <button class="footer-btn secondary" @click="viewLogistics">查看物流</button>
+          <button class="footer-btn secondary" @click="applyAftersale">售后</button>
+          <button class="footer-btn secondary" @click="buyAgain">再次购买</button>
+        </view>
       </template>
 
       <!-- 已取消 -->
       <template v-else-if="order.orderState === OrderState.CANCELLED">
-        <button class="footer-btn secondary" @click="deleteOrder">删除订单</button>
-        <button class="footer-btn primary" @click="buyAgain">再次购买</button>
+        <view class="footer-right">
+          <button class="footer-btn secondary" @click="buyAgain">再次购买</button>
+        </view>
       </template>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { orderApi } from '@/api/order'
 import { OrderState, OrderStateText } from '@/types/order-state'
@@ -217,6 +256,78 @@ const countdownText = computed(() => {
     .padStart(2, '0')}`
 })
 
+// 物流状态
+const latestLogisticsStatus = computed(() => {
+  if (!order.value) return '暂无物流信息'
+  switch (order.value.orderState) {
+    case OrderState.PAID:
+      return '待发货'
+    case OrderState.SHIPPED:
+      return '运输中'
+    case OrderState.COMPLETED:
+      return '已签收'
+    case OrderState.CANCELLED:
+      return '已取消'
+    default:
+      return '暂无物流信息'
+  }
+})
+
+const latestLogisticsDesc = computed(() => {
+  if (!order.value) return ''
+  if (order.value.shipments && order.value.shipments.length > 0) {
+    const shipment = order.value.shipments[0]
+    if (shipment.traces && shipment.traces.length > 0) {
+      return shipment.traces[0].traceDesc
+    }
+    return `${shipment.carrierName} ${shipment.trackingNo}`
+  }
+  switch (order.value.orderState) {
+    case OrderState.PAID:
+      return '商家正在准备发货，请耐心等待'
+    case OrderState.SHIPPED:
+      return '您的订单已发出，请注意查收'
+    case OrderState.COMPLETED:
+      return '您的订单已签收，可对快递员的服务进行评价'
+    default:
+      return ''
+  }
+})
+
+// 倒计时定时器
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+const startCountdown = () => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+  }
+  if (remainingSeconds.value > 0) {
+    countdownTimer = setInterval(() => {
+      if (remainingSeconds.value > 0) {
+        remainingSeconds.value--
+      } else {
+        if (countdownTimer) {
+          clearInterval(countdownTimer)
+          countdownTimer = null
+        }
+      }
+    }, 1000)
+  }
+}
+
+// 清理定时器
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+})
+
+// 跳转物流页面
+const goToLogistics = () => {
+  uni.navigateTo({ url: `/orderPages/logistics/logistics?id=${orderId.value}` })
+}
+
 // 加载订单详情
 const loadOrder = async () => {
   if (!orderId.value) return
@@ -228,6 +339,7 @@ const loadOrder = async () => {
       order.value = res.result
       if (res.result.countdown) {
         remainingSeconds.value = res.result.countdown
+        startCountdown()
       }
     } else {
       uni.showToast({ title: res?.msg || '加载失败', icon: 'none' })
@@ -331,24 +443,8 @@ const deleteOrder = async () => {
 }
 
 // 查看物流
-const viewLogistics = async () => {
-  try {
-    const res = await orderApi.getLogistics(orderId.value)
-    if (res && res.code === '0' && res.result.shipments.length > 0) {
-      const shipment = res.result.shipments[0]
-      uni.showModal({
-        title: `${shipment.carrierName}`,
-        content: `快递单号：${shipment.trackingNo}\n\n${
-          shipment.traces[0]?.traceDesc || '暂无物流信息'
-        }`,
-        showCancel: false,
-      })
-    } else {
-      uni.showToast({ title: '暂无物流信息', icon: 'none' })
-    }
-  } catch (e) {
-    uni.showToast({ title: '获取物流失败', icon: 'none' })
-  }
+const viewLogistics = () => {
+  uni.navigateTo({ url: `/orderPages/logistics/logistics?id=${orderId.value}` })
 }
 
 // 联系客服
@@ -359,6 +455,16 @@ const contactService = () => {
 // 申请售后
 const applyAftersale = () => {
   uni.showToast({ title: '功能开发中', icon: 'none' })
+}
+
+// 提醒发货
+const remindShip = () => {
+  uni.showToast({ title: '已提醒卖家发货', icon: 'success' })
+}
+
+// 申请退款
+const applyRefund = () => {
+  uni.showToast({ title: '退款功能开发中', icon: 'none' })
 }
 
 // 再次购买
@@ -385,54 +491,153 @@ onLoad((options) => {
 
 .detail-scroll {
   flex: 1;
-  padding-bottom: 120rpx;
+  padding-bottom: 180rpx;
 }
 
 .loading-container {
   padding: 100rpx 0;
 }
 
-// 订单状态头部
-.order-status-header {
-  padding: 40rpx 30rpx;
-  color: #fff;
+// 待付款倒计时头部
+.countdown-header {
+  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  padding: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  .status-info {
+  .countdown-label {
+    font-size: 28rpx;
+    color: #fff;
+  }
+
+  .countdown-time {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #fff;
+    margin-left: 8rpx;
+  }
+}
+
+// 物流+地址组合卡片
+.logistics-address-section {
+  padding: 0;
+
+  .logistics-info {
     display: flex;
     align-items: center;
-    margin-bottom: 16rpx;
+    padding: 24rpx;
+    cursor: pointer;
 
-    .status-text {
-      font-size: 36rpx;
-      font-weight: 600;
+    .logistics-icon {
+      margin-right: 20rpx;
+    }
+
+    .logistics-content {
+      flex: 1;
+
+      .logistics-status {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #ff4d4f;
+        display: block;
+      }
+
+      .logistics-desc {
+        font-size: 26rpx;
+        color: #666;
+        margin-top: 8rpx;
+        display: block;
+      }
+    }
+
+    .logistics-arrow {
       margin-left: 16rpx;
     }
   }
 
-  .countdown-text,
-  .status-desc {
-    font-size: 26rpx;
-    opacity: 0.9;
+  .section-divider {
+    height: 1rpx;
+    background-color: #f0f0f0;
+    margin: 0 24rpx;
   }
 
-  &.status-pending {
-    background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+  .address-info {
+    display: flex;
+    padding: 24rpx;
+
+    .address-dot {
+      width: 16rpx;
+      height: 16rpx;
+      background-color: #ff4d4f;
+      border-radius: 50%;
+      margin-right: 20rpx;
+      margin-top: 8rpx;
+      flex-shrink: 0;
+    }
+
+    .address-content {
+      flex: 1;
+
+      .address-detail {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #333;
+        display: block;
+        line-height: 1.4;
+      }
+
+      .address-contact {
+        margin-top: 12rpx;
+
+        .name {
+          font-size: 26rpx;
+          color: #666;
+          margin-right: 20rpx;
+        }
+
+        .phone {
+          font-size: 26rpx;
+          color: #666;
+        }
+      }
+    }
+  }
+}
+
+// 待付款地址卡片 (无物流)
+.address-only-section {
+  display: flex;
+  padding: 24rpx;
+
+  .address-icon {
+    margin-right: 20rpx;
+    padding-top: 4rpx;
   }
 
-  &.status-paid {
-    background: linear-gradient(135deg, #007aff 0%, #004a99 100%);
-  }
+  .address-info {
+    flex: 1;
 
-  &.status-shipped {
-    background: linear-gradient(135deg, #34c759 0%, #07c160 100%);
-  }
+    .address-contact {
+      margin-bottom: 12rpx;
 
-  &.status-completed {
-    background: linear-gradient(135deg, #8e8e93 0%, #636366 100%);
-  }
+      .name {
+        font-size: 30rpx;
+        font-weight: 600;
+        margin-right: 20rpx;
+      }
 
-  &.status-cancelled {
-    background: linear-gradient(135deg, #8e8e93 0%, #636366 100%);
+      .phone {
+        font-size: 28rpx;
+        color: #999;
+      }
+    }
+
+    .address-detail {
+      font-size: 26rpx;
+      color: #666;
+      line-height: 1.5;
+    }
   }
 }
 
@@ -654,8 +859,19 @@ onLoad((options) => {
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 20rpx;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+
+  .footer-left {
+    display: flex;
+    gap: 16rpx;
+  }
+
+  .footer-right {
+    display: flex;
+    gap: 16rpx;
+  }
 
   .footer-btn {
     padding: 16rpx 36rpx;
@@ -669,7 +885,7 @@ onLoad((options) => {
 
     &.secondary {
       background-color: #fff;
-      color: $uni-text-color-grey;
+      color: #333;
       border: 1rpx solid #ddd;
     }
 

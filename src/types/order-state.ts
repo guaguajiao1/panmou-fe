@@ -119,6 +119,8 @@ export enum ItemType {
   BUNDLE = 2,
   /** 组合子商品 */
   BUNDLE_CHILD = 3,
+  /** 盲盒商品 */
+  MYSTERY_BOX = 4,
 }
 
 // ==================== 状态流转配置 ====================

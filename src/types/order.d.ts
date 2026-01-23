@@ -1,6 +1,6 @@
 import type { AddressItem } from './address'
 import type { OrderState, OrderItemState, ItemType } from './order-state'
-import type { OrderShipment } from './logistics.d'
+import type { OrderShipment } from './logistics'
 
 // ==================== 订单详情 ====================
 
@@ -95,6 +95,12 @@ export type OrderSkuItem = {
 
   /** 组合商品子项列表（前端展示用） */
   children?: OrderSkuItem[]
+  /** 是否展示子SKU（组合商品控制） */
+  showChildren?: boolean
+  /** 是否为盲盒商品 */
+  isMysteryBox?: boolean
+  /** 盲盒是否已开启 */
+  mysteryBoxOpened?: boolean
 }
 
 // ==================== 订单优惠明细 ====================

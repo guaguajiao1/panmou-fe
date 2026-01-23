@@ -68,18 +68,19 @@
             <text class="section-title">你的宠物</text>
             <uni-icons type="right" size="18" color="#999"></uni-icons>
           </view>
-          <view v-if="pets.length > 0" class="section-content-filled pet-section">
-            <view v-for="pet in pets" :key="pet.id" class="pet-item" @click="goToPets">
-              <image :src="pet.avatar" class="pet-avatar" mode="aspectFill"></image>
-              <text class="pet-name">{{ pet.name }}</text>
-            </view>
-            <view class="pet-item add-pet" @click="goToCreatePet">
-              <view class="pet-avatar add-avatar">
-                <uni-icons type="plus" size="24" color="#999"></uni-icons>
+          <scroll-view
+            v-if="pets.length > 0"
+            scroll-x
+            class="section-content-filled pet-section-scroll"
+            @scrolltolower="goToPets"
+          >
+            <view class="pet-section-content">
+              <view v-for="pet in pets" :key="pet.id" class="pet-item" @click="goToEditPet(pet.id)">
+                <image :src="pet.avatar" class="pet-avatar" mode="aspectFill"></image>
+                <text class="pet-name">{{ pet.name }}</text>
               </view>
-              <text class="pet-name">添加宠物</text>
             </view>
-          </view>
+          </scroll-view>
           <view v-else class="section-content-empty pet-empty">
             <view class="empty-text-group">
               <text class="empty-text">添加你的宠物</text>
@@ -140,6 +141,9 @@ import { useAccountStore } from '@/stores'
 import { onShow } from '@dcloudio/uni-app'
 import type { SimpleAutoshipData } from '@/types/subscription'
 import { OrderState } from '@/types/order-state'
+import { orderApi } from '@/api/order'
+import { petApi } from '@/api/pet'
+import type { PetProfile } from '@/types/pet'
 
 // 1. 获取登录信息
 const accountStore = useAccountStore()
@@ -150,12 +154,6 @@ interface OrderSummary {
   statusText: string
   arrivalDate: string
   items: Array<{ id: string; thumbnail: string }>
-}
-
-interface PetProfile {
-  id: string
-  name: string
-  avatar: string
 }
 
 type AutoshipSummary = SimpleAutoshipData // 复用订阅列表的数据结构
@@ -234,34 +232,55 @@ const fetchAccountData = () => {
         isPullForwardOptOut: false,
       },
     }
-    pets.value = [
-      { id: 'pet_001', name: '旺财', avatar: 'https://placehold.co/100x100/f0ad4e/fff?text=旺财' },
-    ]
+    // 加载宠物列表
+    fetchPets()
 
     isLoading.value = false
   }, 500)
 }
 
-// 获取订单数量 Mock
-const fetchOrderCounts = () => {
-  // 模拟接口返回
-  setTimeout(() => {
-    // 使用OrderState枚举作为key
-    const counts: Record<OrderState, number> = {
-      [OrderState.PENDING]: 2,
-      [OrderState.PAID]: 0,
-      [OrderState.SHIPPED]: 5,
-      [OrderState.COMPLETED]: 1,
-      [OrderState.CANCELLED]: 0,
-      [OrderState.REFUNDING]: 0,
-      [OrderState.REFUNDED]: 0,
+// 获取宠物列表（最多5个）
+const fetchPets = async () => {
+  try {
+    const res = await petApi.list()
+    if (res && res.code === '0') {
+      pets.value = res.result.slice(0, 5)
     }
-    orderStatusMenu.value.forEach((item) => {
-      if (counts[item.type] !== undefined) {
-        item.count = counts[item.type]
-      }
-    })
-  }, 300)
+  } catch (e) {
+    console.error('加载宠物列表失败', e)
+  }
+}
+
+// 获取订单数量
+const fetchOrderCounts = async () => {
+  try {
+    const res = await orderApi.getCounts()
+    if (res && res.code === '0') {
+      const counts = res.result
+      orderStatusMenu.value.forEach((item) => {
+        switch (item.type) {
+          case OrderState.PENDING:
+            item.count = counts.pending
+            break
+          case OrderState.PAID:
+            item.count = counts.paid
+            break
+          case OrderState.SHIPPED:
+            item.count = counts.shipped
+            break
+          case OrderState.COMPLETED:
+            // 已完成不显示数量
+            item.count = 0
+            break
+          case OrderState.REFUNDING:
+            item.count = counts.refunding
+            break
+        }
+      })
+    }
+  } catch (e) {
+    console.error('获取订单数量失败', e)
+  }
 }
 
 // --- 事件处理器 ---
@@ -288,10 +307,12 @@ const goToOrderList = (type: OrderState) => {
   uni.navigateTo({ url: `/orderPages/list/list?state=${type}` })
 }
 
-const goToAutoship = () => uni.navigateTo({ url: '/pages/subscription/list' }) // 假设路径
-const goToPets = () => uni.navigateTo({ url: '/pages/pet/list' }) // 假设路径
-const goToCreatePet = () => uni.navigateTo({ url: '/pages/pet/create' }) // 假设路径
-const goToHome = () => uni.switchTab({ url: '/pages/index/index' }) // 假设主页路径
+const goToAutoship = () => uni.navigateTo({ url: '/pages/subscription/list' })
+const goToPets = () => uni.navigateTo({ url: '/accountPages/pet_list/pet_list' })
+const goToCreatePet = () => uni.navigateTo({ url: '/accountPages/pet_edit/pet_edit' })
+const goToEditPet = (petId: string) =>
+  uni.navigateTo({ url: `/accountPages/pet_edit/pet_edit?id=${petId}` })
+const goToHome = () => uni.switchTab({ url: '/pages/index/index' })
 
 // 帮助中心
 const handleHelpClick = (type: string) => {
@@ -471,17 +492,22 @@ function formatSmartDate(dateStr: string): string {
   }
 }
 
-/* Pet (有数据) */
-.pet-section {
-  display: flex;
-  flex-wrap: wrap;
+/* Pet (有数据) - 水平滚动 */
+.pet-section-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+.pet-section-content {
+  display: inline-flex;
   gap: $uni-spacing-row-lg;
+  padding-right: 40rpx;
 }
 .pet-item {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: $uni-spacing-col-sm;
+  flex-shrink: 0;
 }
 .pet-avatar {
   width: 120rpx;
@@ -492,6 +518,10 @@ function formatSmartDate(dateStr: string): string {
 .pet-name {
   font-size: $uni-font-size-sm;
   color: $uni-text-color;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .add-avatar {
   display: flex;

@@ -57,6 +57,8 @@ export type ShipmentTrace = {
   traceTime: string
   /** 轨迹状态 */
   traceState: ShipmentState
+  /** 轨迹状态文字（如：已签收、派送中） */
+  traceStatus?: string
   /** 轨迹描述 */
   traceDesc: string
   /** 所在位置 */
