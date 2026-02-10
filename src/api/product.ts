@@ -65,6 +65,36 @@ const mockData: Data = {
 }
 
 /**
+ * 食谱商品模拟数据
+ */
+const recipeMockData: Record<string, Data> = {
+  r1: {
+    item: {
+      itemId: 'r1',
+      title: '鸡肉蔬菜餐',
+      images: ['https://placehold.co/750x400/90EE90/333?text=🍗+鸡肉餐'],
+      detailImages: ['/static/images/recipe/recipe_detail.png'],
+    },
+  },
+  r2: {
+    item: {
+      itemId: 'r2',
+      title: '牛肉红薯餐',
+      images: ['https://placehold.co/750x400/F4A460/333?text=🥩+牛肉餐'],
+      detailImages: ['/static/images/recipe/recipe_detail.png'],
+    },
+  },
+  r3: {
+    item: {
+      itemId: 'r3',
+      title: '三文鱼餐',
+      images: ['https://placehold.co/750x400/FFA07A/333?text=🐟+三文鱼餐'],
+      detailImages: ['/static/images/recipe/recipe_detail.png'],
+    },
+  },
+}
+
+/**
  * 获取商品详情
  * 开发：直接返回 mockData
  * 生产：请求后端 API
@@ -72,8 +102,12 @@ const mockData: Data = {
 export function getProductDetail(itemId: string): Promise<Data> {
   return new Promise((resolve, reject) => {
     if (process.env.NODE_ENV === 'development') {
-      // 直接用 mock 数据
-      resolve(mockData)
+      // 检查是否为食谱商品
+      if (recipeMockData[itemId]) {
+        resolve(recipeMockData[itemId])
+      } else {
+        resolve(mockData)
+      }
     } else {
       // 调用后端接口
       uni.request({

@@ -1,196 +1,89 @@
 <template>
-  <view class="pet-edit-page">
-    <CustomNavigationBar :title="isEdit ? '编辑宠物' : '添加宠物'" />
+  <view class="pet-wizard-page">
+    <CustomNavigationBar :title="navTitle" />
 
-    <scroll-view scroll-y class="form-scroll">
-      <view class="form-container">
-        <!-- 头像上传 -->
-        <view class="avatar-section" @click="chooseAvatar">
-          <image class="avatar-preview" :src="formData.avatar || defaultAvatar" mode="aspectFill" />
-          <view class="avatar-overlay">
-            <uni-icons type="camera" size="28" color="#fff" />
-          </view>
-          <text class="avatar-tip">点击上传头像</text>
-        </view>
-
-        <!-- 基本信息 -->
-        <view class="form-section">
-          <view class="section-title">基本信息</view>
-
-          <view class="form-item">
-            <text class="label required">名称</text>
-            <input
-              v-model="formData.name"
-              class="input"
-              placeholder="请输入宠物名称"
-              maxlength="20"
-            />
-          </view>
-
-          <view class="form-item">
-            <text class="label required">类型</text>
-            <view class="type-selector">
-              <view
-                class="type-option"
-                :class="{ active: formData.type === 'dog' }"
-                @click="changeType('dog')"
-              >
-                🐕 狗
-              </view>
-              <view
-                class="type-option"
-                :class="{ active: formData.type === 'cat' }"
-                @click="changeType('cat')"
-              >
-                🐈 猫
-              </view>
-            </view>
-          </view>
-
-          <view class="form-item" @click="showBreedPicker = true">
-            <text class="label required">品种</text>
-            <view class="picker-value">
-              <text>{{ selectedBreedName || '请选择品种' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-
-          <view class="form-item" @click="showDatePicker = true">
-            <text class="label required">生日</text>
-            <view class="picker-value">
-              <text>{{ formData.birthday || '请选择生日' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-
-          <view class="form-item">
-            <text class="label required">性别</text>
-            <view class="gender-selector">
-              <view
-                class="gender-option male"
-                :class="{ active: formData.gender === 'male' }"
-                @click="formData.gender = 'male'"
-              >
-                ♂ 公
-              </view>
-              <view
-                class="gender-option female"
-                :class="{ active: formData.gender === 'female' }"
-                @click="formData.gender = 'female'"
-              >
-                ♀ 母
-              </view>
-            </view>
-          </view>
-
-          <view class="form-item">
-            <text class="label">是否绝育</text>
-            <switch
-              :checked="formData.neutered"
-              @change="formData.neutered = $event.detail.value"
-            />
-          </view>
-        </view>
-
-        <!-- 健康信息 -->
-        <view class="form-section">
-          <view class="section-title">健康信息</view>
-
-          <!-- 食物过敏 -->
-          <view class="form-item">
-            <text class="label">是否有食物过敏</text>
-            <switch
-              :checked="formData.hasFoodAllergies"
-              @change="formData.hasFoodAllergies = $event.detail.value"
-            />
-          </view>
-          <view
-            v-if="formData.hasFoodAllergies"
-            class="sub-form-item"
-            @click="showFoodAllergenPicker = true"
-          >
-            <text class="sub-label">过敏原</text>
-            <view class="picker-value">
-              <text>{{ selectedFoodAllergenNames || '请选择' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-
-          <!-- 服药 -->
-          <view class="form-item">
-            <text class="label">是否在服药</text>
-            <switch
-              :checked="formData.onMedication"
-              @change="formData.onMedication = $event.detail.value"
-            />
-          </view>
-          <view
-            v-if="formData.onMedication"
-            class="sub-form-item"
-            @click="showMedicationPicker = true"
-          >
-            <text class="sub-label">服用的药</text>
-            <view class="picker-value">
-              <text>{{ selectedMedicationNames || '请选择' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-
-          <!-- 药物过敏 -->
-          <view class="form-item">
-            <text class="label">是否有药物过敏</text>
-            <switch
-              :checked="formData.hasDrugAllergies"
-              @change="formData.hasDrugAllergies = $event.detail.value"
-            />
-          </view>
-          <view
-            v-if="formData.hasDrugAllergies"
-            class="sub-form-item"
-            @click="showDrugAllergenPicker = true"
-          >
-            <text class="sub-label">过敏药物</text>
-            <view class="picker-value">
-              <text>{{ selectedDrugAllergenNames || '请选择' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-
-          <!-- 健康问题 -->
-          <view class="form-item">
-            <text class="label">是否有健康问题</text>
-            <switch
-              :checked="formData.hasHealthIssues"
-              @change="formData.hasHealthIssues = $event.detail.value"
-            />
-          </view>
-          <view
-            v-if="formData.hasHealthIssues"
-            class="sub-form-item"
-            @click="showHealthIssuePicker = true"
-          >
-            <text class="sub-label">健康问题</text>
-            <view class="picker-value">
-              <text>{{ selectedHealthIssueNames || '请选择' }}</text>
-              <uni-icons type="right" size="18" color="#999" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 删除按钮 -->
-        <button v-if="isEdit" class="delete-btn" @click="deletePet">删除宠物</button>
+    <!-- 进度条 -->
+    <view class="progress-bar">
+      <view class="progress-track">
+        <view class="progress-fill" :style="{ width: progressWidth }" />
       </view>
+      <text class="progress-text">{{ currentStep }}/{{ totalSteps }}</text>
+    </view>
+
+    <!-- 步骤内容 -->
+    <scroll-view scroll-y class="wizard-content">
+      <StepBasicInfo
+        v-if="currentStep === 1"
+        :model-value="formData"
+        :breed-name="selectedBreedName"
+        :locked-type="lockedType"
+        :is-edit="isEdit"
+        @update:model-value="updateFormData"
+        @show-breed-picker="showBreedPicker = true"
+        @show-date-picker="showDatePicker = true"
+      />
+      <StepWeight
+        v-else-if="currentStep === 2"
+        :model-value="formData"
+        :pet-name="formData.name || '宠物'"
+        :pet-type="formData.type"
+        @update:model-value="updateFormData"
+      />
+      <StepActivity
+        v-else-if="currentStep === 3"
+        :model-value="formData"
+        :pet-name="formData.name || '宠物'"
+        :pet-type="formData.type"
+        @update:model-value="updateFormData"
+      />
+      <StepPicky
+        v-else-if="currentStep === 4"
+        :model-value="formData"
+        :pet-name="formData.name || '宠物'"
+        :pet-type="formData.type"
+        @update:model-value="updateFormData"
+      />
+      <StepAllergy
+        v-else-if="currentStep === 5"
+        :model-value="formData"
+        :pet-name="formData.name || '宠物'"
+        :pet-type="formData.type"
+        :allergens="enums.foodAllergens"
+        @update:model-value="updateFormData"
+      />
+      <StepHealth
+        v-else-if="currentStep === 6"
+        :model-value="formData"
+        :pet-name="formData.name || '宠物'"
+        :pet-type="formData.type"
+        :health-issues="enums.healthIssues"
+        @update:model-value="updateFormData"
+      />
     </scroll-view>
 
-    <!-- 保存按钮 -->
-    <view class="footer-actions">
-      <button class="save-btn" :disabled="!canSave" @click="savePet">
-        {{ isEdit ? '保存修改' : '添加宠物' }}
+    <!-- 底部按钮 -->
+    <view class="wizard-footer">
+      <button v-if="currentStep > 1" class="btn-back" @click="prevStep">上一步</button>
+      <button
+        v-if="currentStep < totalSteps"
+        class="btn-next"
+        :disabled="!canProceed"
+        @click="nextStep"
+      >
+        下一步
+      </button>
+      <button
+        v-if="currentStep === totalSteps"
+        class="btn-save"
+        :disabled="!canProceed"
+        @click="saveAndContinue"
+      >
+        {{ isCustomize ? 'Continue' : '保存' }}
       </button>
     </view>
 
     <!-- 品种选择器 -->
-    <uni-popup ref="breedPopup" type="bottom" @change="onPopupChange">
+    <uni-popup ref="breedPopup" type="bottom" @change="onBreedPopupChange">
       <view class="popup-content">
         <view class="popup-header">
           <text class="popup-title">选择品种</text>
@@ -237,32 +130,10 @@
       </view>
     </uni-popup>
 
-    <!-- 多选弹窗组件 -->
-    <uni-popup ref="multiSelectPopup" type="bottom">
-      <view class="popup-content">
-        <view class="popup-header">
-          <text class="popup-title">{{ multiSelectTitle }}</text>
-          <text class="popup-close" @click="closeMultiSelect">完成</text>
-        </view>
-        <scroll-view scroll-y class="popup-list">
-          <view
-            v-for="item in multiSelectOptions"
-            :key="item.id"
-            class="popup-item"
-            :class="{ selected: multiSelectValue.includes(item.id) }"
-            @click="toggleMultiSelect(item.id)"
-          >
-            <text>{{ item.name }}</text>
-            <uni-icons
-              v-if="multiSelectValue.includes(item.id)"
-              type="checkmarkempty"
-              size="20"
-              color="#004a99"
-            />
-          </view>
-        </scroll-view>
-      </view>
-    </uni-popup>
+    <!-- 删除按钮（编辑模式） -->
+    <view v-if="isEdit && currentStep === 1" class="delete-section">
+      <button class="btn-delete" @click="deletePet">删除宠物</button>
+    </view>
   </view>
 </template>
 
@@ -270,32 +141,55 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { petApi } from '@/api/pet'
-import type { PetProfile, PetEnums, PetType, EnumItem } from '@/types/pet'
-
-const defaultAvatar = 'https://placehold.co/200x200/f0f0f0/999?text=Pet'
+import type { PetFormData, PetEnums, WizardMode, EnumItem, PetType } from '@/types/pet'
+import StepBasicInfo from './components/StepBasicInfo.vue'
+import StepWeight from './components/StepWeight.vue'
+import StepActivity from './components/StepActivity.vue'
+import StepPicky from './components/StepPicky.vue'
+import StepAllergy from './components/StepAllergy.vue'
+import StepHealth from './components/StepHealth.vue'
 
 // 状态
 const petId = ref('')
-const isEdit = computed(() => !!petId.value)
+const mode = ref<WizardMode>('normal')
+const lockedType = ref<PetType | ''>('') // 锁定的宠物类型，不可修改
+const currentStep = ref(1)
+const totalSteps = 6
 const isLoading = ref(false)
 
+const isEdit = computed(() => !!petId.value)
+const isCustomize = computed(() => mode.value === 'customize')
+const canSkip = computed(() => mode.value === 'normal')
+
+const navTitle = computed(() => {
+  if (isEdit.value) return '编辑宠物'
+  return isCustomize.value ? '创建宠物档案' : '添加宠物'
+})
+
+const progressWidth = computed(() => `${(currentStep.value / totalSteps) * 100}%`)
+
 // 表单数据
-const formData = reactive({
+const formData = reactive<PetFormData>({
   avatar: '',
   name: '',
-  type: 'dog' as PetType,
+  type: 'dog',
   breedId: '',
   birthday: '',
-  gender: 'male' as 'male' | 'female',
+  gender: 'male',
   neutered: false,
-  hasFoodAllergies: false,
-  foodAllergyIds: [] as string[],
+  currentWeight: undefined,
+  idealWeight: undefined,
+  bodyCondition: undefined,
+  activityLevel: undefined,
+  pickyLevel: undefined,
+  hasFoodAllergies: undefined,
+  foodAllergyIds: [],
+  hasHealthIssues: undefined,
+  healthIssueIds: [],
   onMedication: false,
-  medicationIds: [] as string[],
+  medicationIds: [],
   hasDrugAllergies: false,
-  drugAllergyIds: [] as string[],
-  hasHealthIssues: false,
-  healthIssueIds: [] as string[],
+  drugAllergyIds: [],
 })
 
 // 枚举数据
@@ -310,19 +204,8 @@ const enums = reactive<PetEnums>({
 // 弹窗控制
 const breedPopup = ref()
 const datePopup = ref()
-const multiSelectPopup = ref()
 const showBreedPicker = ref(false)
 const showDatePicker = ref(false)
-const showFoodAllergenPicker = ref(false)
-const showMedicationPicker = ref(false)
-const showDrugAllergenPicker = ref(false)
-const showHealthIssuePicker = ref(false)
-
-// 多选弹窗状态
-const multiSelectTitle = ref('')
-const multiSelectOptions = ref<EnumItem[]>([])
-const multiSelectValue = ref<string[]>([])
-const multiSelectField = ref('')
 
 // 日期选择
 const currentYear = new Date().getFullYear()
@@ -330,47 +213,35 @@ const years = Array.from({ length: 30 }, (_, i) => currentYear - i)
 const datePickerValue = ref([0, 0, 0])
 
 // 计算属性
-const canSave = computed(() => formData.name && formData.breedId && formData.birthday)
-
 const selectedBreedName = computed(() => {
   const breed = enums.breeds.find((b) => b.id === formData.breedId)
   return breed?.name || ''
 })
 
-const selectedFoodAllergenNames = computed(() => {
-  return (
-    formData.foodAllergyIds
-      .map((id) => enums.foodAllergens.find((a) => a.id === id)?.name)
-      .filter(Boolean)
-      .join('、') || ''
-  )
-})
-
-const selectedMedicationNames = computed(() => {
-  return (
-    formData.medicationIds
-      .map((id) => enums.medications.find((m) => m.id === id)?.name)
-      .filter(Boolean)
-      .join('、') || ''
-  )
-})
-
-const selectedDrugAllergenNames = computed(() => {
-  return (
-    formData.drugAllergyIds
-      .map((id) => enums.drugAllergens.find((a) => a.id === id)?.name)
-      .filter(Boolean)
-      .join('、') || ''
-  )
-})
-
-const selectedHealthIssueNames = computed(() => {
-  return (
-    formData.healthIssueIds
-      .map((id) => enums.healthIssues.find((h) => h.id === id)?.name)
-      .filter(Boolean)
-      .join('、') || ''
-  )
+const canProceed = computed(() => {
+  switch (currentStep.value) {
+    case 1:
+      return formData.name && formData.breedId && formData.birthday
+    case 2:
+      if (!isCustomize.value) return true
+      return formData.currentWeight && formData.bodyCondition
+    case 3:
+      if (!isCustomize.value) return true
+      return !!formData.activityLevel
+    case 4:
+      if (!isCustomize.value) return true
+      return !!formData.pickyLevel
+    case 5:
+      // 必须明确选择有或没有过敏
+      if (formData.hasFoodAllergies === undefined) return false
+      return !formData.hasFoodAllergies || formData.foodAllergyIds.length > 0
+    case 6:
+      // 必须明确选择有或没有健康问题
+      if (formData.hasHealthIssues === undefined) return false
+      return !formData.hasHealthIssues || formData.healthIssueIds.length > 0
+    default:
+      return true
+  }
 })
 
 // 监听弹窗控制
@@ -382,24 +253,16 @@ watch(showDatePicker, (val) => {
   val ? datePopup.value?.open() : datePopup.value?.close()
 })
 
-watch(showFoodAllergenPicker, (val) => {
-  if (val)
-    openMultiSelect('食物过敏原', enums.foodAllergens, formData.foodAllergyIds, 'foodAllergyIds')
-})
-
-watch(showMedicationPicker, (val) => {
-  if (val) openMultiSelect('服用的药', enums.medications, formData.medicationIds, 'medicationIds')
-})
-
-watch(showDrugAllergenPicker, (val) => {
-  if (val)
-    openMultiSelect('过敏药物', enums.drugAllergens, formData.drugAllergyIds, 'drugAllergyIds')
-})
-
-watch(showHealthIssuePicker, (val) => {
-  if (val)
-    openMultiSelect('健康问题', enums.healthIssues, formData.healthIssueIds, 'healthIssueIds')
-})
+// 监听类型切换，重新加载枚举
+watch(
+  () => formData.type,
+  async (newType) => {
+    formData.breedId = ''
+    formData.foodAllergyIds = []
+    formData.healthIssueIds = []
+    await loadEnums(newType)
+  },
+)
 
 // 方法
 const loadEnums = async (type: PetType) => {
@@ -427,14 +290,19 @@ const loadPet = async (id: string) => {
         birthday: pet.birthday,
         gender: pet.gender,
         neutered: pet.neutered,
+        currentWeight: pet.currentWeight,
+        idealWeight: pet.idealWeight,
+        bodyCondition: pet.bodyCondition,
+        activityLevel: pet.activityLevel,
+        pickyLevel: pet.pickyLevel,
         hasFoodAllergies: pet.hasFoodAllergies,
         foodAllergyIds: pet.foodAllergyIds || [],
+        hasHealthIssues: pet.hasHealthIssues,
+        healthIssueIds: pet.healthIssueIds || [],
         onMedication: pet.onMedication,
         medicationIds: pet.medicationIds || [],
         hasDrugAllergies: pet.hasDrugAllergies,
         drugAllergyIds: pet.drugAllergyIds || [],
-        hasHealthIssues: pet.hasHealthIssues,
-        healthIssueIds: pet.healthIssueIds || [],
       })
       await loadEnums(pet.type)
     }
@@ -446,31 +314,32 @@ const loadPet = async (id: string) => {
   }
 }
 
-const changeType = async (type: PetType) => {
-  if (formData.type === type) return
-  formData.type = type
-  formData.breedId = ''
-  formData.foodAllergyIds = []
-  formData.medicationIds = []
-  formData.drugAllergyIds = []
-  formData.healthIssueIds = []
-  await loadEnums(type)
+const prevStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
 }
 
-const chooseAvatar = () => {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: (res) => {
-      formData.avatar = res.tempFilePaths[0]
-    },
-  })
+const nextStep = () => {
+  if (currentStep.value < totalSteps) {
+    currentStep.value++
+  }
+}
+
+// 处理子组件的表单数据更新
+const updateFormData = (newData: PetFormData) => {
+  Object.assign(formData, newData)
 }
 
 const selectBreed = (item: EnumItem) => {
   formData.breedId = item.id
   showBreedPicker.value = false
+}
+
+const onBreedPopupChange = (e: any) => {
+  if (!e.show) {
+    showBreedPicker.value = false
+  }
 }
 
 const onDateChange = (e: any) => {
@@ -482,43 +351,8 @@ const onDateChange = (e: any) => {
   formData.birthday = `${year}-${month}-${day}`
 }
 
-const onPopupChange = (e: any) => {
-  if (!e.show) {
-    showBreedPicker.value = false
-  }
-}
-
-const openMultiSelect = (title: string, options: EnumItem[], value: string[], field: string) => {
-  multiSelectTitle.value = title
-  multiSelectOptions.value = options
-  multiSelectValue.value = [...value]
-  multiSelectField.value = field
-  multiSelectPopup.value?.open()
-}
-
-const toggleMultiSelect = (id: string) => {
-  const idx = multiSelectValue.value.indexOf(id)
-  if (idx === -1) {
-    multiSelectValue.value.push(id)
-  } else {
-    multiSelectValue.value.splice(idx, 1)
-  }
-}
-
-const closeMultiSelect = () => {
-  const field = multiSelectField.value as keyof typeof formData
-  if (field && Array.isArray(formData[field])) {
-    ;(formData[field] as string[]) = [...multiSelectValue.value]
-  }
-  multiSelectPopup.value?.close()
-  showFoodAllergenPicker.value = false
-  showMedicationPicker.value = false
-  showDrugAllergenPicker.value = false
-  showHealthIssuePicker.value = false
-}
-
-const savePet = async () => {
-  if (!canSave.value) return
+const saveAndContinue = async () => {
+  if (!canProceed.value) return
 
   isLoading.value = true
   try {
@@ -531,8 +365,17 @@ const savePet = async () => {
     }
 
     if (res && res.code === '0') {
-      uni.showToast({ title: isEdit.value ? '保存成功' : '添加成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 1500)
+      if (isCustomize.value) {
+        // 定制模式：跳转到推荐页面
+        const savedPetId = res.result.id
+        uni.redirectTo({
+          url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?petId=${savedPetId}`,
+        })
+      } else {
+        // 普通模式：返回列表
+        uni.showToast({ title: isEdit.value ? '保存成功' : '添加成功', icon: 'success' })
+        setTimeout(() => uni.navigateBack(), 1500)
+      }
     } else {
       uni.showToast({ title: res?.msg || '操作失败', icon: 'none' })
     }
@@ -564,227 +407,99 @@ const deletePet = async () => {
 
 // 页面加载
 onLoad(async (options) => {
+  if (options?.mode === 'customize') {
+    mode.value = 'customize'
+  }
+  // 处理锁定的宠物类型
+  if (options?.lockedType === 'dog' || options?.lockedType === 'cat') {
+    lockedType.value = options.lockedType
+    formData.type = options.lockedType
+  }
   if (options?.id) {
     petId.value = options.id
     await loadPet(options.id)
   } else {
-    await loadEnums('dog')
+    await loadEnums(formData.type)
   }
 })
 </script>
 
 <style lang="scss" scoped>
-.pet-edit-page {
+.pet-wizard-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: #f5f5f5;
 }
 
-.form-scroll {
-  flex: 1;
-}
-
-.form-container {
-  padding: 20rpx;
-}
-
-// 头像区域
-.avatar-section {
+.progress-bar {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 40rpx;
+  padding: 20rpx 30rpx;
   background-color: #fff;
-  border-radius: 16rpx;
-  margin-bottom: 20rpx;
-  position: relative;
 
-  .avatar-preview {
-    width: 160rpx;
-    height: 160rpx;
-    border-radius: 50%;
-    background-color: #f0f0f0;
-  }
-
-  .avatar-overlay {
-    position: absolute;
-    top: 40rpx;
-    width: 160rpx;
-    height: 160rpx;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .avatar-tip {
-    margin-top: 16rpx;
-    font-size: 24rpx;
-    color: #999;
-  }
-}
-
-// 表单区域
-.form-section {
-  background-color: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-
-  .section-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 24rpx;
-    padding-left: 12rpx;
-    border-left: 6rpx solid #004a99;
-  }
-}
-
-.form-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  .label {
-    font-size: 28rpx;
-    color: #333;
-
-    &.required::before {
-      content: '*';
-      color: #f56c6c;
-      margin-right: 4rpx;
-    }
-  }
-
-  .input {
+  .progress-track {
     flex: 1;
-    text-align: right;
-    font-size: 28rpx;
-    color: #333;
-  }
-
-  .picker-value {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    color: #666;
-    font-size: 28rpx;
-  }
-}
-
-.sub-form-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20rpx 0 20rpx 40rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-
-  .sub-label {
-    font-size: 26rpx;
-    color: #666;
-  }
-
-  .picker-value {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    color: #999;
-    font-size: 26rpx;
-    max-width: 400rpx;
+    height: 8rpx;
+    background-color: #e0e0e0;
+    border-radius: 4rpx;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background-color: #004a99;
+    border-radius: 4rpx;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    margin-left: 20rpx;
+    font-size: 24rpx;
+    color: #666;
   }
 }
 
-// 类型选择器
-.type-selector {
+.wizard-content {
+  flex: 1;
+  height: 0; // 重要：配合flex:1让scroll-view正确计算高度
+}
+
+.wizard-footer {
   display: flex;
   gap: 16rpx;
-
-  .type-option {
-    padding: 16rpx 32rpx;
-    border-radius: 24rpx;
-    font-size: 26rpx;
-    background-color: #f5f5f5;
-    color: #666;
-    transition: all 0.2s;
-
-    &.active {
-      background-color: #004a99;
-      color: #fff;
-    }
-  }
-}
-
-// 性别选择器
-.gender-selector {
-  display: flex;
-  gap: 16rpx;
-
-  .gender-option {
-    padding: 16rpx 32rpx;
-    border-radius: 24rpx;
-    font-size: 26rpx;
-    background-color: #f5f5f5;
-    color: #666;
-    transition: all 0.2s;
-
-    &.male.active {
-      background-color: #e3f2fd;
-      color: #1976d2;
-    }
-
-    &.female.active {
-      background-color: #fce4ec;
-      color: #c2185b;
-    }
-  }
-}
-
-// 删除按钮
-.delete-btn {
-  margin-top: 40rpx;
-  background-color: #fff;
-  color: #f56c6c;
-  border: 1rpx solid #f56c6c;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-
-  &::after {
-    border: none;
-  }
-}
-
-// 底部操作
-.footer-actions {
   padding: 20rpx 30rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background-color: #fff;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
 
-  .save-btn {
-    background-color: #004a99;
-    color: #fff;
-    border-radius: 44rpx;
-    font-size: 32rpx;
+  button {
+    flex: 1;
     height: 88rpx;
     line-height: 88rpx;
+    border-radius: 44rpx;
+    font-size: 30rpx;
 
     &::after {
       border: none;
     }
+  }
+
+  .btn-back {
+    background-color: #f5f5f5;
+    color: #666;
+  }
+
+  .btn-skip {
+    background-color: transparent;
+    color: #999;
+    border: 1rpx solid #ddd;
+  }
+
+  .btn-next,
+  .btn-save {
+    background-color: #004a99;
+    color: #fff;
 
     &[disabled] {
       background-color: #ccc;
@@ -792,7 +507,26 @@ onLoad(async (options) => {
   }
 }
 
-// 弹窗
+.delete-section {
+  padding: 20rpx 30rpx;
+  background-color: #fff;
+
+  .btn-delete {
+    background-color: transparent;
+    color: #f56c6c;
+    border: 1rpx solid #f56c6c;
+    height: 88rpx;
+    line-height: 88rpx;
+    border-radius: 44rpx;
+    font-size: 28rpx;
+
+    &::after {
+      border: none;
+    }
+  }
+}
+
+// 弹窗样式
 .popup-content {
   background-color: #fff;
   border-radius: 24rpx 24rpx 0 0;

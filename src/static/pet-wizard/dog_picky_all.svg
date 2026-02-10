@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Will eat anything dog - enthusiastic eating -->
+  <ellipse cx="50" cy="50" rx="26" ry="14" fill="#f5f0e8"/>
+  <!-- Head buried in food -->
+  <circle cx="85" cy="55" r="12" fill="#f5f0e8"/>
+  <!-- Ear flopping -->
+  <ellipse cx="78" cy="45" rx="6" ry="8" fill="#f5f0e8"/>
+  <!-- Legs -->
+  <path d="M28 62 L26 72" stroke-width="3"/>
+  <path d="M42 64 L40 72" stroke-width="3"/>
+  <path d="M60 64 L62 72" stroke-width="3"/>
+  <path d="M72 62 L74 72" stroke-width="3"/>
+  <!-- Food bowl - face in it -->
+  <ellipse cx="95" cy="60" rx="12" ry="5" fill="none" stroke="#4a7c8a"/>
+  <ellipse cx="95" cy="56" rx="10" ry="4" fill="#e8ddd0"/>
+  <!-- Tail super wagging -->
+  <path d="M24 46 Q8 25 22 15" stroke-width="2.5"/>
+  <!-- Wagging lines -->
+  <path d="M25 18 L30 12" stroke-width="1" opacity="0.6"/>
+  <path d="M18 20 L14 14" stroke-width="1" opacity="0.6"/>
+  <path d="M12 28 L5 25" stroke-width="1" opacity="0.6"/>
+  <!-- Heart -->
+  <path d="M70 30 Q72 25 75 28 Q78 25 80 30 Q75 38 75 38 Q70 30 70 30" fill="#e8a0a0" stroke="#e8a0a0"/>
+</svg>

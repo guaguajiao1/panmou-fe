@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Ideal healthy dog -->
+  <ellipse cx="50" cy="45" rx="28" ry="15" fill="#f5f0e8"/>
+  <!-- Head -->
+  <circle cx="80" cy="35" r="12" fill="#f5f0e8"/>
+  <circle cx="84" cy="32" r="2" fill="#4a7c8a"/>
+  <ellipse cx="88" cy="38" rx="5" ry="3" fill="#f5f0e8"/>
+  <!-- Happy mouth -->
+  <path d="M83 40 Q86 43 89 40" stroke-width="1"/>
+  <!-- Ears -->
+  <ellipse cx="74" cy="24" rx="5" ry="7" fill="#f5f0e8"/>
+  <!-- Legs - normal -->
+  <path d="M28 58 L26 72" stroke-width="3"/>
+  <path d="M40 59 L38 72" stroke-width="3"/>
+  <path d="M62 59 L64 72" stroke-width="3"/>
+  <path d="M74 58 L76 72" stroke-width="3"/>
+  <!-- Tail up - happy -->
+  <path d="M22 42 Q12 30 20 22" stroke-width="2.5"/>
+</svg>

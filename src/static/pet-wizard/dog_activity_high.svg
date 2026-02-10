@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- High activity dog - standing alert -->
+  <ellipse cx="50" cy="45" rx="28" ry="15" fill="#f5f0e8"/>
+  <!-- Head up high -->
+  <circle cx="82" cy="28" r="13" fill="#f5f0e8"/>
+  <circle cx="87" cy="25" r="2" fill="#4a7c8a"/>
+  <ellipse cx="92" cy="30" rx="5" ry="3" fill="#f5f0e8"/>
+  <!-- Alert ears up -->
+  <path d="M74 18 L70 5 L80 15" fill="#f5f0e8"/>
+  <path d="M88 18 L92 5 L84 15" fill="#f5f0e8"/>
+  <!-- Legs - ready to move -->
+  <path d="M28 58 L24 72" stroke-width="3"/>
+  <path d="M40 58 L38 72" stroke-width="3"/>
+  <path d="M62 58 L66 72" stroke-width="3"/>
+  <path d="M74 55 L80 72" stroke-width="3"/>
+  <!-- Tail up -->
+  <path d="M22 42 Q10 25 20 15" stroke-width="2.5"/>
+  <!-- Energy lines -->
+  <path d="M15 50 L8 48" stroke-width="1" opacity="0.5"/>
+  <path d="M15 55 L8 57" stroke-width="1" opacity="0.5"/>
+</svg>

@@ -17,6 +17,9 @@
       ]"
     />
   </view>
+  <view class="navigate_fresh_food">
+    <button class="fresh-food-btn" @click="goFreshFood()">🍖 定制鲜食</button>
+  </view>
   <view class="navigate_cart">
     <button @click="goCart()">Go to Cart</button>
   </view>
@@ -33,6 +36,12 @@
 
 <script lang="ts" setup>
 import Promo from './components/promo.vue'
+
+function goFreshFood() {
+  uni.navigateTo({
+    url: '/freshFoodPages/fresh_food_landing/fresh_food_landing',
+  })
+}
 
 function goCart() {
   uni.navigateTo({
@@ -65,4 +74,17 @@ function goSubList() {
 }
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.navigate_fresh_food {
+  margin: 20rpx;
+
+  .fresh-food-btn {
+    background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12rpx;
+    font-size: 32rpx;
+    font-weight: 600;
+  }
+}
+</style>

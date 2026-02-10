@@ -1,5 +1,3 @@
-import { ProductDetail } from './product.d'
-
 // 商品SKU
 export interface Sku {
   skuId: string
@@ -90,6 +88,9 @@ export interface Item {
 
   // 行业参数（规格/参数表）
   industryParamVO?: IndustryParamVO
+
+  // 详情描述图片列表（用于食谱详情等）
+  detailImages?: string[]
 
   // 预留：其它可能字段
   [key: string]: any

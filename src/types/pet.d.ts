@@ -8,6 +8,15 @@ export type PetType = 'dog' | 'cat'
 /** 性别 */
 export type PetGender = 'male' | 'female'
 
+/** 体型状况 */
+export type BodyCondition = 'thin' | 'ideal' | 'chubby' | 'overweight'
+
+/** 活动水平 */
+export type ActivityLevel = 'low' | 'moderate' | 'high' | 'athlete'
+
+/** 挑食程度 */
+export type PickyLevel = 'very_picky' | 'sometimes' | 'foodie' | 'eats_all'
+
 /** 宠物信息 */
 export interface PetProfile {
   /** 宠物ID */
@@ -28,10 +37,36 @@ export interface PetProfile {
   gender: PetGender
   /** 是否绝育 */
   neutered: boolean
+
+  // --- 步骤2: 体重信息 ---
+  /** 当前体重(kg) */
+  currentWeight?: number
+  /** 理想体重(kg) */
+  idealWeight?: number
+  /** 体型状况 */
+  bodyCondition?: BodyCondition
+
+  // --- 步骤3: 活动水平 ---
+  /** 活动水平 */
+  activityLevel?: ActivityLevel
+
+  // --- 步骤4: 挑食情况 ---
+  /** 挑食程度 */
+  pickyLevel?: PickyLevel
+
+  // --- 步骤5: 食物过敏 ---
   /** 是否有食物过敏 */
   hasFoodAllergies: boolean
   /** 食物过敏原ID列表 */
   foodAllergyIds: string[]
+
+  // --- 步骤6: 健康问题 ---
+  /** 是否有健康问题 */
+  hasHealthIssues: boolean
+  /** 健康问题ID列表 */
+  healthIssueIds: string[]
+
+  // --- 其他 (保留但不在向导中显示) ---
   /** 是否在服药 */
   onMedication: boolean
   /** 服用的药物ID列表 */
@@ -40,10 +75,7 @@ export interface PetProfile {
   hasDrugAllergies: boolean
   /** 药物过敏ID列表 */
   drugAllergyIds: string[]
-  /** 是否有健康问题 */
-  hasHealthIssues: boolean
-  /** 健康问题ID列表 */
-  healthIssueIds: string[]
+
   /** 排序顺序 */
   sortOrder: number
   /** 创建时间 */
@@ -61,15 +93,29 @@ export interface PetFormData {
   birthday: string
   gender: PetGender
   neutered: boolean
-  hasFoodAllergies: boolean
+  // 步骤2
+  currentWeight?: number
+  idealWeight?: number
+  bodyCondition?: BodyCondition
+  // 步骤3
+  activityLevel?: ActivityLevel
+  // 步骤4
+  pickyLevel?: PickyLevel
+  // 步骤5
+  hasFoodAllergies?: boolean
   foodAllergyIds: string[]
+  // 步骤6
+  hasHealthIssues?: boolean
+  healthIssueIds: string[]
+  // 其他
   onMedication: boolean
   medicationIds: string[]
   hasDrugAllergies: boolean
   drugAllergyIds: string[]
-  hasHealthIssues: boolean
-  healthIssueIds: string[]
 }
+
+/** 向导模式 */
+export type WizardMode = 'normal' | 'customize'
 
 /** 枚举项 */
 export interface EnumItem {

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Athlete cat - leaping/running -->
+  <ellipse cx="50" cy="38" rx="28" ry="12" fill="#f5f0e8" transform="rotate(-20 50 38)"/>
+  <!-- Head -->
+  <circle cx="82" cy="22" r="11" fill="#f5f0e8"/>
+  <circle cx="86" cy="19" r="1.5" fill="#4a7c8a"/>
+  <circle cx="78" cy="19" r="1.5" fill="#4a7c8a"/>
+  <!-- Ears back -->
+  <path d="M72 14 L68 5 L76 12" fill="#f5f0e8"/>
+  <path d="M88 14 L92 5 L84 12" fill="#f5f0e8"/>
+  <!-- Whiskers streaming -->
+  <path d="M90 24 L100 22" stroke-width="0.8"/>
+  <!-- Legs stretched running -->
+  <path d="M22 48 L10 60" stroke-width="2.5"/>
+  <path d="M32 50 L25 65" stroke-width="2.5"/>
+  <path d="M68 40 L82 50" stroke-width="2.5"/>
+  <path d="M78 35 L95 42" stroke-width="2.5"/>
+  <!-- Tail streaming -->
+  <path d="M18 32 Q5 28 8 18" stroke-width="2.5"/>
+  <!-- Speed lines -->
+  <path d="M2 35 L12 35" stroke-width="1" opacity="0.5"/>
+  <path d="M0 40 L10 40" stroke-width="1" opacity="0.5"/>
+  <path d="M2 45 L12 45" stroke-width="1" opacity="0.5"/>
+</svg>

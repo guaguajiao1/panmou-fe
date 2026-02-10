@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Chubby cat -->
+  <ellipse cx="50" cy="48" rx="30" ry="18" fill="#f5f0e8"/>
+  <!-- Head -->
+  <circle cx="82" cy="40" r="11" fill="#f5f0e8"/>
+  <circle cx="85" cy="37" r="1.5" fill="#4a7c8a"/>
+  <circle cx="79" cy="37" r="1.5" fill="#4a7c8a"/>
+  <!-- Ears -->
+  <path d="M74 31 L71 20 L78 28" fill="#f5f0e8"/>
+  <path d="M88 31 L91 20 L84 28" fill="#f5f0e8"/>
+  <!-- Whiskers -->
+  <path d="M90 42 L100 40" stroke-width="0.8"/>
+  <path d="M90 44 L100 46" stroke-width="0.8"/>
+  <!-- Legs - short -->
+  <path d="M26 62 L24 72" stroke-width="3.5"/>
+  <path d="M40 64 L38 72" stroke-width="3.5"/>
+  <path d="M62 64 L64 72" stroke-width="3.5"/>
+  <path d="M76 62 L78 72" stroke-width="3.5"/>
+  <!-- Tail -->
+  <path d="M20 45 Q8 38 12 28" stroke-width="2.5"/>
+</svg>

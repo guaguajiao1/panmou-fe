@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Good eater dog - happily eating -->
+  <ellipse cx="50" cy="48" rx="26" ry="14" fill="#f5f0e8"/>
+  <!-- Head down eating -->
+  <circle cx="82" cy="52" r="12" fill="#f5f0e8"/>
+  <circle cx="86" cy="50" r="2" fill="#4a7c8a"/>
+  <!-- Ear -->
+  <ellipse cx="76" cy="42" rx="5" ry="7" fill="#f5f0e8"/>
+  <!-- Legs -->
+  <path d="M28 60 L26 72" stroke-width="3"/>
+  <path d="M42 62 L40 72" stroke-width="3"/>
+  <path d="M60 62 L62 72" stroke-width="3"/>
+  <path d="M72 60 L74 72" stroke-width="3"/>
+  <!-- Food bowl with dog eating -->
+  <ellipse cx="95" cy="62" rx="10" ry="4" fill="none" stroke="#4a7c8a"/>
+  <ellipse cx="95" cy="59" rx="8" ry="3" fill="#e8ddd0"/>
+  <!-- Tail wagging up -->
+  <path d="M24 45 Q12 30 20 22" stroke-width="2.5"/>
+  <!-- Happy lines -->
+  <path d="M22 25 L18 20" stroke-width="1" opacity="0.5"/>
+  <path d="M18 28 L12 26" stroke-width="1" opacity="0.5"/>
+</svg>

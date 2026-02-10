@@ -156,6 +156,41 @@
           }
         }
       ]
+    },
+    {
+      "root": "freshFoodPages",
+      "pages": [
+        {
+          "path": "fresh_food_landing/fresh_food_landing",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "fresh_food_pets/fresh_food_pets",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "fresh_food_plan/fresh_food_plan",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "fresh_food_snacks/fresh_food_snacks",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "fresh_food_toys/fresh_food_toys",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   // 分包预下载规则

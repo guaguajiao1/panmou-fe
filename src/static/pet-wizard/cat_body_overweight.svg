@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Overweight fat cat - very round -->
+  <ellipse cx="50" cy="50" rx="35" ry="24" fill="#f5f0e8"/>
+  <!-- Head -->
+  <circle cx="85" cy="44" r="10" fill="#f5f0e8"/>
+  <circle cx="88" cy="42" r="1.5" fill="#4a7c8a"/>
+  <circle cx="82" cy="42" r="1.5" fill="#4a7c8a"/>
+  <!-- Ears - small -->
+  <path d="M78 36 L76 28 L81 34" fill="#f5f0e8"/>
+  <path d="M90 36 L92 28 L87 34" fill="#f5f0e8"/>
+  <!-- Whiskers -->
+  <path d="M93 46 L100 44" stroke-width="0.8"/>
+  <path d="M93 48 L100 50" stroke-width="0.8"/>
+  <!-- Legs - very short -->
+  <path d="M22 70 L20 76" stroke-width="4"/>
+  <path d="M38 72 L36 76" stroke-width="4"/>
+  <path d="M65 72 L67 76" stroke-width="4"/>
+  <path d="M80 70 L82 76" stroke-width="4"/>
+  <!-- Tail - short curved -->
+  <path d="M15 48 Q5 48 8 40" stroke-width="3"/>
+</svg>

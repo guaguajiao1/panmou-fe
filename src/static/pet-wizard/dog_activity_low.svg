@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="none" stroke="#4a7c8a" stroke-width="1.5">
+  <!-- Low activity dog - lying down sleeping -->
+  <ellipse cx="55" cy="55" rx="35" ry="12" fill="#f5f0e8"/>
+  <!-- Head resting -->
+  <circle cx="88" cy="50" r="12" fill="#f5f0e8"/>
+  <path d="M92 48 L94 47" stroke-width="1.5"/>
+  <path d="M92 52 L94 53" stroke-width="1.5"/>
+  <!-- Closed eyes - sleeping -->
+  <path d="M90 48 Q92 46 94 48" stroke-width="1"/>
+  <!-- Ear -->
+  <ellipse cx="82" cy="40" rx="5" ry="7" fill="#f5f0e8"/>
+  <!-- Front legs stretched out -->
+  <path d="M70 60 L85 65" stroke-width="3"/>
+  <path d="M65 62 L78 68" stroke-width="3"/>
+  <!-- Back legs -->
+  <ellipse cx="25" cy="58" rx="8" ry="5" fill="#f5f0e8"/>
+  <!-- ZZZ sleeping -->
+  <text x="75" y="30" font-size="10" fill="#4a7c8a" font-family="sans-serif">z</text>
+  <text x="80" y="25" font-size="8" fill="#4a7c8a" font-family="sans-serif">z</text>
+  <text x="84" y="22" font-size="6" fill="#4a7c8a" font-family="sans-serif">z</text>
+</svg>
