@@ -40,7 +40,7 @@
       <view class="subscription-toggle-section" v-if="hasEligibleSubscriptionItems">
         <view class="promo-header">
           <text>{{
-            orderPreview.recommendSubscriptions
+            orderPreview.recommendedAutoships
               ? '开启您的首次订阅订单，符合条件的商品最高可省'
               : '开启订阅，符合条件商品优惠。'
           }}</text>
@@ -66,7 +66,7 @@
               </text>
               <SubscriptionFrequencyPicker
                 v-model="selectedFreqObj"
-                :recommend-subscriptions="orderPreview.recommendSubscriptions"
+                :recommend-autoships="orderPreview.recommendedAutoships"
                 @update:modelValue="onFrequencyChange"
               />
               <text class="change-tip">您可以随时轻松地更改、取消或重新安排配送。</text>
@@ -76,7 +76,7 @@
                   v-for="item in subscriptionImageItems"
                   :key="item.id"
                 >
-                  <image :src="item.sku.image" class="item-image-sm"></image>
+                  <image :src="item.sku.image?.[0]" class="item-image-sm"></image>
                 </view>
               </scroll-view>
               <text class="promo-terms">
@@ -105,6 +105,7 @@
           v-for="item in orderPreview.items"
           :key="item.id"
           :item="item"
+          scene="checkout"
           @setQuantity="handleSetQuantity"
           @delete="deleteItem"
           @toggle-purchase-type="handleTogglePurchaseType"
@@ -186,19 +187,19 @@ const previewId = ref<string>('')
 
 const orderPreview = ref<OrderPreview>({
   totalItemQuantity: 0,
-  subtotal: 0,
-  grandTotal: 0,
-  shippingFee: 0,
-  freeShippingThreshold: 0,
-  freeShippingEligibleAmount: 0,
+  subtotal: '0.00',
+  grandTotal: '0.00',
+  shippingFee: '0.00',
+  freeShippingThreshold: '0.00',
+  freeShippingEligibleAmount: '0.00',
   discountDetails: [],
   shippingAddress: undefined,
-  recommendSubscriptions: [],
+  recommendedAutoships: [],
   items: [],
   id: '',
   subscriptionDiscount: {
     subscriptionDiscountRate: 0,
-    subscriptionDiscount: 0,
+    subscriptionDiscount: '0.00',
     firstSubscription: false,
   },
 })
@@ -210,14 +211,14 @@ const isSubscribing = computed(() =>
 )
 
 const hasEligibleSubscriptionItems = computed(() =>
-  orderPreview.value.items.some((item: Item) => item.sku?.supportSubscription),
+  orderPreview.value.items.some((item: Item) => item.sku?.supportsSubscription),
 )
 
 const subscriptionImageItems = computed(() => {
   if (isSubscribing.value) {
     return orderPreview.value.items.filter((i: Item) => i.purchaseType === 1)
   }
-  return orderPreview.value.items.filter((i: Item) => i.sku?.supportSubscription)
+  return orderPreview.value.items.filter((i: Item) => i.sku?.supportsSubscription)
 })
 
 const paymentButtonText = computed(() => {
@@ -372,7 +373,7 @@ const placeOrder = async () => {
 const handleSetQuantity = (payload: { item: Item; quantity: number }) => {
   const { item, quantity } = payload
   updateItem({
-    itemId: item.id,
+    itemId: item.itemId,
     quantity: quantity,
     purchaseType: item.purchaseType,
   })
@@ -388,7 +389,7 @@ const handleTogglePurchaseType = (payload: { item: Item; type: 0 | 1 }) => {
 const togglePurchaseType = (item: Item, type: 0 | 1) => {
   if (item.purchaseType !== type) {
     updateItem({
-      itemId: item.id,
+      itemId: item.itemId,
       quantity: item.quantity,
       purchaseType: type,
     })
@@ -426,7 +427,7 @@ const goToAddressManagement = (id: string) => {
 }
 
 const goToProductDetail = (item: Item) =>
-  uni.navigateTo({ url: `/pages/product/detail?id=${item.id || item.sku?.productId}` })
+  uni.navigateTo({ url: `/pages/product/detail?id=${item.sku?.productId}` })
 
 onLoad((options) => {
   if (options && options.previewId) {

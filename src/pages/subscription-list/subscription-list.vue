@@ -41,7 +41,7 @@
             :key="item.id"
             class="item-image-wrapper"
           >
-            <image :src="item.item.thumbnail" class="item-image" mode="aspectFill" />
+            <image :src="item.sku.image?.[0]" class="item-image" mode="aspectFill" />
           </view>
         </view>
 
@@ -100,23 +100,23 @@ const fullMockData: Array<SimpleAutoshipData> = [
       items: [
         {
           id: 'item_001',
-          item: {
-            id: 'p_001',
+          sku: {
+            skuId: 'p_001',
+            productId: 'p_001',
             name: '狗粮',
-            quantity: 1,
-            partNumber: '123',
-            thumbnail: 'https://placehold.co/160x160/007aff/fff?text=1',
+            image: ['https://placehold.co/160x160/007aff/fff?text=1'],
           },
+          quantity: 1,
         },
         {
           id: 'item_002',
-          item: {
-            id: 'p_002',
+          sku: {
+            skuId: 'p_002',
+            productId: 'p_002',
             name: '玩具',
-            quantity: 2,
-            partNumber: '124',
-            thumbnail: 'https://placehold.co/160x160/4cd964/fff?text=2',
+            image: ['https://placehold.co/160x160/4cd964/fff?text=2'],
           },
+          quantity: 2,
         },
       ],
       address: {
@@ -152,23 +152,23 @@ const fullMockData: Array<SimpleAutoshipData> = [
       items: [
         {
           id: 'item_001',
-          item: {
-            id: 'p_001',
+          sku: {
+            skuId: 'p_001',
+            productId: 'p_001',
             name: '狗粮',
-            quantity: 1,
-            partNumber: '123',
-            thumbnail: 'https://placehold.co/160x160/007aff/fff?text=1',
+            image: ['https://placehold.co/160x160/007aff/fff?text=1'],
           },
+          quantity: 1,
         },
         {
           id: 'item_002',
-          item: {
-            id: 'p_002',
+          sku: {
+            skuId: 'p_002',
+            productId: 'p_002',
             name: '玩具',
-            quantity: 2,
-            partNumber: '124',
-            thumbnail: 'https://placehold.co/160x160/4cd964/fff?text=2',
+            image: ['https://placehold.co/160x160/4cd964/fff?text=2'],
           },
+          quantity: 2,
         },
       ],
       address: {
@@ -205,13 +205,13 @@ const fullMockData: Array<SimpleAutoshipData> = [
       items: [
         {
           id: 'item_003',
-          item: {
-            id: 'p_003',
+          sku: {
+            skuId: 'p_003',
+            productId: 'p_003',
             name: '猫条',
-            quantity: 5,
-            partNumber: '125',
-            thumbnail: 'https://placehold.co/160x160/f0ad4e/fff?text=3',
+            image: ['https://placehold.co/160x160/f0ad4e/fff?text=3'],
           },
+          quantity: 5,
         },
       ],
       address: {
@@ -259,7 +259,7 @@ function getFrequencyUnitStr(frequency: Frequency) {
 // 计算商品总数
 function getTotalQuantity(items: SimpleAutoshipData['subscription']['items']): number {
   if (!items) return 0
-  return items.reduce((sum, item) => sum + (item.item.quantity || 0), 0)
+  return items.reduce((sum, item) => sum + (item.quantity || 0), 0)
 }
 
 // 格式化日期 (使用 subscription.vue 的智能日期格式)

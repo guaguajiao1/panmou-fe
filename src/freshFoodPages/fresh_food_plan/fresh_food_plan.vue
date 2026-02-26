@@ -152,13 +152,13 @@
 import { ref, computed, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { FreshPlanPageData, PriceMatrixItem } from '@/types/fresh-food'
-import type { Data } from '@/types/product'
+import type { ProductData } from '@/types/product'
 import { getProductDetail } from '@/api/product'
 
 const petId = ref('')
 const isLoading = ref(false)
 const showRecipePopup = ref(false)
-const recipeDetail = ref<Data | null>(null)
+const recipeDetail = ref<ProductData | null>(null)
 const isLoadingRecipe = ref(false)
 
 // 统一页面数据

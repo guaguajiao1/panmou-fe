@@ -1,234 +1,284 @@
-// 商品SKU
-export interface Sku {
-  skuId: string
-  spec: string
-  price: number
-  images: string[]
-}
-
-// 商品
-export interface ProductDetail {
-  productId: string
-  name: string
-  skus: Sku[]
-}
-
-// ---------- 最外层：data ----------
-export interface Data {
-  seller?: Seller
-  item?: Item
+/** 商品详情页数据（最外层） */
+export interface ProductData {
+  product?: ProductInfo
   skuBase?: SkuBase
-  skuCore?: SkuCore // 对应抓包中的 sku 详情（抓包有时命名为 skuCo，接口里使用 skuCore）
-  params?: Record<string, any>
-  [key: string]: any
+  skuCore?: SkuCore
 }
 
-/* ================== seller ================== */
-export interface Seller {
-  creditLevel?: string
-  creditLevelIcon?: string
-  encryptUid?: string
-  evaluates?: SellerEvaluate[] // 抓包例子: [{ level, levelText, score, title, type }]
-  pcShopUrl?: string
-  sellerId?: string
-  sellerNick?: string
-  sellerType?: string
-  shopIcon?: string
-  startsIcon?: string
-  userId?: string
-
-  // 额外在抓包中也见到的店铺展示字段
-  shopId?: string
-  shopName?: string
-  shopUrl?: string
-  starNum?: string
-  overallScore?: string
-  labelList?: Array<{ contentDesc?: string }>
-
-  [key: string]: any
-}
-
-export interface SellerEvaluate {
-  level?: string
-  levelText?: string
-  score?: string
-  title?: string
-  type?: string
-}
-
-/* ================== item ================== */
-export interface Item {
-  // 基本展示
-  itemId?: string
-  spuId?: string
-  title?: string
-  titleIcon?: string
-  images?: string[] // 图片 url 列表
-  bottomIcons?: any[] // 抓包通常为 []
-  qrCode?: string
-  vagueSellCount?: string // 如 "2万+"
-
-  // 视频、悬浮图标等
-  videos?: Video[]
-  rightFloatIcons?: RightFloatIcon[]
-
-  // 各类 VO / 辅助对象（抓包里都有出现）
-  titleVO?: TitleVO
-  debugVO?: { host?: string; traceId?: string }
-  umpPriceLogV?: any
-  deliveryVO?: DeliveryVO
-  commentListVO?: any
-  pcFrontSkuQuantityLimitVO?: any
-  buyParamVO?: any
-
-  // plusView / feature / headAtmosphere 等
-  plusViewVO?: any
-  feature?: Record<string, any>
-  headAtmosphereBeltVO?: any
-
-  // 行业参数（规格/参数表）
+export interface ProductInfo {
+  productId?: string
+  type: number // 1=单品, 3=SPU入口, 7=组合商品
+  title: string
+  images?: string[]
+  desc?: string
+  price?: number // 价格（分）
+  priceText?: string
+  customizationMode: number
+  tags?: ProductTag[]
+  vagueSellCount?: string
   industryParamVO?: IndustryParamVO
-
-  // 详情描述图片列表（用于食谱详情等）
   detailImages?: string[]
-
-  // 预留：其它可能字段
-  [key: string]: any
 }
 
-export interface Video {
-  actionEvent?: any // 抓包里为复杂对象（exposureArgs / openUrlEventArgs 等）
-  videoId?: string
-  videoThumbnailURL?: string
-  weexRecommendUrl?: string
-  [key: string]: any
-}
+/** 商品标签 */
+export interface ProductTag {}
 
-export interface RightFloatIcon {
-  disabled?: string // 抓包里为 "false" 字符串
-  events?: Array<{ fields?: Record<string, any>; type?: string }>
-  iconUrl?: string
-  type?: string
-  href?: string
-  image?: { gifAnimated?: string; imageUrl?: string }
-  title?: { text?: string }
-  text?: string
-  [key: string]: any
-}
-
-export interface TitleVO {
-  salesDesc?: string // 如 "已售 2万+"
-  subTitles?: Array<{ title?: string }>
-  title?: { title?: string }
-  [key: string]: any
-}
-
-export interface DeliveryVO {
-  addressId?: string
-  agingDesc?: string
-  agingDescColor?: string
-  agingDescIcon?: string
-  areaId?: string
-  deliverToCity?: string
-  deliveryFromAddr?: string
-  deliveryToAddr?: string
-  deliveryToDistrict?: string
-  freight?: string
-  [key: string]: any
-}
-
+/** 行业参数 */
 export interface IndustryParamVO {
-  basicParamList?: BasicParam[] // 抓包示例：品牌、品名、净含量、口味 等
+  basicParamList?: BasicParam[]
   enhanceParamList?: BasicParam[]
-  bizCode?: string
-  hit?: string
-  [key: string]: any
 }
 
+/** 基础参数项 */
 export interface BasicParam {
-  propertyName?: string // 如 "净含量"
-  valueName?: string // 如 "12kg 24kg"
-  [key: string]: any
+  propertyName?: string
+  valueName?: string
 }
 
 /* ================== skuBase ================== */
-/**
- * skuBase 示例结构来自抓包：
- * {
- *   components: [],
- *   props: [ { pid, name, values: [ { vid, name, ... } ] }, ... ],
- *   skus: [ { propPath, skuId }, ... ]
- * }
- */
+
+/** 规格维度*/
 export interface SkuBase {
-  components?: any[] // 抓包通常为空数组
-  props?: SkuProp[] // 规格维度（如 食品口味、净含量）
-  skus?: SkuMapping[] // propPath <-> skuId 映射
-  [key: string]: any
+  props?: SkuProp[]
+  skus?: SkuMapping[]
 }
 
 export interface SkuProp {
-  comboProperty?: string // 抓包为 "false"
-  hasGroupTags?: string
-  hasImage?: string
-  name?: string // 规格名，如 "食品口味"
-  packProp?: string
-  pid: string // 属性 id，如 "122216494"
-  shouldGroup?: string
-  values?: SkuPropValue[] // 值数组
-  [key: string]: any
+  pid: string
+  name?: string
+  values?: SkuPropValue[]
 }
 
 export interface SkuPropValue {
-  comboPropertyValue?: string
-  name?: string // 值名称，如 "鸭肉梨口味"
+  name?: string
   sortOrder?: string
-  vid?: string // 值 id
-  [key: string]: any
+  vid?: string
+  spread?: string // 加价文案
 }
 
 export interface SkuMapping {
-  propPath: string // 抓包形式： "12221649439056516503;1479562526377934"
-  skuId: string // sku id，如 "5862282289714"
+  propPath: string // 规格路径
+  skuId: string
 }
 
-/* ================== skuCore（抓包中的 skuCo / sku 详情映射） ================== */
-/**
- * 抓包示例：
- * "skuCo": { "sku2info": { "5862282289716": { ... }, "5862282289715": { ... } }, "skuItem": { itemStatus, renderSku, unitBuy } }
- */
+/* ================== skuCore ================== */
+
 export interface SkuCore {
-  sku2info: { [skuId: string]: Sku2Info }
-  skuItem?: SkuItemInfo
-  [key: string]: any
+  sku2info: { [skuId: string]: Sku }
 }
 
-export interface Sku2Info {
-  cartParam?: { addCartCheck?: string } // 如 { addCartCheck: "true" }
-  itemApplyParams?: string // 抓包里为 JSON 字符串（优惠券等）
-  price?: PriceInfo // price / subPrice 对象
-  quantity?: string // 如 "200"
-  quantityDisplayValue?: string // 如 "1"
-  quantityText?: string // 如 "有货"
-  subPrice?: PriceInfo
-  deliveryVO?: any
-  map?: any
-  [key: string]: any
+/** SKU信息（products[] 数组转 Map） */
+export interface Sku {
+  skuId: string
+  productId: string
+  strikeThroughPrice: string // 划线价，商品详情页展示
+  advertisedPrice: string // 广告价
+  originalPrice: string // advertisedPrice，无advertisedPrice时为strikeThroughPrice，原始价格
+  finalPrice: string // 到手价，购物车、提单页等商品卡片展示的价格
+  subscriptionPrice: string // 订阅价
+  name: string
+  image: string[]
+  desc: string
+  specs: string // 规格文字
+  type: number // 1=单品, 7=组合SKU， 8=鲜食sku，9=随机sku（比如宠物玩具）
+  comboItems?: ComboItem[] // 仅套餐SKU有
+  comboDiscount?: string // 组合优惠金额
+  /** 是否支持订阅 */
+  supportsSubscription: boolean
+  /** 订阅优惠率，0-100 */
+  subscriptionDiscountRate: string
+  /** 订阅优惠（格式化字符串，仅展示） */
+  subscriptionDiscount: string
+  maxQuantity: number
+  customization?: Customization
+  tags?: ProductTag[]
 }
 
-export interface PriceInfo {
-  priceColorNew?: string
-  priceMoney?: string // 抓包中的金额字符串，如 "45870"（单位分/或格式取决抓包）
-  priceText?: string // 如 "458.7"
-  priceTitle?: string
-  priceTitleColor?: string
-  priceBgColor?: string // 子价位有时包含
-  [key: string]: any
+/* ================== 组合商品 ================== */
+
+/** 套餐选择组（comboItems[]） */
+export interface ComboItem {
+  comboItemId: string
+  skuId: string
+  productId: string
+  idx: number
+  round: number
+  name: string
+  isChoices: number
+  quantity: number
+  maxQuantity: number
+  minQuantity: number
+  className: string
+  classDefaultImg?: string
+  comboProducts: ComboProduct[]
 }
 
-export interface SkuItemInfo {
-  itemStatus?: string // 如 "0"
-  renderSku?: string // 如 "true"
-  unitBuy?: string // 如 "1"
-  [key: string]: any
+/** 套餐内可选商品 */
+export interface ComboProduct {
+  comboItemId: string
+  skuId: string // 子商品skuId
+  productId: string // 子商品productId
+  name: string
+  image: string
+  price: string // 套餐内价格
+  priceText: string
+  originalPrice?: string
+  isDefault: number
+  quantity: number
+  comboMaxQuantity?: number
+  hasCustomization?: number
+  customization?: Customization
+  tags?: ProductTag[]
+}
+
+/* ================== 自定义选项 ================== */
+
+export interface Customization {
+  items?: CustomItem[]
+}
+
+/** 定制项（如冰量，displayMode=1） */
+export interface CustomItem {
+  code: string
+  name: string
+  image?: string
+  mode: number
+  displayMode: number
+  values: CustomValue[]
+}
+
+export interface CustomValue {
+  code: string
+  name: string
+  image?: string
+  checked: number // 1=默认选中
+}
+
+/**
+ * 配送频率的单位
+ * 根据业务需求可以扩展，例如 'DAY', 'MONTH'
+ */
+export type FrequencyUnit = 'WEEK' | 'MONTH'
+
+/**
+ * Autoship设置的来源页面或模块
+ * 根据业务需求可以扩展，例如 'PDP' (商品详情页), 'CART' (购物车)
+ */
+export type SubscriptionSource = 'CHECKOUT' | 'default' | 'recommend'
+
+/**
+ * 描述Autoship的配送频率
+ */
+export interface SubscriptionFrequency {
+  /**
+   * 频率的数值
+   * @example 4
+   */
+  frequency: number
+
+  /**
+   * 频率的单位
+   * @example 'WEEK'
+   */
+  unit: FrequencyUnit
+}
+
+export interface SubscriptionAdjustment {
+  quantity: number
+  skuId: number | string
+  productId: number | string
+  partNumber: string
+}
+/**
+ * 描述应用于某个商品条目的Subscription（订阅）设置
+ */
+export interface Subscription {
+  /**
+   * 具体的配送频率设置
+   */
+  subscriptionFrequency: SubscriptionFrequency
+
+  subscriptionAdjustments: SubscriptionAdjustment[]
+  /**
+   * 用户设置此Subscriptio时的来源页面或模块
+   */
+  source: SubscriptionSource
+}
+
+/**
+ * 优惠应用的展示级别
+ */
+export type DiscountDisplayLevel = 'ORDER' | 'ITEM'
+
+/**
+ * 优惠作用的目标
+ */
+export type DiscountTarget = 'PRODUCT' | 'SHIPPING' | string
+
+/**
+ * 描述一个折扣的详细信息
+ */
+export interface DiscountDetail {
+  /**
+   * 优惠的描述性标签，用于UI展示
+   */
+  label: string
+
+  /**
+   * 标记此优惠是否为周期性优惠（即是否会随每次自动配送重复生效）
+   * false 表示这是一个一次性优惠
+   */
+  isRecurring: boolean
+
+  /**
+   * 优惠活动的系统ID
+   */
+  promotionId: string
+
+  /**
+   * 用户输入的或系统自动应用的优惠码
+   */
+  promotionCode: string
+
+  /**
+   * 优惠的金额（格式化字符串，通常为负值，仅展示）。
+   */
+  amount: string
+
+  /**
+   * 优惠的展示级别
+   */
+  displayLevel: DiscountDisplayLevel
+
+  /**
+   * 优惠作用的目标
+   */
+  discountTarget?: DiscountTarget
+}
+
+/**
+ * 商品卡片 Props — 展示所需的最小数据
+ * 不嵌套 Sku 等业务模型；操作相关字段由父组件通过 slot 管理
+ */
+export interface ProductCardProps {
+  /** 唯一标识 */
+  itemId: string
+  /** 商品图片 URL */
+  image: string
+  /** 商品名称 */
+  name: string
+  /** 规格文字 */
+  specs?: string
+  /** 到手价 / 最终价格 (格式化字符串) */
+  finalPrice: string
+  /** 原价 / 划线价 (格式化字符串，为空时不展示) */
+  originalPrice?: string
+  /** 已选数量 */
+  quantity?: number
+  /** 商品总价 (单价 × 数量，格式化字符串) */
+  totalPrice?: string
+  /** 总优惠文案 (如 "-¥5.00")，点击展开优惠明细弹窗 */
+  totalDiscount?: string
+  /** 优惠明细列表 */
+  discountDetails?: DiscountDetail[]
 }

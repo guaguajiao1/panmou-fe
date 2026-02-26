@@ -83,7 +83,7 @@
                 <text class="goods-name">{{ item.productName }}</text>
                 <text class="goods-attrs">{{ item.skuAttrs }}</text>
                 <view class="goods-price-row">
-                  <text class="goods-price">¥{{ item.unitPrice.toFixed(2) }}</text>
+                  <text class="goods-price">¥{{ item.unitPrice }}</text>
                   <text class="goods-quantity">x{{ item.quantity }}</text>
                 </view>
               </view>
@@ -102,19 +102,19 @@
         <view class="section-card price-section">
           <view class="price-row">
             <text class="label">商品金额</text>
-            <text class="value">¥{{ order.totalAmount.toFixed(2) }}</text>
+            <text class="value">¥{{ order.totalAmount }}</text>
           </view>
           <view class="price-row">
             <text class="label">运费</text>
-            <text class="value">¥{{ order.shippingFee.toFixed(2) }}</text>
+            <text class="value">¥{{ order.shippingFee }}</text>
           </view>
-          <view v-if="order.discountAmount > 0" class="price-row">
+          <view v-if="parseFloat(String(order.discountAmount)) > 0" class="price-row">
             <text class="label">优惠</text>
-            <text class="value discount">-¥{{ order.discountAmount.toFixed(2) }}</text>
+            <text class="value discount">-¥{{ order.discountAmount }}</text>
           </view>
           <view class="price-row total">
             <text class="label">实付款</text>
-            <text class="value total-value">¥{{ order.payAmount.toFixed(2) }}</text>
+            <text class="value total-value">¥{{ order.payAmount }}</text>
           </view>
         </view>
 

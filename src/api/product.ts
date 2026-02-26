@@ -1,12 +1,14 @@
-import type { Data } from '@/types/product'
+import type { ProductData } from '@/types/product'
 
 /**
  * 模拟数据（来源于 tb 抓包）
  */
-const mockData: Data = {
-  item: {
-    itemId: '1234567890',
+const mockData: ProductData = {
+  product: {
+    productId: '1234567890',
+    type: 1,
     title: '天然无谷冻干鲜肉狗粮',
+    customizationMode: 0,
     vagueSellCount: '2万+',
     images: [
       'https://gw.alicdn.com/imgextra/O1CN01zvM5Tg1z9NFR75FUq_!!2377316671-0-picasso.jpg_q50.jpg_.webp',
@@ -51,15 +53,54 @@ const mockData: Data = {
   },
   skuCore: {
     sku2info: {
-      '5862282289714': { price: { priceText: '319' }, quantity: '200' },
-      '5862282289715': { price: { priceText: '619' }, quantity: '100' },
-      '5862282289716': { price: { priceText: '329' }, quantity: '150' },
-      '5862282289717': { price: { priceText: '629' }, quantity: '50' },
-    },
-    skuItem: {
-      itemStatus: '0',
-      renderSku: 'true',
-      unitBuy: '1',
+      '5862282289714': {
+        skuId: '5862282289714',
+        productId: '1234567890',
+        strikeThroughPrice: '399.00',
+        advertisedPrice: '339.00',
+        realPrice: 319,
+        name: '牛肉蓝莓 12kg',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 10,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
+      },
+      '5862282289715': {
+        skuId: '5862282289715',
+        productId: '1234567890',
+        strikeThroughPrice: '769.00',
+        advertisedPrice: '649.00',
+        realPrice: 619,
+        name: '牛肉蓝莓 24kg',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 10,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
+      },
+      '5862282289716': {
+        skuId: '5862282289716',
+        productId: '1234567890',
+        strikeThroughPrice: '409.00',
+        advertisedPrice: '349.00',
+        realPrice: 329,
+        name: '鸭肉梨 12kg',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 10,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
+      },
+      '5862282289717': {
+        skuId: '5862282289717',
+        productId: '1234567890',
+        strikeThroughPrice: '779.00',
+        advertisedPrice: '659.00',
+        realPrice: 629,
+        name: '鸭肉梨 24kg',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 10,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
+      },
     },
   },
 }
@@ -67,27 +108,33 @@ const mockData: Data = {
 /**
  * 食谱商品模拟数据
  */
-const recipeMockData: Record<string, Data> = {
+const recipeMockData: Record<string, ProductData> = {
   r1: {
-    item: {
-      itemId: 'r1',
+    product: {
+      productId: 'r1',
+      type: 1,
       title: '鸡肉蔬菜餐',
+      customizationMode: 0,
       images: ['https://placehold.co/750x400/90EE90/333?text=🍗+鸡肉餐'],
       detailImages: ['/static/images/recipe/recipe_detail.png'],
     },
   },
   r2: {
-    item: {
-      itemId: 'r2',
+    product: {
+      productId: 'r2',
+      type: 1,
       title: '牛肉红薯餐',
+      customizationMode: 0,
       images: ['https://placehold.co/750x400/F4A460/333?text=🥩+牛肉餐'],
       detailImages: ['/static/images/recipe/recipe_detail.png'],
     },
   },
   r3: {
-    item: {
-      itemId: 'r3',
+    product: {
+      productId: 'r3',
+      type: 1,
       title: '三文鱼餐',
+      customizationMode: 0,
       images: ['https://placehold.co/750x400/FFA07A/333?text=🐟+三文鱼餐'],
       detailImages: ['/static/images/recipe/recipe_detail.png'],
     },
@@ -99,7 +146,7 @@ const recipeMockData: Record<string, Data> = {
  * 开发：直接返回 mockData
  * 生产：请求后端 API
  */
-export function getProductDetail(itemId: string): Promise<Data> {
+export function getProductDetail(itemId: string): Promise<ProductData> {
   return new Promise((resolve, reject) => {
     if (process.env.NODE_ENV === 'development') {
       // 检查是否为食谱商品
@@ -114,7 +161,7 @@ export function getProductDetail(itemId: string): Promise<Data> {
         url: `https://your-api.com/product/detail?itemId=${itemId}`,
         method: 'GET',
         success: (res) => {
-          resolve(res.data as Data)
+          resolve(res.data as ProductData)
         },
         fail: reject,
       })

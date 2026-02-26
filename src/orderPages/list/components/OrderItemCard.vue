@@ -8,7 +8,7 @@
         <text class="product-attrs">{{ item.skuAttrs }}</text>
       </view>
       <view class="price-info">
-        <text class="actual-price">¥{{ item.unitPrice.toFixed(2) }}</text>
+        <text class="actual-price">¥{{ item.unitPrice }}</text>
         <text class="quantity">x{{ item.quantity }}</text>
       </view>
     </view>

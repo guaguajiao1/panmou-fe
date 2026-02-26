@@ -43,7 +43,7 @@
                 <image
                   v-for="item in nextAutoship.subscription.items.slice(0, 3)"
                   :key="item.id"
-                  :src="item.item.thumbnail"
+                  :src="item.sku.image?.[0]"
                   class="item-image"
                   mode="aspectFill"
                 ></image>
@@ -202,13 +202,13 @@ const fetchAccountData = () => {
         items: [
           {
             id: 'item_001',
-            item: {
-              id: 'p_001',
+            sku: {
+              skuId: 'p_001',
+              productId: 'p_001',
               name: '狗粮',
-              quantity: 1,
-              partNumber: '123',
-              thumbnail: 'https://placehold.co/100x100/007aff/fff?text=狗粮',
+              image: ['https://placehold.co/100x100/007aff/fff?text=狗粮'],
             },
+            quantity: 1,
           },
         ],
         address: {

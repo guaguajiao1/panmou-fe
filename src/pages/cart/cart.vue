@@ -5,13 +5,21 @@
     </view>
     <CustomNavigationBar title="购物车"></CustomNavigationBar>
 
-    <scroll-view scroll-y class="scroll-view-container">
+    <scroll-view
+      scroll-y
+      class="scroll-view-container"
+      :refresher-enabled="true"
+      :refresher-triggered="isRefresherTriggered"
+      @refresherrefresh="onRefresherRefresh"
+    >
       <CartItemCard
         v-for="item in cartData.items"
-        :key="item.id"
+        :key="item.itemId"
         :item="item"
+        scene="cart"
         @setQuantity="handleSetQuantity"
         @delete="deleteItem"
+        @select="handleSelect"
         @toggle-purchase-type="handleTogglePurchaseType"
         @go-to-product-detail="goToProductDetail"
       />
@@ -38,10 +46,8 @@
         <view class="top-row">
           <text class="subtotal-label">合计:</text>
           <view class="price-row">
-            <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
-            <text class="original-total" v-if="totalDiscount > 0">
-              ¥{{ cartData.subtotal.toFixed(2) }}
-            </text>
+            <text class="final-price">¥{{ cartData.grandTotal }}</text>
+            <text class="original-total" v-if="totalDiscount > 0"> ¥{{ cartData.subtotal }} </text>
           </view>
         </view>
         <view class="bottom-row">
@@ -65,7 +71,7 @@
         <scroll-view scroll-y class="popup-body">
           <view class="detail-row">
             <text>商品总价</text>
-            <text>¥{{ cartData.subtotal.toFixed(2) }}</text>
+            <text>¥{{ cartData.subtotal }}</text>
           </view>
           <view
             class="detail-row"
@@ -73,12 +79,12 @@
             :key="discount.promotionId"
           >
             <text>{{ discount.label }}</text>
-            <text class="discount-amount">¥{{ discount.amount.toFixed(2) }}</text>
+            <text class="discount-amount">¥{{ discount.amount }}</text>
           </view>
         </scroll-view>
         <view class="popup-footer">
           <text>合计</text>
-          <text class="final-price">¥{{ cartData.grandTotal.toFixed(2) }}</text>
+          <text class="final-price">¥{{ cartData.grandTotal }}</text>
         </view>
       </view>
     </uni-popup>
@@ -86,22 +92,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { cartApi } from '@/api/cart'
-import type { Cart } from '@/types/cart'
-import type { Item } from '@/types/checkout'
-// 导入 uni-popup 的类型，如果需要更严格的类型检查
-// import type { UniPopup } from '@dcloudio/uni-ui'
+import { checkoutApi } from '@/api/checkout'
+import type { Cart, CartItem } from '@/types/cart'
+import { onShow } from '@dcloudio/uni-app'
 
 // --- 默认购物车数据结构 ---
 const defaultCart: Cart = {
-  id: '',
+  uid: '',
+  cartId: '',
   totalItemQuantity: 0,
-  subtotal: 0,
-  grandTotal: 0,
-  shippingFee: 0,
-  freeShippingThreshold: 50,
-  freeShippingEligibleAmount: 0,
+  subtotal: '0.00',
+  grandTotal: '0.00',
+  shippingFee: '0.00',
+  freeShippingThreshold: '0.00',
+  freeShippingEligibleAmount: '0.00',
   discountDetails: [],
   items: [],
 }
@@ -109,31 +115,17 @@ const defaultCart: Cart = {
 // --- 响应式数据 ---
 const cartData = ref<Cart>(defaultCart)
 const isLoading = ref(true)
-// 弹窗 Ref (需求 3)
+const isRefresherTriggered = ref(false)
 const discountPopup = ref<any>(null) // 使用 any 简化，或者使用 InstanceType<typeof UniPopup>
 
 // --- 计算属性 ---
 /** 实际已节省的金额（subtotal - grandTotal） */
 const totalDiscount = computed(() => {
-  const discount = cartData.value.subtotal - cartData.value.grandTotal
+  const discount =
+    parseFloat(String(cartData.value.subtotal)) - parseFloat(String(cartData.value.grandTotal))
   return discount > 0 ? discount : 0
 })
 
-/** 距离免运费门槛还差多少 */
-const shippingDifference = computed(() =>
-  Math.max(0, cartData.value.freeShippingThreshold - cartData.value.freeShippingEligibleAmount),
-)
-
-/** 免运费进度条百分比 */
-const shippingProgress = computed(() => {
-  const threshold = cartData.value.freeShippingThreshold
-  const eligibleAmount = cartData.value.freeShippingEligibleAmount
-  if (threshold <= 0) return 100
-  const progress = (eligibleAmount / threshold) * 100
-  return Math.min(progress, 100)
-})
-
-// --- 弹窗控制方法 (需求 3) ---
 /** 打开优惠明细弹窗 */
 const openDiscountDetails = () => {
   if (discountPopup.value) {
@@ -150,10 +142,10 @@ const closeDiscountDetails = () => {
 // --- API 方法 ---
 
 /**
- * 获取购物车详情 (用于初始化和刷新)
+ * @param quiet 是否静默加载（不显示全局 loading）
  */
-const fetchCartData = async () => {
-  isLoading.value = true
+const fetchCartData = async (quiet = false) => {
+  if (!quiet) isLoading.value = true
 
   try {
     const res = await cartApi.get()
@@ -167,16 +159,23 @@ const fetchCartData = async () => {
     uni.showToast({ title: '加载失败，请重试', icon: 'none' })
   } finally {
     isLoading.value = false
+    isRefresherTriggered.value = false
   }
 }
 
+/** 下拉刷新回调 */
+const onRefresherRefresh = () => {
+  isRefresherTriggered.value = true
+  fetchCartData(true)
+}
+
 // 【新】处理所有数量更新的函数
-const handleSetQuantity = async (payload: { item: Item; quantity: number }) => {
+const handleSetQuantity = async (payload: { item: CartItem; quantity: number }) => {
   const { item, quantity } = payload
 
   // 可以在这里添加前端的校验
-  if (quantity > item.availableQuantity) {
-    uni.showToast({ title: '已达到最大库存', icon: 'none' })
+  if (quantity > item.stock) {
+    uni.showToast({ title: '已达到最大库存喽', icon: 'none' })
     return
   }
   if (quantity < 1) {
@@ -186,8 +185,7 @@ const handleSetQuantity = async (payload: { item: Item; quantity: number }) => {
 
   isLoading.value = true
   try {
-    // 调用同一个更新 API，但传入的是确切的 `quantity` 值
-    const res = await cartApi.updateItem(item.sku.skuId as string, { quantity: quantity })
+    const res = await cartApi.updateItem(cartData.value.cartId, item.itemId, { quantity: quantity })
     if (res && res.result) {
       cartData.value = res.result
     }
@@ -198,11 +196,10 @@ const handleSetQuantity = async (payload: { item: Item; quantity: number }) => {
   }
 }
 
-const deleteItem = async (item: Item) => {
+const deleteItem = async (item: CartItem) => {
   isLoading.value = true
   try {
-    const res = await cartApi.removeItems({ skuIds: [item.sku.skuId as string] })
-    // 直接使用 removeItems 的返回结果更新购物车
+    const res = await cartApi.removeItems(cartData.value.cartId, [item.itemId])
     if (res && res.result) {
       cartData.value = res.result
     }
@@ -213,44 +210,77 @@ const deleteItem = async (item: Item) => {
   }
 }
 
-const togglePurchaseType = async (item: Item, type: 0 | 1) => {
+const togglePurchaseType = async (item: CartItem, type: 0 | 1) => {
   if (item.purchaseType !== type) {
     isLoading.value = true
     try {
-      const res = await cartApi.updateItem(item.sku.skuId as string, { purchaseType: type })
+      const res = await cartApi.updateItem(cartData.value.cartId, item.itemId, {
+        purchaseType: type,
+      })
       if (res && res.result) {
         cartData.value = res.result
       }
     } catch (error) {
       console.error('切换购买方式失败', error)
     } finally {
-      // 修复：} 和 finally 之间缺少空格 (原代码中的备注)
       isLoading.value = false
     }
   }
 }
 
-// --- 事件处理函数 (逻辑不变) ---
-
 /**
  * (公共)
  * 用于 @toggle-purchase-type 事件的包装器
  */
-const handleTogglePurchaseType = (payload: { item: Item; type: 0 | 1 }) => {
+const handleTogglePurchaseType = (payload: { item: CartItem; type: 0 | 1 }) => {
   togglePurchaseType(payload.item, payload.type)
 }
 
-const handleCheckout = () => {
-  console.log('去结算，Cart ID：', cartData.value.id)
+/** 切换商品选中状态 */
+const handleSelect = async (item: CartItem) => {
+  isLoading.value = true
+  try {
+    const res = await cartApi.updateItem(cartData.value.cartId, item.itemId, {
+      selected: !item.selected,
+    })
+    if (res && res.result) {
+      cartData.value = res.result
+    }
+  } catch (error) {
+    console.error('切换选中状态失败', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const handleCheckout = async () => {
+  const selectedItems = cartData.value.items.filter((item: CartItem) => item.selected)
+  if (selectedItems.length === 0) {
+    uni.showToast({ title: '请选择商品', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '正在结算...' })
+  try {
+    const res = await checkoutApi.entryCart()
+    if (res?.code === '0' && res.result?.previewId) {
+      uni.navigateTo({ url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}` })
+    } else {
+      uni.showToast({ title: '结算失败', icon: 'none' })
+    }
+  } catch {
+    uni.showToast({ title: '结算失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
 }
 const goToProductDetail = (id: string | number) => {
-  console.log('查看商品详情：', id)
+  uni.navigateTo({ url: `/pages/product/detail?id=${id}` })
 }
 const goShopping = () => {
   console.log('去逛逛')
 }
 
-onMounted(() => {
+onShow(() => {
   fetchCartData()
 })
 </script>

@@ -1,4 +1,5 @@
 import type { AddressItem } from './address'
+import type { Sku } from './product'
 
 /**
  * 响应数据的主体
@@ -167,7 +168,7 @@ export interface Item {
   /**
    * 商品的静态目录信息
    */
-  item: ItemDetails
+  sku: Sku
   bundleComponentItems: any[] // 在抓包1中为空数组
   fulfillmentItemId: string
   isVirtualBundle: boolean
@@ -191,42 +192,6 @@ export interface Adjustment {
   description: string | null
   shortDescription: string | null
   displayLevel: string | null // "ORDERITEM"
-}
-
-/**
- * 商品的目录详情
- */
-export interface ItemDetails {
-  id: string
-  name: string
-  partNumber: string
-  brand: string
-  description: string
-  isGiftCard: boolean
-  isPharma: boolean
-  isVetDiet: boolean
-  isFrozen: boolean
-  thumbnail: string // URL
-  isSingleTablet: boolean
-  isAutoshipAllowed: boolean
-  petTypes: any[] // 在抓包1中为空数组
-  rxFrequency: object // 在抓包1中为空对象
-  foodFlavor: any[] // 在抓包1中为空数组
-  size: ItemSize[] // 商品2 含有此数据
-}
-
-/**
- * 商品尺寸信息
- */
-export interface ItemSize {
-  id: number
-  identifier: string
-  values: ItemSizeValue[]
-}
-
-export interface ItemSizeValue {
-  id: number
-  value: string // "Large/X-Large"
 }
 
 /**
@@ -354,13 +319,8 @@ export interface SimpleAutoshipData {
     }
     items: {
       id: string
-      item: {
-        id: string
-        name: string
-        quantity: number
-        partNumber: string
-        thumbnail: string
-      }
+      sku: Partial<Sku>
+      quantity: number
     }[]
   }
   currentUser: CurrentUser

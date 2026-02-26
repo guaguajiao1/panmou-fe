@@ -13,12 +13,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, defineProps, defineEmits } from 'vue'
-import type { Subscription, SubscriptionFrequency } from '@/types/checkout'
+import { ref, computed, watch } from 'vue'
+import type { Autoship, SubscriptionFrequency } from '@/types/checkout'
 
 const props = defineProps<{
   modelValue: SubscriptionFrequency | null
-  recommendSubscriptions: Subscription[]
+  recommendAutoships: Autoship[]
 }>()
 
 const emit = defineEmits(['update:modelValue'])
@@ -57,7 +57,7 @@ const onFrequencyChange = (e: any) => {
 
 // Watch for prop changes to determine the initial/default value
 watch(
-  () => props.recommendSubscriptions,
+  () => props.recommendAutoships,
   (subs) => {
     if (!subs || subs.length === 0) {
       // Fallback to 4 weeks if no recommendations

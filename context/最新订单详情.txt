@@ -1,0 +1,48 @@
+>> 本文件内容为 https://api.mcd.cn/bff/order/orders/1030119140000629865452222163?orderId=1030119140000629865452222163&token= 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+GET /bff/order/orders/1030119140000629865452222163?orderId=1030119140000629865452222163&token= HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+content-type: application/json
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#LRliE8hcO+aTJk3ot9HmfsS1e64kUxzEzm5Yy04CxUg=#hmac-sha256#Mon, 09 Feb 2026 05:31:07 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770615067491
+ct: 31
+x-b3-traceid: 2ED70AFF616244419AB388D9A317FA34
+x-b3-spanid: 2ED70AFF61624441
+meddyid: MEDDY157721534140617119
+d: BU/+gkswcmQD1r9Q+x6NmDwW/stzevUiwc9VU+sP614VfnUCsDrM9dSNxDcLsrL0psVYtD+PADMsgY5dH+x3+NQ==
+sid: 0728af2b94a49bb4581ce81f52657ee7_
+language: zh
+sv: v4
+routingid: 19
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: KcXNYBWswLFa6sIeeAZboMB5XgYvr/u5GQcJfk89aww=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Mon, 09 Feb 2026 05:31:08 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLW9yZGVyLXNlcnZpY2U=,si=1053
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-0cb976b93640e2d0c5cbb8d7e37b3f20-391b8c74d89c5d75-00
+x-envoy-upstream-service-time: 249
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-09 13:31:08","traceId":"2ed70aff616244419ab388d9a317fa34","data":{"orderId":"1030119140000629865452222163","orderMode":"0","payId":"11940962985009737728","channel":"45","orderType":"1","orderTypeName":"到店取餐","categoryId":1,"categoryName":"到店取餐","eatType":1,"eatTypeName":"堂食","mpOrderStatusCode":"10","orderStatusCode":"1","orderStatus":"待支付","topBgImg":"https://img.mcd.cn/gallery/c3704fde120c11b6.png","orderStatusTitleType":0,"orderStatusTitle":"待支付","orderStatusSubTitle":"15分钟内未支付，订单将会被取消","orderStatusSubTitleIcon":"https://img.mcd.cn/gallery/7b45cd732ac9fb1e.png","leftPaySecond":889,"pickupWaitOrder":0,"pickupWaitMinute":0,"expectPickUpTime":"2026-02-09 13:35:57","pickupCode":"","pickupTips":"","storeCode":"1950153","beType":"1","beCode":"","storeName":"麦当劳北京民族园餐厅","storeAddress":"民族园路２号","storeCityCode":"110100","storeCityName":"北京市","storeCollectInfo":{"collectFlg":false,"shouldShowBubble":false,"triangPic":"https://img.mcd.cn/gallery/e5f1bd6ff0882ab2.png","bubblePic":"https://img.mcd.cn/gallery/3e9c85b01e8eb1fd.png"},"daypartCode":8,"orderProductList":[{"sequence":3,"productCode":"9900005425","id":"1-9900005425","productName":"脆汁鸡大套餐","productType":"7","realSubtotal":"41.5","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/20251215/product/MS_9900005425_320.png","price":"41.5","subtotal":"41.5","comboItemList":[{"productCode":"505416","name":"麦麦脆汁鸡-琵琶腿","quantity":1},{"productCode":"507165","name":"麦麦脆汁鸡-带骨里脊","quantity":1},{"productCode":"4820","name":"大薯条","quantity":1},{"productCode":"3100","name":"可乐大杯","quantity":1}]},{"sequence":4,"productCode":"4820","id":"1-4820","productName":"大薯条","productType":"1","realSubtotal":"16","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_4820_320.png","price":"16","subtotal":"16","comboItemList":[]}],"productTotalPrice":"57.5","realProductTotalPrice":"57.5","deliveryPrice":"0","realDeliveryPrice":"0","totalAmount":"57.5","realTotalAmount":"57.5","realPayAmount":"","totalDiscountAmount":"0","couponList":[],"paymentChannel":"","paymentTransactionId":"","createTime":"2026-02-09 13:30:57","saleTime":"","saleType":"1","orderActionList":[{"code":"pay","name":"去支付"},{"code":"customer_service","name":"联系客服"},{"code":"cancel","name":"取消订单"},{"code":"advise","name":"投诉建议","url":"mcdapp://page?iosPageName=MCDReactNativeViewController&androidPageName=com.mcd.library.rn.McdReactNativeActivity&harmonyPageName=RNPage&parameters=%7B%22rctModuleName%22%3A%22suggestDetail%22%2C%22rctModuleParams%22%3A%7B%22orderStoreName%22%3A%22%E9%BA%A6%E5%BD%93%E5%8A%B3%E5%8C%97%E4%BA%AC%E6%B0%91%E6%97%8F%E5%9B%AD%E9%A4%90%E5%8E%85%22%2C%22questionId%22%3A0%2C%22question%22%3A%22%E5%88%B0%E5%BA%97%E5%8F%96%E9%A4%90%22%7D%2C%22rctModule%22%3A%22mcduser%22%7D"}],"invoice":{"code":1,"desc":"订单完成后可开具电子发票。\n开票金额为订单或预付券实付金额（不含红包、优惠券金额）。通过礼品卡/现金券、麦当劳钱包充值金额支付的，请在原购卡或充值订单申请开票，在您消费使用时不可开具发票。\n如有其他开票问题，请联系麦当劳关怀热线400-920-0205。"},"remark":"","tablewareInfo":"不需要餐具","customerServicePhone":"4009-200-205","customerServiceUrl":"https://mcd.s7.udesk.cn/im_client/?web_plugin_id=9&nonce=75f55c059db244839dd672da538d2248&timestamp=1770615068002&web_token=MEDDY157721534140617119&customer_token=MEDDY157721534140617119&encryption_algorithm=SHA256&signature=7D50B7DF076B1F8475EE9FCB76A289279A0E13F9B759D2C9AB576CE220DE13F6&v_nonce=75f55c059db244839dd672da538d2248&v_timestamp=1770615068002&v_signature=34C42B0C2C64647CCEC11812D79D526E8E5BE748&v=7.0.27.1&c_cf_dialogueDesc=WMP,FC,pickup,1030119140000629865452222163&sid=0728af2b94a49bb4581ce81f52657ee7_&c_cf_sid=0728af2b94a49bb4581ce81f52657ee7_","dtStatus":"","storeLatitude":"39.98242","storeLongitude":"116.390375","orderFlag":1,"orderBanners":[{"title":"麦有礼：双旦","image":"https://img.mcd.cn/cms/images/17fa190ad71c0805.jpg","appUrl":"","wmpUrl":"/mall/pages/mallgift/partyGift?activId=171&shopId=4&moduleName=麦有礼","ampUrl":"/mall/pages/mallgift/partyGift?activId=171&shopId=4&moduleName=麦有礼","videoFlag":0,"redirectUrls":[],"redirectUrl":"/mall/pages/mallgift/partyGift?activId=171&shopId=4&moduleName=麦有礼","campaign":false}],"dtBannerInfo":{"dtBanners":[]}}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。

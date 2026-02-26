@@ -109,44 +109,30 @@
         <!-- 0 & 5. 智能日期格式 -->
         下次订单 {{ formatSmartDate(subscriptionData.subscription.fulfillment.nextShipment) }}
       </view>
-      <uni-card
+      <ProductCard
         v-for="item in activeItems"
         :key="item.fulfillmentItemId"
-        padding="15px"
-        margin="10px"
+        v-bind="toSubscriptionCardProps(item)"
       >
-        <view class="item-row">
-          <image :src="item.item.thumbnail" class="item-image" mode="aspectFit"></image>
-          <view class="item-info">
-            <text class="item-name">{{ item.item.name }}</text>
-            <!-- 7. 划线价 -->
-            <view class="item-price-row">
-              <text class="item-price-final">{{ getItemDisplayPrice(item).finalPrice }}</text>
-              <text v-if="getItemDisplayPrice(item).originalPrice" class="item-price-original">
-                {{ getItemDisplayPrice(item).originalPrice }}
-              </text>
-            </view>
-            <!-- 7. QuantityInput -->
-            <view class="quantity-stepper">
-              <QuantityInput
-                :modelValue="item.quantity"
-                :min="1"
-                :max="100"
-                @change="onQuantityChange(item, $event)"
-                :inputWidth="60"
-                :inputHeight="30"
-                :size="24"
-              />
-            </view>
-          </view>
+        <!-- 步进器 -->
+        <view class="quantity-stepper">
+          <QuantityInput
+            :modelValue="item.quantity"
+            :min="1"
+            :max="100"
+            @change="onQuantityChange(item, $event)"
+            :inputWidth="60"
+            :inputHeight="30"
+            :size="24"
+          />
         </view>
-        <!-- 7. 按钮平分空间 -->
+        <!-- 操作按钮 -->
         <view class="item-actions">
           <button class="btn-text-link" @click="openSkipItemPopup(item)">跳过一次</button>
           <button class="btn-text-link">替换</button>
           <button class="btn-text-link btn-remove" @click="openRemoveItemPopup(item)">移除</button>
         </view>
-      </uni-card>
+      </ProductCard>
 
       <!-- 6. 添加更多商品框 (高度加倍) -->
       <view class="add-more-items-card" @click="navigateToAddItems">
@@ -157,39 +143,28 @@
       <!-- 7. skiped once商品列表 -->
       <template v-if="skippedItems.length > 0">
         <view class="list-title">已跳过商品</view>
-        <uni-card
+        <ProductCard
           v-for="item in skippedItems"
           :key="item.fulfillmentItemId"
-          padding="15px"
-          margin="10px"
+          v-bind="toSubscriptionCardProps(item)"
         >
           <view class="skipped-item-tag">
             <uni-icons type="calendar-filled" color="#4cd964" size="16"></uni-icons>
             <text>已跳过一次</text>
           </view>
-          <view class="item-row">
-            <image :src="item.item.thumbnail" class="item-image" mode="aspectFit"></image>
-            <view class="item-info">
-              <text class="item-name">{{ item.item.name }}</text>
-              <view class="item-price-row">
-                <text class="item-price-final">{{ getItemDisplayPrice(item).finalPrice }}</text>
-                <text v-if="getItemDisplayPrice(item).originalPrice" class="item-price-original">
-                  {{ getItemDisplayPrice(item).originalPrice }}
-                </text>
-              </view>
-              <view class="quantity-stepper">
-                <QuantityInput
-                  :modelValue="item.quantity"
-                  :min="1"
-                  :max="100"
-                  @change="onQuantityChange(item, $event)"
-                  :inputWidth="60"
-                  :inputHeight="30"
-                  :size="24"
-                />
-              </view>
-            </view>
+          <!-- 步进器 -->
+          <view class="quantity-stepper">
+            <QuantityInput
+              :modelValue="item.quantity"
+              :min="1"
+              :max="100"
+              @change="onQuantityChange(item, $event)"
+              :inputWidth="60"
+              :inputHeight="30"
+              :size="24"
+            />
           </view>
+          <!-- 操作按钮 -->
           <view class="item-actions">
             <button class="btn-text-link" @click="handleAddBackItem(item)">加回</button>
             <button class="btn-text-link">替换</button>
@@ -197,7 +172,7 @@
               移除
             </button>
           </view>
-        </uni-card>
+        </ProductCard>
       </template>
 
       <view class="progress-container">
@@ -414,11 +389,11 @@
         <view class="popup-body">
           <view class="popup-item-info">
             <image
-              :src="selectedItem.item.thumbnail"
+              :src="selectedItem.sku.image?.[0]"
               class="popup-item-image"
               mode="aspectFit"
             ></image>
-            <text class="popup-item-name">{{ selectedItem.item.name }}</text>
+            <text class="popup-item-name">{{ selectedItem.sku.name }}</text>
           </view>
           <view class="popup-date-box">
             <text class="popup-date-label">新订单日期</text>
@@ -455,11 +430,11 @@
         <view class="popup-body">
           <view class="popup-item-info">
             <image
-              :src="selectedItem.item.thumbnail"
+              :src="selectedItem.sku.image?.[0]"
               class="popup-item-image-large"
               mode="aspectFit"
             ></image>
-            <text class="popup-item-name">{{ selectedItem.item.name }}</text>
+            <text class="popup-item-name">{{ selectedItem.sku.name }}</text>
           </view>
           <text class="popup-text">如果您只是暂时不需要，可以“跳过一次”。</text>
         </view>
@@ -488,6 +463,8 @@ import type {
 } from '@/types/subscription'
 // 5. 修复 AddressItem 导入路径
 import type { AddressItem } from '@/types/address'
+import type { ProductCardProps } from '@/types/product'
+import ProductCard from '@/components/ProductCard/ProductCard.vue'
 
 // 定义 HTTP 响应类型
 type Data<T> = {
@@ -561,11 +538,13 @@ const userJsonData = {
             price: '14.99',
             quantity: 1,
             skipNext: false,
-            item: {
-              id: '131879',
+            sku: {
+              skuId: '131879',
+              productId: '131879',
               name: 'Wobble Wag Giggle Ball Dog Toy',
-              thumbnail:
+              image: [
                 'https://image.chewy.com/catalog/general/images/as-seen-on-tv-wobble-wag-giggle-ball-dog-toy/img-313416._SS144_V1_.jpeg',
+              ],
             },
           },
           {
@@ -586,11 +565,13 @@ const userJsonData = {
             price: '12.99',
             quantity: 1,
             skipNext: false,
-            item: {
-              id: '201429',
+            sku: {
+              skuId: '201429',
+              productId: '201429',
               name: 'Giraffe Bobberz Plush Squeaky Dog Toy, Large/X-Large',
-              thumbnail:
+              image: [
                 'https://image.chewy.com/catalog/general/images/frisco-giraffe-bobberz-plush-squeaky-dog-toy-largex-large/img-733118._SS144_V1_.jpeg',
+              ],
             },
           },
           {
@@ -602,11 +583,13 @@ const userJsonData = {
             price: '9.99',
             quantity: 1,
             skipNext: true,
-            item: {
-              id: '301450',
+            sku: {
+              skuId: '301450',
+              productId: '301450',
               name: 'Frisco Hide and Seek Plush Chewy Box Toy',
-              thumbnail:
+              image: [
                 'https://image.chewy.com/catalog/product-images/174743_MAIN._SS144_V1605888200_.jpg',
+              ],
             },
           },
         ],
@@ -709,27 +692,15 @@ const mockAutoshipData: AutoshipData = {
         shortDescription: adj.shortDescription || null,
         displayLevel: adj.displayLevel || null,
       })),
-      // 2. 修复 item details (补充默认值)
-      item: {
-        id: item.item.id,
-        name: item.item.name,
-        thumbnail: item.item.thumbnail,
-        partNumber: item.item.partNumber || '',
-        brand: item.item.brand || '',
-        description: item.item.description || '',
-        isGiftCard: item.item.isGiftCard || false,
-        isPharma: item.item.isPharma || false,
-        isVetDiet: item.item.isVetDiet || false,
-        isFrozen: item.item.isFrozen || false,
-        isSingleTablet: item.item.isSingleTablet || false,
-        isAutoshipAllowed: item.item.isAutoshipAllowed || true,
-        petTypes: item.item.petTypes || [],
-        rxFrequency: item.item.rxFrequency || {},
-        foodFlavor: item.item.foodFlavor || [],
-        size: item.item.size || [],
+      // 2. 修复 sku details (从 Sku 映射)
+      sku: {
+        skuId: item.sku?.skuId || item.sku?.productId || '',
+        productId: item.sku?.productId || '',
+        name: item.sku?.name || '',
+        image: item.sku?.image || [],
       },
       // 3. 修复 Item 根属性 (补充默认值)
-      fulfillmentItemId: item.fulfillmentItemId || `item-${item.item.id}`,
+      fulfillmentItemId: item.fulfillmentItemId || `item-${item.sku?.skuId}`,
       bundleComponentItems: item.bundleComponentItems || [],
       isVirtualBundle: item.isVirtualBundle || false,
       autoAdd: item.autoAdd || false,
@@ -1045,7 +1016,7 @@ async function handleSkipItem() {
       type: 'SKIP_ONCE_ITEM',
       itemId: selectedItem.value.fulfillmentItemId,
     },
-    `商品已跳过: ${selectedItem.value.item.name}`,
+    `商品已跳过: ${selectedItem.value.sku.name}`,
   )
 }
 
@@ -1074,7 +1045,7 @@ async function handleRemoveItem() {
 
 // 改变数量
 function onQuantityChange(item: Item, newQuantity: number) {
-  console.log(`Item ${item.item.name} quantity changed to ${newQuantity}`)
+  console.log(`Item ${item.sku.name} quantity changed to ${newQuantity}`)
   uni.showToast({ title: `数量变为 ${newQuantity} (API未实现)`, icon: 'none' })
   // 模拟更新
   if (subscriptionId.value === mockAutoshipData.subscription.id) {
@@ -1123,6 +1094,23 @@ const getItemDisplayPrice = (item: Item) => {
   return {
     finalPrice: `$${item.price}`,
     originalPrice: null,
+  }
+}
+
+// 将订阅 Item 映射为 ProductCardProps
+const toSubscriptionCardProps = (item: Item): ProductCardProps => {
+  const displayPrice = getItemDisplayPrice(item)
+  const qty = item.quantity || 1
+  const basePrice = parseFloat(item.price) || 0
+  return {
+    itemId: item.fulfillmentItemId,
+    image: item.sku?.image?.[0] ?? '',
+    name: item.sku?.name ?? '',
+    specs: item.sku?.specs,
+    finalPrice: displayPrice.finalPrice,
+    originalPrice: displayPrice.originalPrice ?? undefined,
+    quantity: qty,
+    totalPrice: (basePrice * qty).toFixed(2),
   }
 }
 

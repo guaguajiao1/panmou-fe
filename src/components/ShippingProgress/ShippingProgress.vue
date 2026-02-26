@@ -16,12 +16,12 @@ import { computed } from 'vue'
 const props = defineProps({
   /** 当前订单总额 */
   currentTotal: {
-    type: Number,
+    type: [Number, String] as any,
     required: true,
   },
   /** 免运费阈值 */
   threshold: {
-    type: Number,
+    type: [Number, String] as any,
     required: true,
   },
   /**
@@ -38,13 +38,16 @@ const props = defineProps({
 
 /** 免运费还差多少 */
 const shippingDifference = computed(() => {
-  const shortfall = props.threshold - props.currentTotal
+  const shortfall = parseFloat(String(props.threshold)) - parseFloat(String(props.currentTotal))
   return shortfall > 0 ? shortfall : 0
 })
 
 /** 进度百分比 */
 const shippingProgress = computed(() => {
-  const progress = (props.currentTotal / props.threshold) * 100
+  const numThreshold = parseFloat(String(props.threshold))
+  const numCurrent = parseFloat(String(props.currentTotal))
+  if (!numThreshold) return 0
+  const progress = (numCurrent / numThreshold) * 100
   return Math.min(progress, 100)
 })
 </script>

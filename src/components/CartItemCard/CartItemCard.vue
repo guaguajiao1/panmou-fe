@@ -1,269 +1,348 @@
 <template>
-  <view class="cart-item">
-    <view class="item-top-content">
-      <image
-        :src="props.item.sku.image"
-        class="item-image"
-        mode="aspectFill"
-        @click="onGoToProductDetail"
-      ></image>
-
-      <view class="item-content-wrapper">
-        <view class="item-info" @click="onGoToProductDetail">
-          <text class="item-name">{{ props.item.sku.name }}</text>
-          <text class="item-specs">{{ props.item.sku.specs }}</text>
-        </view>
-
-        <view class="price-info">
-          <text class="current-price">¥{{ props.item.sku.adjustedPrice }}</text>
-          <text
-            class="original-price"
-            v-if="props.item.sku.adjustedPrice !== props.item.sku.strikeThroughPrice"
-          >
-            ¥{{ props.item.sku.strikeThroughPrice.toFixed(2) }}
-          </text>
-        </view>
-      </view>
-    </view>
-
-    <view class="item-bottom-controls">
-      <QuantityInput
-        class="quantity-stepper"
-        :modelValue="props.item.quantity"
-        :min="1"
-        :max="props.item.availableQuantity"
-        @change="onQuantityChange"
-        :inputWidth="60"
-        :inputHeight="50"
-        :size="28"
-      />
-
-      <view class="purchase-type-selector">
+  <view class="cart-item-wrapper">
+    <view class="card-content">
+      <!-- 复选框 (仅购物车模式且为有效商品时) -->
+      <view class="checkbox-area" v-if="scene === 'cart' && isCartItem" @click.stop="toggleSelect">
         <view
-          class="type-option"
-          :class="{ active: props.item.purchaseType === 0 }"
-          @click="onToggleType(0)"
-        >
-          <view class="radio-circle"></view>
-          <text
-            >买一次<text v-if="props.item.sku.onceDiscount > 0" class="save-highlight save-once"
-              >（-¥{{ props.item.sku.onceDiscount.toFixed(2) }}）</text
-            ></text
-          >
-        </view>
-        <view
-          class="type-option"
-          :class="{ active: props.item.purchaseType === 1 }"
-          @click="onToggleType(1)"
-          v-if="props.item.sku.supportSubscription"
-        >
-          <view class="radio-circle"></view>
-          <text
-            >订阅<text
-              v-if="props.item.sku.subscriptionDiscount > 0"
-              class="save-highlight save-subscription"
-              >（-¥{{ props.item.sku.subscriptionDiscount.toFixed(2) }}）</text
-            ></text
-          >
-        </view>
+          class="checkbox"
+          :class="{ checked: isCartItem && (props.item as CartItem).selected }"
+        ></view>
       </view>
 
-      <button class="delete-button" @click="onDelete">删除</button>
+      <ProductCard v-bind="productProps" @click="onGoToProductDetail">
+        <!-- 操作区: 根据 scene + 是否定制化 展示不同按钮 -->
+        <template v-if="!isCustomization">
+          <!-- 普通商品 -->
+
+          <!-- 订阅切换 (cart / checkout) -->
+          <view class="subscription-row" v-if="sku.supportsSubscription">
+            <view
+              class="subscription-toggle"
+              :class="{ active: props.item.purchaseType === 1 }"
+              @click.stop="onToggleSubscription"
+            >
+              <view class="radio-circle"></view>
+              <text class="toggle-text">订阅</text>
+              <text v-if="subscriptionSavingText" class="subscription-discount-text">
+                {{ subscriptionSavingText }}
+              </text>
+            </view>
+          </view>
+
+          <!-- 步进器 + 删除 -->
+          <view class="stepper-row">
+            <QuantityInput
+              :modelValue="props.item.quantity"
+              :min="1"
+              :max="sku.maxQuantity || 99"
+              @change="onQuantityChange"
+              :inputWidth="100"
+              :inputHeight="50"
+              :size="28"
+            />
+            <view class="card-actions">
+              <button v-if="scene === 'cart'" class="delete-button" @click.stop="onDelete">
+                删除
+              </button>
+            </view>
+          </view>
+        </template>
+
+        <template v-else>
+          <!-- 鲜食定制化: 自定义 + (cart时)删除 -->
+          <view class="action-row">
+            <button class="action-button" @click.stop="onCustomize">自定义</button>
+            <button v-if="scene === 'cart'" class="delete-button" @click.stop="onDelete">
+              删除
+            </button>
+          </view>
+        </template>
+      </ProductCard>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { CartItem } from '@/types/cart'
 import type { Item } from '@/types/checkout'
-import type { InputNumberBoxEvent } from '@/components/QuantityInput/QuantityInput.ts'
+import type { ProductCardProps } from '@/types/product'
+import type { InputNumberBoxEvent } from '@/components/QuantityInput/QuantityInput.d.ts'
+import ProductCard from '@/components/ProductCard/ProductCard.vue'
 
-// 1. Props: 定义组件需要从外部接收什么数据
-// 确保导入 Item 类型
 interface Props {
-  item: Item
+  item: CartItem | Item
+  scene: 'cart' | 'checkout'
 }
+
 const props = defineProps<Props>()
 
-// 2. Emits: 定义组件能向外发出哪些事件
 const emit = defineEmits<{
-  (e: 'setQuantity', payload: { item: Item; quantity: number }): void
-  (e: 'increase', item: Item): void
-  (e: 'delete', item: Item): void
-  (e: 'togglePurchaseType', payload: { item: Item; type: 0 | 1 }): void
-  (e: 'goToProductDetail', productId: string | number): void
+  (e: 'setQuantity', payload: { item: CartItem | Item; quantity: number }): void
+  (e: 'delete', item: CartItem | Item): void
+  (e: 'togglePurchaseType', payload: { item: CartItem | Item; type: 0 | 1 }): void
+  (e: 'goToProductDetail', productId: string): void
+  (e: 'select', item: CartItem): void
+  (e: 'customize', item: CartItem | Item): void
 }>()
 
+/** 判断是否为购物车类型 */
+const isCartItem = computed(() => 'selected' in props.item)
+
+/** 获取 sku 信息 (类型安全) */
+const sku = computed(() => props.item.sku || ({} as any))
+
+/** 判断是否为鲜食定制化商品 */
+const isCustomization = computed(() => {
+  const c = sku.value.customization
+  return !!c && Array.isArray(c.items) && c.items.length > 0
+})
+
+/** 将业务数据映射为 ProductCard 展示 props */
+const productProps = computed<ProductCardProps>(() => {
+  const item = props.item
+  const s = sku.value
+
+  // originalPrice 只在和 finalPrice 不同时展示
+  const finalPrice = s.finalPrice ?? ''
+  const originalPrice =
+    s.originalPrice && s.originalPrice !== finalPrice ? s.originalPrice : undefined
+
+  // totalDiscount: 从 discountDetails 中汇总, 保持自洽
+  const details = item.discountDetails ?? []
+  let discountSum = 0
+  details.forEach((d: any) => {
+    const amt = parseFloat(d.amount)
+    if (!isNaN(amt) && amt < 0) {
+      discountSum += Math.abs(amt)
+    }
+  })
+  const totalDiscount = discountSum > 0 ? `-¥${discountSum.toFixed(2)}` : undefined
+
+  // 商品总价 = 原价 × 数量 (折扣前)
+  const qty = item.quantity || 1
+  const basePriceNum = parseFloat(s.originalPrice || s.finalPrice || '0')
+  const totalPrice = (basePriceNum * qty).toFixed(2)
+
+  return {
+    itemId: item.itemId,
+    image: s.image?.[0] ?? '',
+    name: s.name ?? '',
+    specs: s.specs,
+    finalPrice,
+    originalPrice,
+    quantity: qty,
+    totalPrice,
+    totalDiscount,
+    discountDetails: details.length > 0 ? details : undefined,
+  }
+})
+
+/** 订阅省钱文案 (与价格计算自洽) */
+const subscriptionSavingText = computed(() => {
+  const s = sku.value
+  if (!s.supportsSubscription) return ''
+  const discount = parseFloat(s.subscriptionDiscount)
+  if (!discount || discount <= 0) return ''
+  return `省 ¥${discount.toFixed(2)}`
+})
+
 const onQuantityChange = (event: InputNumberBoxEvent) => {
-  // 只有当值真的发生变化时才通知父组件
-  if (event.value !== props.item.quantity) {
-    emit('setQuantity', { item: props.item, quantity: event.value })
+  let newValue = event.value
+  const max = sku.value.maxQuantity || 99
+  if (newValue > max) {
+    newValue = max
+    uni.showToast({ title: '购买数量不能超过限购数量', icon: 'none' })
+  }
+  if (newValue !== props.item.quantity) {
+    emit('setQuantity', { item: props.item, quantity: newValue })
   }
 }
+
+const onToggleSubscription = () => {
+  const newType = props.item.purchaseType === 1 ? 0 : 1
+  emit('togglePurchaseType', { item: props.item, type: newType })
+}
+
 const onDelete = () => {
   emit('delete', props.item)
 }
 
-const onToggleType = (type: 0 | 1) => {
-  // 如果类型未改变，则不发送事件
-  if (props.item.purchaseType === type) return
-  emit('togglePurchaseType', { item: props.item, type: type })
+const onGoToProductDetail = () => {
+  const productId = sku.value.productId
+  if (productId) {
+    emit('goToProductDetail', productId)
+  }
 }
 
-const onGoToProductDetail = () => {
-  emit('goToProductDetail', props.item.sku.productId)
+const toggleSelect = () => {
+  if (isCartItem.value) {
+    emit('select', props.item as CartItem)
+  }
+}
+
+const onCustomize = () => {
+  emit('customize', props.item)
 }
 </script>
 
 <style lang="scss" scoped>
-.cart-item {
-  background-color: $uni-bg-color;
-  border-radius: $uni-border-radius-lg;
-  padding: $uni-spacing-row-lg;
-  margin-bottom: $uni-spacing-col-lg;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+.cart-item-wrapper {
+  margin-bottom: $uni-spacing-col-base;
+}
 
-  .item-top-content {
-    display: flex;
-    flex-direction: row;
-  }
+.card-content {
+  display: flex;
+  align-items: flex-start;
 
-  .item-image {
-    width: 40%;
-    aspect-ratio: 1 / 1;
-    height: auto;
-    border-radius: $uni-border-radius-base;
-    margin-right: $uni-spacing-row-base;
-    flex-shrink: 0;
-    background-color: $uni-bg-color-grey;
-    cursor: pointer;
-  }
-
-  .item-content-wrapper {
+  :deep(.product-card) {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    border-radius: 0;
+    margin-bottom: 0;
+    box-shadow: none;
+  }
+}
+
+.subscription-row {
+  margin-top: $uni-spacing-col-sm;
+  padding-top: $uni-spacing-col-sm;
+  display: flex;
+  align-items: center;
+  min-height: 50rpx;
+}
+
+.subscription-toggle {
+  display: flex;
+  align-items: center;
+  font-size: $uni-font-size-base;
+  color: $uni-text-color;
+  cursor: pointer;
+  padding: 10rpx 0;
+
+  .radio-circle {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 50%;
+    border: 2rpx solid $uni-border-color;
+    margin-right: 12rpx;
+    position: relative;
+    box-sizing: border-box;
   }
 
-  .item-info {
-    cursor: pointer;
-    .item-name {
-      display: block;
-      font-size: $uni-font-size-base;
-      font-weight: 600;
-      color: $uni-text-color;
-      margin-bottom: $uni-spacing-col-sm;
-    }
-    .item-specs {
-      display: block;
-      font-size: $uni-font-size-sm;
-      color: $uni-text-color-grey;
-    }
-  }
+  &.active {
+    .radio-circle {
+      border-color: $uni-color-primary;
+      background-color: $uni-color-primary;
 
-  .price-info {
-    margin-top: $uni-spacing-col-base;
-    .current-price {
-      font-size: 40rpx;
-      font-weight: bold;
-      color: $uni-color-error;
-      display: block;
-    }
-    .original-price {
-      font-size: 20rpx;
-      color: $uni-text-color-grey;
-      text-decoration: line-through;
-      display: block;
-    }
-  }
-
-  .item-bottom-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 50rpx;
-    width: 100%;
-  }
-
-  .purchase-type-selector {
-    margin: 0 $uni-spacing-row-base;
-    flex-grow: 1;
-
-    .type-option {
-      display: flex;
-      align-items: center;
-      font-size: $uni-font-size-sm;
-
-      // 增加 "买一次" 和 "订阅" 之间的垂直间距
-      &:not(:last-child) {
-        margin-bottom: 8rpx;
+      &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 12rpx;
+        height: 12rpx;
+        background-color: #fff;
+        border-radius: 50%;
       }
+    }
+  }
 
-      .radio-circle {
-        width: 14px;
-        height: 14px;
-        border-radius: $uni-border-radius-circle;
-        border: 1px solid $uni-border-color;
-        margin-right: 5px;
-        position: relative;
-        flex-shrink: 0;
-      }
-      .save-highlight {
+  .toggle-text {
+    font-weight: 500;
+  }
+
+  .subscription-discount-text {
+    margin-left: 16rpx;
+    color: $uni-color-error;
+    font-size: 24rpx;
+    font-weight: 500;
+  }
+}
+
+.stepper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rpx;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  margin-top: 30rpx;
+  gap: 20rpx;
+}
+
+.action-button {
+  font-size: 28rpx;
+  color: $uni-color-primary;
+  background-color: #fff;
+  border: 1rpx solid $uni-color-primary;
+  border-radius: 32rpx;
+  padding: 0;
+  width: 200rpx;
+  height: 64rpx;
+  line-height: 62rpx;
+  text-align: center;
+
+  &::after {
+    border: none;
+  }
+}
+
+.delete-button {
+  font-size: 28rpx;
+  color: $uni-color-primary;
+  background-color: #fff;
+  border: 1rpx solid $uni-color-primary;
+  border-radius: 32rpx;
+  padding: 0;
+  width: 200rpx;
+  height: 64rpx;
+  line-height: 62rpx;
+  margin-left: 20rpx;
+  text-align: center;
+
+  &::after {
+    border: none;
+  }
+}
+
+.checkbox-area {
+  display: flex;
+  align-items: center;
+  padding-right: 16rpx;
+  padding-top: 100rpx; // 对齐商品图片中心
+  flex-shrink: 0;
+
+  .checkbox {
+    width: 40rpx;
+    height: 40rpx;
+    border-radius: 50%;
+    border: 3rpx solid #ccc;
+    position: relative;
+    transition: all 0.2s;
+
+    &.checked {
+      background-color: $uni-color-primary;
+      border-color: $uni-color-primary;
+
+      &::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 24rpx;
         font-weight: bold;
-
-        &.save-once {
-          color: $uni-text-color;
-        }
-        &.save-subscription {
-          color: $uni-color-error;
-        }
       }
-      &.active {
-        .radio-circle {
-          border-color: $uni-color-primary;
-          &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 7px;
-            height: 7px;
-            border-radius: $uni-border-radius-circle;
-            background-color: $uni-color-primary;
-          }
-        }
-      }
-    }
-  }
-
-  /*
-    【已修改】
-    删除了旧的 .quantity-stepper 及其子元素 (button, text) 的样式。
-    只保留了 flex-shrink 属性，用于控制 QuantityInput 组件在父布局中的行为。
-    QuantityInput 组件将负责自己的内部样式（如边框、圆角等）。
-  */
-  .quantity-stepper {
-    flex-shrink: 0;
-  }
-
-  .delete-button {
-    flex-shrink: 0;
-    font-size: $uni-font-size-base;
-    color: $uni-color-primary;
-    background-color: $uni-bg-color;
-    border: 1px solid $uni-color-primary;
-    border-radius: 30rpx;
-    padding: 0 30rpx;
-    margin: 0;
-    height: 60rpx;
-    line-height: 60rpx;
-
-    &::after {
-      display: none;
-    }
-    &:active {
-      opacity: 0.7;
     }
   }
 }

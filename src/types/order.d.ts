@@ -23,14 +23,14 @@ export type OrderDetail = {
 
   /** 商品总数量 */
   totalItemQuantity: number
-  /** 商品总金额（优惠前） */
-  totalAmount: number
-  /** 优惠金额 */
-  discountAmount: number
-  /** 运费 */
-  shippingFee: number
-  /** 实付金额 */
-  payAmount: number
+  /** 商品总金额（优惠前，格式化字符串） */
+  totalAmount: string
+  /** 优惠金额（格式化字符串） */
+  discountAmount: string
+  /** 运费（格式化字符串） */
+  shippingFee: string
+  /** 实付金额（格式化字符串） */
+  payAmount: string
 
   /** 优惠明细 */
   discountDetails: DiscountDetail[]
@@ -82,14 +82,14 @@ export type OrderSkuItem = {
   /** 商品图片（快照） */
   productImage: string
 
-  /** 单价 */
-  unitPrice: number
+  /** 单价（格式化字符串） */
+  unitPrice: string
   /** 数量 */
   quantity: number
-  /** 优惠金额（分摊） */
-  discountAmount: number
-  /** 实付金额 */
-  actualAmount: number
+  /** 优惠金额（分摊，格式化字符串） */
+  discountAmount: string
+  /** 实付金额（格式化字符串） */
+  actualAmount: string
   /** 优惠明细 */
   discountDetails: DiscountDetail[]
 
@@ -115,8 +115,8 @@ export type DiscountDetail = {
   sourceId: string
   /** 优惠名称 */
   sourceName: string
-  /** 优惠金额 */
-  discountAmount: number
+  /** 优惠金额（格式化字符串） */
+  discountAmount: string
 }
 
 // ==================== 导出状态枚举（便捷引用） ====================

@@ -40,8 +40,8 @@ export interface DeliveryFrequency {
   unit: FrequencyUnit
   /** 显示文本 */
   label: string
-  /** 每日价格 */
-  pricePerDay: number
+  /** 每日价格（格式化字符串，仅展示） */
+  pricePerDay: string
   /** 每次配送包数 */
   packsPerDelivery: number
   /** 标签，如"最划算"、"冰箱友好" */

@@ -1,0 +1,51 @@
+>> 本文件内容为 https://api.mcd.cn/bff/spc/products/detail/G4810 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+POST /bff/spc/products/detail/G4810 HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+Content-Length: 466
+content-type: application/json
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#CHd+6gSeHzy8tjMRaAkudtI7ItZ+7qPSCNXibTRNAN0=#hmac-sha256#Mon, 09 Feb 2026 05:30:41 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770615041383
+ct: 31
+x-b3-traceid: 8C443FD3B48E46BC80B085F0B0AFB12C
+x-b3-spanid: 8C443FD3B48E46BC
+meddyid: MEDDY157721534140617119
+biz_scenario: 600
+d: BU/+gkswcmQD1r9Q+x6NmDwW/stzevUiwc9VU+sP614VfnUCsDrM9dSNxDcLsrL0psVYtD+PADMsgY5dH+x3+NQ==
+sid: 0728af2b94a49bb4581ce81f52657ee7_
+language: zh
+sv: v4
+routingid: 19
+biz_from: 1001
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: lpI8Xad8JkLY1eq7LaZYJ6pbientMwxmf3zHvQGvpy4=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+{"orderMode":"","storeCode":"1950153","channelCode":"45","orderType":"1","daypartCode":8,"productCode":"G4810","beCode":"","cardId":"","time":"","date":"","pickupTimeType":"","isGroupMeal":"","fromCombo":false,"ignoreSmartPrice":false,"beType":"","hasCard":false,"couponId":"","couponCode":"","productPromotions":[],"membershipCode":"","pageSource":1,"pmtType":"","promotionId":"","hasRights":false,"cartSuggestion":false,"cartBoGo":false,"id":"","upgradable":false}
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Mon, 09 Feb 2026 05:30:41 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLXNwYy1zZXJ2aWNl,si=1047
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-19cd299ea3cbe9f024e10804c5437d83-8846ca91a4121a63-00
+x-envoy-upstream-service-time: 32
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-09 13:30:41","traceId":"8c443fd3b48e46bc80b085f0b0afb12c","data":{"product":{"code":"G4810","type":3,"name":"薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/20250423/product/MS_G4810_600_1745203063176.png","customizationMode":0,"tags":[],"desc":"","bu":1,"links":[],"priceFormula":true,"specTypes":[{"code":"3","name":"规格","specs":[{"code":"1","name":"小"},{"code":"2","name":"中"},{"code":"3","name":"大","spread":"+ ¥1.5"}]}],"products":[{"code":"4810","type":1,"name":"中薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/20250423/product/MS_4810_600_1745199801147.png","price":1450,"priceText":"14.5","customizationMode":0,"customization":{"options":[],"items":[]},"tags":[],"desc":"精选优质土豆，表面微脆，内里绵软，美味无人能挡！主要原料：薯条、盐","bu":1,"links":[],"priceFormula":true,"matchedSpecsCode":"3-2"},{"code":"4800","type":1,"name":"小薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_4800_600.png","price":1100,"priceText":"11","customizationMode":0,"customization":{"options":[],"items":[]},"tags":[],"desc":"精选优质土豆，表面微脆，内里绵软，美味无人能挡！主要原料：薯条、盐","bu":1,"links":[],"priceFormula":true,"matchedSpecsCode":"3-1"},{"code":"4820","type":1,"name":"大薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_4820_600.png","price":1600,"priceText":"16","customizationMode":0,"customization":{"options":[],"items":[]},"tags":[],"desc":"精选优质土豆，表面微脆，内里绵软，美味无人能挡！主要原料：薯条、盐","bu":1,"links":[],"priceFormula":true,"matchedSpecsCode":"3-3"}],"limitedQuantity":0},"maxPurchaseQuantity":99,"calcPrice":true,"biasGrillsFlag":true}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。

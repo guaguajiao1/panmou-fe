@@ -1,0 +1,50 @@
+>> 本文件内容为 https://api.mcd.cn/bff/cart/carts?cartType=1&channelCode=45&daypartCode=4&orderType=1&storeCode=1950153&beCode=&time=&date=&isGroupMeal=&orderMode=&pinId=&pickupTimeType= 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+GET /bff/cart/carts?cartType=1&channelCode=45&daypartCode=4&orderType=1&storeCode=1950153&beCode=&time=&date=&isGroupMeal=&orderMode=&pinId=&pickupTimeType= HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+content-type: application/json
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#/UQtmSbshGvq5IZ6tQCh2P1ywdMauyuPO0PViolc9s0=#hmac-sha256#Mon, 09 Feb 2026 08:45:40 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770626740416
+ct: 31
+x-b3-traceid: D2BA3D7584C04C33BB35D2E6A5722A6F
+x-b3-spanid: D2BA3D7584C04C33
+meddyid: MEDDY157721534140617119
+biz_scenario: 600
+d: B3KfBwllp2VW2IHbdR0qQe+gjpX0XWu3NXjBNizDYSUqm48OH7ABHTyiAUKGYh/j2pJQimqqLIPkJTdnDaW5Jyg==
+sid: 0728af2b94a49bb4581ce81f52657ee7_
+language: zh
+sv: v4
+routingid: 19
+biz_from: 1007
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: KcXNYBWswLFa6sIeeAZboMB5XgYvr/u5GQcJfk89aww=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Mon, 09 Feb 2026 08:45:40 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLWNhcnQtc2VydmljZQ==,si=1045
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-6bdb3ddebc6f6d846d645056c1ab5899-61c3717bc024072c-00
+x-envoy-upstream-service-time: 58
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-09 16:45:40","traceId":"d2ba3d7584c04c33bb35d2e6a5722a6f","data":{"promptType":0,"localDateTime":"2026-02-09 16:45:40","submit":1,"cartType":1,"orderType":1,"channel":"45","maxPurchaseQuantity":99,"productTotalPrice":11900,"realProductTotalPrice":11900,"discountAmount":0,"deliveryPrice":0,"realDeliveryPrice":0,"totalPrice":11900,"realTotalPrice":11900,"storeCode":"1950153","beType":1,"daypartCode":"4","products":[{"sequence":4,"saleStatus":1,"code":"9900004064","id":"1-9900004064","name":"精选单人餐三件套","image":"https://menu-img.mcd.cn/pcm/prod/menu/20260130/product/MS_9900004064_320.gif","type":7,"bu":1,"quantity":2,"realPrice":3350,"realSubTotalPrice":6700,"comboItems":[{"round":1,"isChoices":1,"choicesCode":"9800002043","classification":1,"quantity":1,"comboProducts":[{"code":"1440","name":"麦辣鸡腿汉堡","bu":1,"onSale":1,"quantity":1,"customization":{"options":[{"code":"100136","name":"麦香鸡酱","checked":0,"price":0,"quantity":0,"checkedCode":"2","displayText":"麦香鸡酱(不要)"},{"code":"120512","name":"切块生菜","checked":1,"price":0,"quantity":1,"checkedCode":"1","displayText":""}],"items":[]},"price":2250,"originPrice":2250}],"costInclusive":"0"},{"round":2,"isChoices":1,"choicesCode":"9800002973","classification":2,"quantity":1,"comboProducts":[{"code":"4810","name":"中薯条","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[]},"price":1450,"originPrice":1450}],"costInclusive":"0"},{"round":3,"isChoices":1,"choicesCode":"9800000544","classification":3,"quantity":1,"comboProducts":[{"code":"3050","name":"可乐中杯","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[{"code":"200002","name":"冰","values":[{"code":"1","name":"标准","quantity":1,"price":0}]}]},"price":1000,"originPrice":1000}],"costInclusive":"0"}],"originPrice":0,"actions":[2,3],"suggestionEmbedding":"{\"upgradeInfo\":{\"product_suggestion_status\":\"主商品\",\"main_combo_code\":\"9900004064\",\"main_combo_name\":\"精选单人餐三件套\"}}"},{"sequence":2,"saleStatus":1,"code":"9900004064","id":"1-9900004064","name":"精选单人餐三件套","image":"https://menu-img.mcd.cn/pcm/prod/menu/20260130/product/MS_9900004064_320.gif","type":7,"bu":1,"quantity":1,"realPrice":3600,"realSubTotalPrice":3600,"comboItems":[{"round":1,"isChoices":1,"choicesCode":"9800002043","classification":1,"quantity":1,"comboProducts":[{"code":"1406","name":"新升级板烧鸡腿堡","bu":1,"onSale":1,"quantity":1,"customization":{"options":[{"code":"102201","name":"烤味酱","checked":1,"price":0,"quantity":1,"checkedCode":"1","displayText":""},{"code":"120512","name":"切块生菜","checked":0,"price":0,"quantity":0,"checkedCode":"2","displayText":"切块生菜(不要)"}],"items":[]},"price":2350,"originPrice":2350}],"costInclusive":"0"},{"round":2,"isChoices":1,"choicesCode":"9800002973","classification":2,"quantity":1,"comboProducts":[{"code":"4820","name":"大薯条","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[]},"price":1600,"originPrice":1600}],"costInclusive":"0"},{"round":3,"isChoices":1,"choicesCode":"9800000544","classification":3,"quantity":1,"comboProducts":[{"code":"3050","name":"可乐中杯","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[{"code":"200002","name":"冰","values":[{"code":"1","name":"标准","quantity":1,"price":0}]}]},"price":1000,"originPrice":1000}],"costInclusive":"0"}],"originPrice":0,"actions":[2,3],"suggestion":{"price":1600,"products":[{"sequence":3,"saleStatus":1,"code":"521385","id":"1-521385","name":"金来运转扭扭薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521385_320.png","type":1,"bu":1,"quantity":1,"realSubTotalPrice":1600,"actions":[3]}]},"suggestionEmbedding":"{\"upgradeInfo\":{\"product_suggestion_status\":\"主商品\",\"main_combo_code\":\"9900004064\",\"main_combo_name\":\"精选单人餐三件套\"}}"}],"promotions":[{"canSelect":true,"showType":106,"couponName":"开通麦金卡，最快一单回本","image":"https://img.mcd.cn/cms/images/ec28cb61d82d4442.png","memo":"解锁超值权益，下单更优惠","used":false,"cardHas":false,"price":1900,"realPrice":1900,"validateNum":30,"membershipCode":"106","membershipSpecId":"870","selectCouponName":"麦金卡月卡（30天）","selectImage":"https://menu-img.mcd.cn/pcm/prod/menu/20250423/product/MS_513817_320_1744684441670.png"}]}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。

@@ -19,14 +19,14 @@
 
     <view class="scroll-content">
       <swiper class="swiper" circular indicator-dots autoplay>
-        <swiper-item class="swiper-item" v-for="(img, index) in data.item?.images" :key="index">
+        <swiper-item class="swiper-item" v-for="(img, index) in data.product?.images" :key="index">
           <image class="product-img" :src="img" mode="aspectFit" />
         </swiper-item>
       </swiper>
 
       <view class="info">
-        <text class="title">{{ data.item?.title }}</text>
-        <text class="sales">已售 {{ data.item?.vagueSellCount }}</text>
+        <text class="title">{{ data.product?.title }}</text>
+        <text class="sales">已售 {{ data.product?.vagueSellCount }}</text>
       </view>
 
       <view v-if="allParams.length > 0" class="param-preview" @click="showParams = true">
@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Data, BasicParam } from '@/types/product'
+import type { ProductData, BasicParam } from '@/types/product'
 import { getProductDetail } from '@/api/product.ts'
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -214,9 +214,14 @@ import { onLoad } from '@dcloudio/uni-app'
 const purchaseType = ref<'onetime' | 'subscribe'>('onetime')
 const quantity = ref(1)
 const minQuantity = 1
-const maxQuantity = 50
+const maxQuantity = computed(() => {
+  if (selectedSkuId.value && data.skuCore?.sku2info) {
+    return data.skuCore.sku2info[selectedSkuId.value]?.maxQuantity || 99
+  }
+  return 99
+})
 const showParams = ref(false)
-const data = reactive<Data>({} as Data)
+const data = reactive<ProductData>({} as ProductData)
 const selectedSku = reactive<Record<string, string>>({})
 
 const dogInfo = reactive({
@@ -269,8 +274,7 @@ const selectedSkuId = computed(() => {
 
 const selectedSkuPrice = computed(() => {
   if (selectedSkuId.value && data.skuCore?.sku2info) {
-    const priceText = data.skuCore.sku2info[selectedSkuId.value]?.price?.priceText
-    return priceText ? parseFloat(priceText.replace(/[^\d.]/g, '')) : 0
+    return data.skuCore.sku2info[selectedSkuId.value]?.realPrice || 0
   }
   return 0
 })
@@ -295,8 +299,8 @@ const savings = computed(() => {
 })
 
 const allParams = computed<BasicParam[]>(() => [
-  ...(data.item?.industryParamVO?.basicParamList || []),
-  ...(data.item?.industryParamVO?.enhanceParamList || []),
+  ...(data.product?.industryParamVO?.basicParamList || []),
+  ...(data.product?.industryParamVO?.enhanceParamList || []),
 ])
 
 // --- 方法 ---
@@ -316,12 +320,12 @@ function decreaseQuantity() {
   if (quantity.value > minQuantity) quantity.value--
 }
 function increaseQuantity() {
-  if (quantity.value < maxQuantity) quantity.value++
+  if (quantity.value < maxQuantity.value) quantity.value++
 }
 function onQuantityBlur(e: any) {
   let val = parseInt(e.detail.value, 10)
   if (isNaN(val) || val < minQuantity) val = minQuantity
-  else if (val > maxQuantity) val = maxQuantity
+  else if (val > maxQuantity.value) val = maxQuantity.value
   quantity.value = val
 }
 function goBack() {

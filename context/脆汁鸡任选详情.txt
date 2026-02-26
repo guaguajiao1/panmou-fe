@@ -1,0 +1,51 @@
+>> 本文件内容为 https://api.mcd.cn/bff/spc/products/detail/9900012402 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+POST /bff/spc/products/detail/9900012402 HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+Content-Length: 626
+content-type: application/json
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#0hMHtkKyZKh6UwWN8+Mk74SRg3gp6DXmf89gr7tPyzM=#hmac-sha256#Sat, 07 Feb 2026 13:32:29 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770471149998
+ct: 31
+x-b3-traceid: FFD59D8C56AB4BDD8C94DE43C01E4A50
+x-b3-spanid: FFD59D8C56AB4BDD
+meddyid: MEDDY157721534140617119
+biz_scenario: 600
+d: BhEmMW1e4N9V7tkjhnRTb8eS/e3gifDNw3pJIB0M6a+/nhfmk9YnqPtkCXJk24/QjckUZZEUZDq6CWzxu8xy27A==
+sid: a90a5e0d6baee5576f8fce486915e49d_
+language: zh
+sv: v4
+routingid: 19
+biz_from: 1001
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: FvB91Y/NhEOXRQizLnxax4wBrGH/2CnENKX0GDbCrlE=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+{"orderMode":"","storeCode":"1950153","channelCode":"45","orderType":"1","daypartCode":5,"productCode":"9900012402","beCode":"","cardId":"","time":"","date":"","pickupTimeType":"","isGroupMeal":"","fromCombo":false,"ignoreSmartPrice":false,"beType":"","hasCard":false,"couponId":"","couponCode":"","productPromotions":[{"productCode":"9900012402","promotionInfo":{"pmtType":2,"hasRights":true,"withOrder":false,"promotionId":"112073005","promotionLimitNum":999}}],"membershipCode":"","pageSource":1,"pmtType":"","promotionId":"","hasRights":false,"cartSuggestion":false,"cartBoGo":false,"id":"1-9900012402","upgradable":false}
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Sat, 07 Feb 2026 13:32:30 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLXNwYy1zZXJ2aWNl,si=1047
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-f129064fbb6dbf7f1d08877dc4caba66-1178d71ce2bdf551-00
+x-envoy-upstream-service-time: 48
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-07 21:32:30","traceId":"ffd59d8c56ab4bdd8c94de43c01e4a50","data":{"product":{"code":"9900012402","type":7,"name":"脆汁鸡任选","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900012402_600.png","price":1300,"priceText":"13","needLogin":false,"customizationMode":0,"tags":[],"desc":"创新黑科技成就美式炸鸡，外皮喷香酥脆，内里鲜嫩多汁，每一口都入味，每一只都大块！带骨里脊、琵琶腿，美味任你选!\n*每店供应量不同，售完为止。2026年2月7日起至2026年2月8日期间售卖。","showType":0,"bu":1,"alcPrice":1500,"comboDiscount":200,"pmtDiscount":310,"smartPrice":990,"comboItems":[{"idx":0,"round":1,"quantity":1,"maxQuantity":1,"minQuantity":1,"name":"选择小食","costInclusive":0,"isChoices":1,"choicesCode":"9800004331","classification":2,"className":"小食","classDefaultImg":"https://img.mcd.cn/gallery/1a0deb16325d50e6.png","plateShow":1,"comboProducts":[{"code":"505416","name":"麦麦脆汁鸡-琵琶腿","image":"https://menu-img.mcd.cn/pcm/prod/menu/20241204/product/MS_505416_600.png","price":1300,"priceText":"13","originalPrice":1500,"customizationMode":0,"customization":{"options":[],"items":[]},"tags":[],"quantity":1,"comboMaxQuantity":-1,"isDefault":1,"hasCustomization":0,"diffPrice":0,"diffPriceText":"+ ¥0","gapPrice":0,"forLocate":"0-1-505416","classification":2,"categoryType":{"categoryLevelThreeCode":"000341"}},{"code":"507165","name":"麦麦脆汁鸡-带骨里脊","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_507165_600.png","price":1300,"priceText":"13","originalPrice":1350,"customizationMode":0,"customization":{"options":[],"items":[]},"tags":[],"quantity":0,"comboMaxQuantity":-1,"isDefault":1,"hasCustomization":0,"diffPrice":0,"diffPriceText":"+ ¥0","gapPrice":0,"forLocate":"0-1-507165","classification":2,"categoryType":{"categoryLevelThreeCode":"000341"}}],"isIncludeRound":0}],"promotionInfo":{"pmtType":2,"hasRights":true,"withOrder":false,"promotionId":"112073005","promotionLimitNum":999},"promotionInfos":[{"pmtType":2,"hasRights":true,"withOrder":false,"promotionId":"112073005","promotionLimitNum":999}],"promotionId":"112073005","promotionLimitNum":999,"priceShowStyle":3,"priceButtonText":"请选择餐品","pmtDiscountName":"促销优惠","startingPrice":1300,"suggestion":{"groupId":"sug:9900012402","products":[{"idx":1,"round":2,"quantity":0,"maxQuantity":6,"minQuantity":0,"name":"spcSuggestion","costInclusive":0,"isChoices":1,"choicesCode":"spcSuggestion","classification":9999,"className":"spcSuggest","classDefaultImg":"","plateShow":0,"comboProducts":[{"code":"521385","type":1,"name":"金来运转扭扭薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521385_600.png","price":1600,"priceText":"16","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":1600,"diffPriceText":"16","forLocate":"1-2-521385"},{"code":"521388","type":1,"name":"金运糕升红豆年糕风味派","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521388_600.png","price":900,"priceText":"9","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":900,"diffPriceText":"9","forLocate":"1-2-521388"},{"code":"521389","type":1,"name":"金翼双飞蜜汁风味薄皮V翅","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521389_600.png","price":1600,"priceText":"16","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":1600,"diffPriceText":"16","forLocate":"1-2-521389"},{"code":"521422","type":1,"name":"金元滚滚紫薯球","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521422_600.png","price":990,"priceText":"9.9","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":990,"diffPriceText":"9.9","forLocate":"1-2-521422"},{"code":"1700","type":1,"name":"麦辣鸡翅-2块","image":"https://menu-img.mcd.cn/pcm/prod/menu/20260128/product/MS_1700_600.png","price":1500,"priceText":"15","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":1500,"diffPriceText":"15","forLocate":"1-2-1700"},{"code":"4810","type":1,"name":"中薯条","image":"https://menu-img.mcd.cn/pcm/prod/menu/20250423/product/MS_4810_600_1745199801147.png","price":1450,"priceText":"14.5","customizationMode":0,"customization":{"options":[],"items":[]},"comboMaxQuantity":1,"hasCustomization":0,"diffPrice":1450,"diffPriceText":"14.5","forLocate":"1-2-4810"}],"isIncludeRound":0}],"productBind":true,"countdown":26848,"pmtImage":"https://img.mcd.cn/gallery/09f94b7f613d78c1.png"},"links":[],"priceFormula":true,"limitedQuantity":0},"maxPurchaseQuantity":99,"calcPrice":true,"biasGrillsFlag":true}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。

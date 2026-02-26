@@ -37,49 +37,53 @@ export const cartApi = {
 
   /**
    * 向购物车中添加商品
+   * @param cartId 购物车ID
    * @param data 商品信息
    */
-  addItem(data: AddItemParams) {
+  addItem(cartId: string, data: AddItemParams) {
     return http({
       method: 'POST',
-      url: '/account/cart/items',
+      url: `/account/carts/${cartId}/items`,
       data,
     })
   },
 
   /**
    * 删除购物车中的一件或多件商品 (批量删除)
-   * @param data 包含skuId数组的对象
+   * @param cartId 购物车ID
+   * @param itemIds 要删除的商品itemId数组
    */
-  removeItems(data: { skuIds: string[] }) {
+  removeItems(cartId: string, itemIds: string[]) {
     return http<Cart>({
       method: 'POST',
-      url: '/account/cart:batchDelete',
-      data,
+      url: `/account/carts/${cartId}/items:batchDelete`,
+      data: { itemIds },
     })
   },
 
   /**
    * 修改购物车中单个商品的数量、选中状态或购买类型
-   * @param skuId 要修改的商品SKU ID
+   * @param cartId 购物车ID
+   * @param itemId 要修改的商品itemId
    * @param data 更新的信息
    */
-  updateItem(skuId: string, data: UpdateItemParams) {
+  updateItem(cartId: string, itemId: string, data: UpdateItemParams) {
     return http<Cart>({
       method: 'PUT',
-      url: `/account/cart/items/${skuId}`,
+      url: `/account/carts/${cartId}/items/${itemId}`,
       data,
     })
   },
 
   /**
    * 更新购物车中所有商品的选中状态 (全选/取消全选)
+   * @param cartId 购物车ID
    * @param data 是否全选
    */
-  updateAllSelection(data: { selected: boolean }) {
+  updateAllSelection(cartId: string, data: { selected: boolean }) {
     return http<Cart>({
       method: 'POST',
-      url: '/account/cart:updateSelection',
+      url: `/account/carts/${cartId}/items:updateSelection`,
       data,
     })
   },

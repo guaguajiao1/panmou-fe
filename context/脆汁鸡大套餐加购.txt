@@ -1,0 +1,49 @@
+>> 本文件内容为 https://api.mcd.cn/bff/cart/carts 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+PUT /bff/cart/carts HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+Content-Length: 1310
+content-type: application/json
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#g65ONmb9Op6b2vupaidXwGHx24/ABoWKGaUpd+KhcnM=#hmac-sha256#Mon, 09 Feb 2026 05:30:25 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770615025809
+ct: 31
+x-b3-traceid: A6B957AF609C40C189DA67A946EBB185
+x-b3-spanid: A6B957AF609C40C1
+meddyid: MEDDY157721534140617119
+d: BU/+gkswcmQD1r9Q+x6NmDwW/stzevUiwc9VU+sP614VfnUCsDrM9dSNxDcLsrL0psVYtD+PADMsgY5dH+x3+NQ==
+sid: 0728af2b94a49bb4581ce81f52657ee7_
+language: zh
+sv: v4
+routingid: 19
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: 0kzODug5THad9XWdnKrY3i++c7VXY+TFjgPUio+BmoM=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+{"cartType":"1","channelCode":"45","daypartCode":8,"orderType":"1","storeCode":"1950153","beCode":"","products":[{"id":"","code":"9900005425","comboItems":[{"choicesCode":"9800002574","isChoices":1,"comboProducts":[{"code":"505416","name":"麦麦脆汁鸡-琵琶腿","quantity":1}],"round":1},{"choicesCode":"9800003582","isChoices":1,"comboProducts":[{"code":"507165","name":"麦麦脆汁鸡-带骨里脊","quantity":1}],"round":2},{"choicesCode":"9800000784","isChoices":1,"comboProducts":[{"code":"4820","name":"大薯条","quantity":1}],"round":3},{"choicesCode":"9800002780","isChoices":1,"comboProducts":[{"code":"3100","name":"可乐大杯","customization":{"items":[{"code":"200002","name":"冰","mode":1,"displayMode":1,"image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/grill/MS_200002_500.jpg","quantity":1,"soldOut":false,"isMultiple":0,"values":[{"code":"1","name":"标准","image":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/grill/MS_200002-1_500.jpg","quantity":1,"realQuantity":1,"isModify":0,"price":0,"checked":1}]}],"options":[]},"quantity":1}],"round":4}],"name":"脆汁鸡大套餐","quantity":1,"type":7,"suggestionEmbedding":"","couponId":"","couponCode":"","promotionId":"","membershipCode":""}],"orderMode":"","pinId":"","date":"","time":"","isGroupMeal":"","beType":""}
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Mon, 09 Feb 2026 05:30:26 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLWNhcnQtc2VydmljZQ==,si=1045
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-1ff387a3cedf487a0fab3e8d6a53d580-b6b429ec9752a9d6-00
+x-envoy-upstream-service-time: 80
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-09 13:30:26","traceId":"a6b957af609c40c189da67a946ebb185","data":{"cartDetail":{"promptType":0,"localDateTime":"2026-02-09 13:30:26","submit":1,"cartType":1,"orderType":1,"channel":"45","maxPurchaseQuantity":99,"productTotalPrice":4150,"realProductTotalPrice":4150,"discountAmount":0,"deliveryPrice":0,"realDeliveryPrice":0,"totalPrice":4150,"realTotalPrice":4150,"storeCode":"1950153","beType":1,"daypartCode":"8","products":[{"sequence":3,"saleStatus":1,"code":"9900005425","id":"1-9900005425","name":"脆汁鸡大套餐","image":"https://menu-img.mcd.cn/pcm/prod/menu/20251215/product/MS_9900005425_320.png","type":7,"bu":1,"quantity":1,"realPrice":4150,"realSubTotalPrice":4150,"comboItems":[{"round":1,"isChoices":1,"choicesCode":"9800002574","classification":2,"quantity":1,"comboProducts":[{"code":"505416","name":"麦麦脆汁鸡-琵琶腿","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[]},"price":1500,"originPrice":1500}],"costInclusive":"0"},{"round":2,"isChoices":1,"choicesCode":"9800003582","classification":2,"quantity":1,"comboProducts":[{"code":"507165","name":"麦麦脆汁鸡-带骨里脊","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[]},"price":1350,"originPrice":1350}],"costInclusive":"0"},{"round":3,"isChoices":1,"choicesCode":"9800000784","classification":2,"quantity":1,"comboProducts":[{"code":"4820","name":"大薯条","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[]},"price":1600,"originPrice":1600}],"costInclusive":"0"},{"round":4,"isChoices":1,"choicesCode":"9800002780","classification":3,"quantity":1,"comboProducts":[{"code":"3100","name":"可乐大杯","bu":1,"onSale":1,"quantity":1,"customization":{"options":[],"items":[{"code":"200002","name":"冰","values":[{"code":"1","name":"标准","quantity":1,"price":0}]}]},"price":1200,"originPrice":1200}],"costInclusive":"0"}],"originPrice":0,"actions":[2,3],"suggestionEmbedding":""}],"promotions":[{"canSelect":true,"showType":106,"couponName":"开通麦金卡，最快一单回本","image":"https://img.mcd.cn/cms/images/ec28cb61d82d4442.png","memo":"解锁超值权益，下单更优惠","used":false,"cardHas":false,"price":1900,"realPrice":1900,"validateNum":30,"membershipCode":"106","membershipSpecId":"870","selectCouponName":"麦金卡月卡（30天）","selectImage":"https://menu-img.mcd.cn/pcm/prod/menu/20250423/product/MS_513817_320_1744684441670.png"}]}}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。

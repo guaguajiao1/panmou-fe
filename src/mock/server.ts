@@ -1,6 +1,6 @@
 import type { AddressItem } from '@/types/address'
 import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
-import type { Cart } from '@/types/cart'
+import type { Cart, CartItem } from '@/types/cart'
 import type { OrderDetail, OrderSkuItem, DiscountDetail } from '@/types/order'
 import type { OrderShipment, ShipmentTrace } from '@/types/logistics'
 import type { PetProfile, PetEnums, EnumItem } from '@/types/pet'
@@ -14,7 +14,7 @@ type Data<T> = {
   result: T
 }
 
-const delay = (ms = 150) => new Promise((r) => setTimeout(r, ms))
+const delay = (ms = 1500) => new Promise((r) => setTimeout(r, ms))
 
 // In-memory stores
 const addresses: Array<any> = []
@@ -27,96 +27,101 @@ const pets: Map<string, PetProfile> = new Map()
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
 
 const computePreview = (orderPreview: OrderPreview) => {
-  let totalDiscount = 0
+  let numSubtotal = 0
+  let numGrandTotal = 0
+  let numTotalDiscount = 0
+  let numFreeShippingEligible = 0
+  let numSubDiscount = 0
+  let maxSubRate = 0
   let hasSubscription = false
-  orderPreview.subtotal = 0
   orderPreview.totalItemQuantity = 0
-  orderPreview.freeShippingEligibleAmount = 0
   orderPreview.discountDetails = []
-  orderPreview.grandTotal = 0
-  orderPreview.subscriptionDiscount.subscriptionDiscount = 0
-  orderPreview.subscriptionDiscount.subscriptionDiscountRate = 0
 
   orderPreview.items.forEach((it: Item) => {
-    it.discountDetails = []
-    it.totalPrice = it.sku.strikeThroughPrice * it.quantity
-    it.sku.onceDiscount = (it.sku.onceDiscountRate * it.sku.strikeThroughPrice) / 100
-    it.sku.subscriptionDiscount =
-      (it.sku.subscriptionDiscountRate * it.sku.strikeThroughPrice) / 100
-    if (it.purchaseType === 1) {
-      it.totalDiscount = it.sku.subscriptionDiscount * it.quantity
-      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.subscriptionDiscount
+    const sku = it.sku
+    const basePrice = sku.realPrice || 0
+
+    // 保留现有促销折扣（如限时立减），并清除旧订阅折扣
+    it.discountDetails = (it.discountDetails || []).filter(
+      (d: any) => d.promotionId !== 'MOCK-SUBSCRIPTION',
+    )
+
+    it.totalPrice = (basePrice * it.quantity).toFixed(2)
+    const skuSubDiscount = (sku.subscriptionDiscountRate * basePrice) / 100
+    sku.subscriptionDiscount = skuSubDiscount.toFixed(2)
+
+    // 计算现有促销折扣总额
+    let existingDiscountSum = 0
+    it.discountDetails.forEach((d: any) => {
+      const amt = parseFloat(d.amount)
+      if (!isNaN(amt) && amt < 0) existingDiscountSum += Math.abs(amt)
+    })
+
+    if (it.purchaseType === 1 && sku.supportsSubscription) {
+      const itemSubDiscount = skuSubDiscount * it.quantity
       it.discountDetails.push({
         label: '订阅折扣',
         isRecurring: true,
         promotionId: 'MOCK-SUBSCRIPTION',
         promotionCode: '',
-        amount: it.totalDiscount,
+        amount: (-itemSubDiscount).toFixed(2),
         displayLevel: 'ITEM',
         discountTarget: 'PRODUCT',
       })
-      totalDiscount = totalDiscount + it.totalDiscount
+      // totalDiscount = 所有折扣之和（促销 + 订阅），自洽
+      it.totalDiscount = (existingDiscountSum + itemSubDiscount).toFixed(2)
+      numTotalDiscount += existingDiscountSum + itemSubDiscount
       hasSubscription = true
     } else {
-      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.onceDiscount
-      it.totalDiscount = it.sku.onceDiscount * it.quantity
-      it.discountDetails.push({
-        label: '商品折扣',
-        isRecurring: false,
-        promotionId: 'MOCK-ONCE',
-        promotionCode: '',
-        amount: it.totalDiscount,
-        displayLevel: 'ITEM',
-        discountTarget: 'PRODUCT',
-      })
-      totalDiscount = totalDiscount + it.totalDiscount
+      it.totalDiscount = existingDiscountSum > 0 ? existingDiscountSum.toFixed(2) : '0.00'
+      numTotalDiscount += existingDiscountSum
     }
-    orderPreview.subtotal = orderPreview.subtotal + it.sku.strikeThroughPrice * it.quantity
-    orderPreview.totalItemQuantity = orderPreview.totalItemQuantity + it.quantity
-    orderPreview.freeShippingEligibleAmount = orderPreview.subtotal
+
+    // 计算 finalPrice (basePrice - 每件折扣总额)
+    const perItemDiscount =
+      existingDiscountSum / it.quantity +
+      (it.purchaseType === 1 && sku.supportsSubscription ? skuSubDiscount : 0)
+    sku.finalPrice = (basePrice - perItemDiscount).toFixed(2)
+    sku.originalPrice = basePrice.toFixed(2)
+
+    numSubtotal += basePrice * it.quantity
+    orderPreview.totalItemQuantity += it.quantity
+    numFreeShippingEligible = numSubtotal
     if (it.discountDetails.length > 0) {
       orderPreview.discountDetails.push(...it.discountDetails)
     }
   })
-  orderPreview.grandTotal = orderPreview.subtotal - totalDiscount
+
+  numGrandTotal = numSubtotal - numTotalDiscount
+  orderPreview.subtotal = numSubtotal.toFixed(2)
+  orderPreview.grandTotal = numGrandTotal.toFixed(2)
+  orderPreview.freeShippingEligibleAmount = numFreeShippingEligible.toFixed(2)
+
   if (hasSubscription) {
     orderPreview.items.forEach((it: Item) => {
-      if (it.sku.supportSubscription && it.purchaseType === 1) {
-        orderPreview.subscriptionDiscount.subscriptionDiscount += it.totalDiscount
-        if (
-          it.sku.subscriptionDiscountRate >
-          orderPreview.subscriptionDiscount.subscriptionDiscountRate
-        ) {
-          orderPreview.subscriptionDiscount.subscriptionDiscountRate =
-            it.sku.subscriptionDiscountRate
+      if (it.sku.supportsSubscription && it.purchaseType === 1) {
+        numSubDiscount += parseFloat(it.totalDiscount as string) || 0
+        if (it.sku.subscriptionDiscountRate > maxSubRate) {
+          maxSubRate = it.sku.subscriptionDiscountRate
         }
       }
     })
   } else {
     orderPreview.items.forEach((it: Item) => {
-      if (it.sku.supportSubscription) {
-        orderPreview.subscriptionDiscount.subscriptionDiscount +=
-          it.sku.subscriptionDiscount * it.quantity
-        if (
-          it.sku.subscriptionDiscountRate >
-          orderPreview.subscriptionDiscount.subscriptionDiscountRate
-        ) {
-          orderPreview.subscriptionDiscount.subscriptionDiscountRate =
-            it.sku.subscriptionDiscountRate
+      if (it.sku.supportsSubscription) {
+        const potentialDiscount = parseFloat(it.sku.subscriptionDiscount as string) * it.quantity
+        numSubDiscount += potentialDiscount
+        if (it.sku.subscriptionDiscountRate > maxSubRate) {
+          maxSubRate = it.sku.subscriptionDiscountRate
         }
       }
     })
   }
+  orderPreview.subscriptionDiscount.subscriptionDiscount = numSubDiscount.toFixed(2)
+  orderPreview.subscriptionDiscount.subscriptionDiscountRate = maxSubRate
 
   if (!orderPreview.shippingAddress) {
-    // 使用 find() 来查找 isDefault 为 1 的第一个地址
     const defaultShippingAddress = addresses.find((a: AddressItem) => a.isDefault === 1)
-
-    // console.log('Default shipping address=', defaultShippingAddress)
-
-    // 如果 find() 没找到，它会返回 undefined。
-    // 我们把它设置为 null，或者保持 undefined，这取决于您的后续逻辑。
-    // (假设您希望在找不到时，shippingAddress 保持为 null 或 undefined)
     orderPreview.shippingAddress = defaultShippingAddress || null
   }
 
@@ -124,52 +129,67 @@ const computePreview = (orderPreview: OrderPreview) => {
 }
 
 const computeCart = (cart: Cart) => {
-  let totalDiscount = 0
-  let hasSubscription = false
-  cart.subtotal = 0
+  let numSubtotal = 0
+  let numGrandTotal = 0
+  let numTotalDiscount = 0
   cart.totalItemQuantity = 0
-  cart.freeShippingEligibleAmount = 0
-  cart.grandTotal = 0
 
-  cart.items.forEach((it: Item) => {
-    it.discountDetails = []
-    it.totalPrice = it.sku.strikeThroughPrice * it.quantity
-    it.sku.onceDiscount = (it.sku.onceDiscountRate * it.sku.strikeThroughPrice) / 100
-    it.sku.subscriptionDiscount =
-      (it.sku.subscriptionDiscountRate * it.sku.strikeThroughPrice) / 100
-    if (it.purchaseType === 1) {
-      it.totalDiscount = it.sku.subscriptionDiscount * it.quantity
-      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.subscriptionDiscount
+  cart.items.forEach((it: any) => {
+    const sku = it.sku
+    const basePrice = parseFloat(sku.originalPrice) || parseFloat(sku.realPrice) || 0
+
+    // 保留现有促销折扣，清除旧订阅折扣
+    it.discountDetails = (it.discountDetails || []).filter(
+      (d: any) => d.promotionId !== 'MOCK-SUBSCRIPTION',
+    )
+
+    // 计算现有促销折扣总额 (每件)
+    let existingDiscountPerItem = 0
+    it.discountDetails.forEach((d: any) => {
+      const amt = parseFloat(d.amount)
+      if (!isNaN(amt) && amt < 0) existingDiscountPerItem += Math.abs(amt)
+    })
+
+    // 在已有促销折扣后的单价
+    let currentPrice = basePrice - existingDiscountPerItem
+
+    // 订阅折扣
+    let subscriptionDiscountAmount = 0
+    if (it.purchaseType === 1 && sku.supportsSubscription) {
+      subscriptionDiscountAmount = (sku.subscriptionDiscountRate * currentPrice) / 100
+      currentPrice -= subscriptionDiscountAmount
+
       it.discountDetails.push({
-        label: '订阅折扣',
+        label: `订阅省${sku.subscriptionDiscountRate}%`,
         isRecurring: true,
         promotionId: 'MOCK-SUBSCRIPTION',
         promotionCode: '',
-        amount: it.totalDiscount,
+        amount: (-subscriptionDiscountAmount).toFixed(2),
         displayLevel: 'ITEM',
         discountTarget: 'PRODUCT',
       })
-      totalDiscount = totalDiscount + it.totalDiscount
-      hasSubscription = true
-    } else {
-      it.sku.adjustedPrice = it.sku.strikeThroughPrice - it.sku.onceDiscount
-      it.totalDiscount = it.sku.onceDiscount * it.quantity
-      it.discountDetails.push({
-        label: '商品折扣',
-        isRecurring: false,
-        promotionId: 'MOCK-ONCE',
-        promotionCode: '',
-        amount: it.totalDiscount,
-        displayLevel: 'ITEM',
-        discountTarget: 'PRODUCT',
-      })
-      totalDiscount = totalDiscount + it.totalDiscount
     }
-    cart.subtotal = cart.subtotal + it.sku.strikeThroughPrice * it.quantity
-    cart.totalItemQuantity = cart.totalItemQuantity + it.quantity
-    cart.freeShippingEligibleAmount = cart.subtotal
+
+    // totalDiscount: 所有折扣之和 (促销 + 订阅), 自洽
+    const allDiscountPerItem = existingDiscountPerItem + subscriptionDiscountAmount
+    it.totalDiscount = allDiscountPerItem > 0 ? allDiscountPerItem.toFixed(2) : '0.00'
+
+    // 更新 sku 展示字段
+    it.nowPrice = currentPrice.toFixed(2)
+    sku.finalPrice = currentPrice.toFixed(2)
+    sku.originalPrice = basePrice.toFixed(2)
+    sku.subscriptionDiscount = subscriptionDiscountAmount.toFixed(2)
+
+    const lineTotal = currentPrice * it.quantity
+    numTotalDiscount += allDiscountPerItem * it.quantity
+    numSubtotal += basePrice * it.quantity
+    cart.totalItemQuantity += it.quantity
   })
-  cart.grandTotal = cart.subtotal - totalDiscount
+
+  numGrandTotal = numSubtotal - numTotalDiscount
+  cart.subtotal = numSubtotal.toFixed(2)
+  cart.grandTotal = numGrandTotal.toFixed(2)
+  cart.freeShippingEligibleAmount = numGrandTotal.toFixed(2)
 
   return cart
 }
@@ -178,27 +198,39 @@ const computeCart = (cart: Cart) => {
   const items1: Item[] = [
     {
       id: '101',
+      itemId: 'ci-101',
       quantity: 2,
-      totalPrice: 0,
-      totalDiscount: 0,
+      totalPrice: '0.00',
+      totalDiscount: '0.00',
       availableQuantity: 99,
       sku: {
-        productId: 1101,
-        skuId: 101,
+        productId: '1101',
+        skuId: '101',
         name: '高级狗咀嚼棒',
         specs: '大号',
-        image: 'https://placehold.co/160x160?text=Chew',
-        strikeThroughPrice: 60,
-        adjustedPrice: 0,
-        supportSubscription: true,
-        subscriptionDiscountRate: 35,
-        subscriptionDiscount: 0,
-        onceDiscountRate: 5,
-        onceDiscount: 0,
+        image: ['https://placehold.co/160x160?text=Chew'],
+        strikeThroughPrice: '80.00',
+        advertisedPrice: '65.00',
+        realPrice: 60,
+        originalPrice: '80.00',
+        finalPrice: '60.00',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 5,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
       },
-      discountDetails: [],
+      discountDetails: [
+        {
+          label: '限时立减20元',
+          isRecurring: false,
+          promotionId: 'P001',
+          promotionCode: '',
+          amount: '-20.00',
+          displayLevel: 'ITEM',
+        },
+      ],
       purchaseType: 0,
-      subscription: {
+      Autoship: {
         subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
         subscriptionAdjustments: [],
         source: 'CHECKOUT',
@@ -206,27 +238,39 @@ const computeCart = (cart: Cart) => {
     },
     {
       id: '201',
+      itemId: 'ci-201',
       quantity: 1,
-      totalPrice: 0,
-      totalDiscount: 0,
+      totalPrice: '0.00',
+      totalDiscount: '0.00',
       availableQuantity: 50,
       sku: {
-        productId: 1201,
-        skuId: 201,
+        productId: '1201',
+        skuId: '201',
         name: '猫抓板',
         specs: '中号',
-        image: 'https://placehold.co/160x160?text=Scratch',
-        strikeThroughPrice: 30,
-        adjustedPrice: 0,
-        supportSubscription: false,
-        subscriptionDiscountRate: 0,
-        subscriptionDiscount: 0,
-        onceDiscountRate: 5,
-        onceDiscount: 0,
+        image: ['https://placehold.co/160x160?text=Scratch'],
+        strikeThroughPrice: '40.00',
+        advertisedPrice: '32.00',
+        realPrice: 30,
+        originalPrice: '40.00',
+        finalPrice: '30.00',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 5,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 50,
       },
-      discountDetails: [],
+      discountDetails: [
+        {
+          label: '限时立减10元',
+          isRecurring: false,
+          promotionId: 'P002',
+          promotionCode: '',
+          amount: '-10.00',
+          displayLevel: 'ITEM',
+        },
+      ],
       purchaseType: 0,
-      subscription: {
+      Autoship: {
         subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
         subscriptionAdjustments: [],
         source: 'CHECKOUT',
@@ -237,29 +281,106 @@ const computeCart = (cart: Cart) => {
     id: '1',
     subscriptionDiscount: {
       subscriptionDiscountRate: 0,
-      subscriptionDiscount: 0,
+      subscriptionDiscount: '0.00',
       firstSubscription: false,
     },
     totalItemQuantity: 0,
-    subtotal: 0,
-    grandTotal: 0,
-    shippingFee: 0,
-    freeShippingThreshold: 30,
-    freeShippingEligibleAmount: 0,
+    subtotal: '0.00',
+    grandTotal: '0.00',
+    shippingFee: '0.00',
+    freeShippingThreshold: '30.00',
+    freeShippingEligibleAmount: '0.00',
     discountDetails: [],
-    recommendSubscriptions: [],
+    recommendedAutoships: [],
     items: items1,
   }
 
+  const cartItems: CartItem[] = [
+    {
+      itemId: 'ci-101',
+      sku: {
+        skuId: '101',
+        productId: '1101',
+        name: '高级狗咀嚼棒',
+        image: ['https://placehold.co/160x160?text=Chew'],
+        strikeThroughPrice: '80.00',
+        advertisedPrice: '65.00',
+        realPrice: '60.00',
+        originalPrice: '80.00',
+        finalPrice: '60.00',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 5,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 99,
+        specs: '大号',
+      },
+      discountDetails: [
+        {
+          label: '限时立减20元',
+          isRecurring: false,
+          promotionId: 'P001',
+          promotionCode: '',
+          amount: '-20.00',
+          displayLevel: 'ITEM',
+        },
+      ],
+      quantity: 2,
+      price: 60,
+      nowPrice: 60,
+      stock: 99,
+      selected: true,
+      isEffective: true,
+      purchaseType: 0,
+    },
+    {
+      itemId: 'ci-201',
+      sku: {
+        skuId: '201',
+        productId: '1201',
+        name: '猫抓板',
+        image: ['https://placehold.co/160x160?text=Scratch'],
+        strikeThroughPrice: '40.00',
+        advertisedPrice: '32.00',
+        realPrice: '30.00',
+        originalPrice: '40.00',
+        finalPrice: '30.00',
+        supportsSubscription: true,
+        subscriptionDiscountRate: 5,
+        subscriptionDiscount: '0.00',
+        maxQuantity: 50,
+        specs: '中号',
+      },
+      discountDetails: [
+        {
+          label: '限时立减10元',
+          isRecurring: false,
+          promotionId: 'P002',
+          promotionCode: '',
+          amount: '-10.00',
+          displayLevel: 'ITEM',
+        },
+      ],
+      quantity: 1,
+      price: 30,
+      nowPrice: 30,
+      stock: 50,
+      selected: true,
+      isEffective: true,
+      purchaseType: 0,
+    },
+  ]
+
   const cart: Cart = {
-    id: '1',
+    uid: 'USER-001',
+    cartId: 'CART-001',
     totalItemQuantity: 0,
-    subtotal: 0,
-    grandTotal: 0,
-    shippingFee: 0,
-    freeShippingThreshold: 30,
-    freeShippingEligibleAmount: 0,
-    items: items1,
+    subtotal: '0.00',
+    grandTotal: '0.00',
+    shippingFee: '0.00',
+    freeShippingThreshold: '30.00',
+    freeShippingEligibleAmount: '0.00',
+    discountDetails: [],
+    items: cartItems,
   }
 
   previews['1'] = computePreview(orderPreview)
@@ -290,17 +411,17 @@ const computeCart = (cart: Cart) => {
     payChannel: 2,
     payType: 1,
     totalItemQuantity: 2,
-    totalAmount: 120,
-    discountAmount: 10,
-    shippingFee: 0,
-    payAmount: 110,
+    totalAmount: '120.00',
+    discountAmount: '10.00',
+    shippingFee: '0.00',
+    payAmount: '110.00',
     discountDetails: [
       {
         discountId: 'D001',
         discountType: 1,
         sourceId: 'COUPON-001',
         sourceName: '新人优惠券',
-        discountAmount: 10,
+        discountAmount: '10.00',
       },
     ],
     shippingAddress: mockAddress,
@@ -315,10 +436,10 @@ const computeCart = (cart: Cart) => {
         productName: '高级狗咀嚼棒',
         skuAttrs: '规格:大号',
         productImage: 'https://placehold.co/160x160?text=Chew',
-        unitPrice: 60,
+        unitPrice: '60.00',
         quantity: 2,
-        discountAmount: 10,
-        actualAmount: 110,
+        discountAmount: '10.00',
+        actualAmount: '110.00',
         discountDetails: [],
       },
     ],
@@ -337,10 +458,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 30,
-    discountAmount: 0,
-    shippingFee: 5,
-    payAmount: 35,
+    totalAmount: '30.00',
+    discountAmount: '0.00',
+    shippingFee: '5.00',
+    payAmount: '35.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -354,10 +475,10 @@ const computeCart = (cart: Cart) => {
         productName: '猫抓板',
         skuAttrs: '规格:中号',
         productImage: 'https://placehold.co/160x160?text=Scratch',
-        unitPrice: 30,
+        unitPrice: '30.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 30,
+        discountAmount: '0.00',
+        actualAmount: '30.00',
         discountDetails: [],
       },
     ],
@@ -374,17 +495,17 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 3,
-    totalAmount: 180,
-    discountAmount: 20,
-    shippingFee: 0,
-    payAmount: 160,
+    totalAmount: '180.00',
+    discountAmount: '20.00',
+    shippingFee: '0.00',
+    payAmount: '160.00',
     discountDetails: [
       {
         discountId: 'D002',
         discountType: 2,
         sourceId: 'PROMO-001',
         sourceName: '满100减20',
-        discountAmount: 20,
+        discountAmount: '20.00',
       },
     ],
     shippingAddress: mockAddress,
@@ -399,10 +520,10 @@ const computeCart = (cart: Cart) => {
         productName: '高级狗咀嚼棒',
         skuAttrs: '规格:大号',
         productImage: 'https://placehold.co/160x160?text=Chew',
-        unitPrice: 60,
+        unitPrice: '60.00',
         quantity: 3,
-        discountAmount: 20,
-        actualAmount: 160,
+        discountAmount: '20.00',
+        actualAmount: '160.00',
         discountDetails: [],
       },
     ],
@@ -490,10 +611,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 60,
-    discountAmount: 0,
-    shippingFee: 0,
-    payAmount: 60,
+    totalAmount: '60.00',
+    discountAmount: '0.00',
+    shippingFee: '0.00',
+    payAmount: '60.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -507,10 +628,10 @@ const computeCart = (cart: Cart) => {
         productName: '高级狗咀嚼棒',
         skuAttrs: '规格:大号',
         productImage: 'https://placehold.co/160x160?text=Chew',
-        unitPrice: 60,
+        unitPrice: '60.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 60,
+        discountAmount: '0.00',
+        actualAmount: '60.00',
         discountDetails: [],
       },
     ],
@@ -571,10 +692,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 199,
-    discountAmount: 0,
-    shippingFee: 0,
-    payAmount: 199,
+    totalAmount: '199.00',
+    discountAmount: '0.00',
+    shippingFee: '0.00',
+    payAmount: '199.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -588,10 +709,10 @@ const computeCart = (cart: Cart) => {
         productName: '宠物礼包套装',
         skuAttrs: '豪华版',
         productImage: 'https://placehold.co/160x160?text=GiftBox',
-        unitPrice: 199,
+        unitPrice: '199.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 199,
+        discountAmount: '0.00',
+        actualAmount: '199.00',
         discountDetails: [],
         showChildren: true,
         children: [
@@ -606,10 +727,10 @@ const computeCart = (cart: Cart) => {
             productName: '狗粮',
             skuAttrs: '500g',
             productImage: 'https://placehold.co/100x100?text=DogFood',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 2,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -623,10 +744,10 @@ const computeCart = (cart: Cart) => {
             productName: '宠物玩具',
             skuAttrs: '小号',
             productImage: 'https://placehold.co/100x100?text=Toy',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -640,10 +761,10 @@ const computeCart = (cart: Cart) => {
             productName: '宠物零食',
             skuAttrs: '混合口味',
             productImage: 'https://placehold.co/100x100?text=Snack',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 3,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
         ],
@@ -662,10 +783,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 99,
-    discountAmount: 0,
-    shippingFee: 0,
-    payAmount: 99,
+    totalAmount: '99.00',
+    discountAmount: '0.00',
+    shippingFee: '0.00',
+    payAmount: '99.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -679,10 +800,10 @@ const computeCart = (cart: Cart) => {
         productName: '宠物盲盒福袋',
         skuAttrs: '惊喜款',
         productImage: 'https://placehold.co/160x160?text=MysteryBox',
-        unitPrice: 99,
+        unitPrice: '99.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 99,
+        discountAmount: '0.00',
+        actualAmount: '99.00',
         discountDetails: [],
         isMysteryBox: true,
         mysteryBoxOpened: false,
@@ -699,10 +820,10 @@ const computeCart = (cart: Cart) => {
             productName: '神秘猫粮',
             skuAttrs: '1kg',
             productImage: 'https://placehold.co/100x100?text=CatFood',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -716,10 +837,10 @@ const computeCart = (cart: Cart) => {
             productName: '限定版猫窝',
             skuAttrs: '粉色',
             productImage: 'https://placehold.co/100x100?text=CatBed',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
         ],
@@ -759,10 +880,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 149,
-    discountAmount: 0,
-    shippingFee: 0,
-    payAmount: 149,
+    totalAmount: '149.00',
+    discountAmount: '0.00',
+    shippingFee: '0.00',
+    payAmount: '149.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -776,10 +897,10 @@ const computeCart = (cart: Cart) => {
         productName: '豪华宠物盲盒',
         skuAttrs: '限量版',
         productImage: 'https://placehold.co/160x160?text=LuxuryBox',
-        unitPrice: 149,
+        unitPrice: '149.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 149,
+        discountAmount: '0.00',
+        actualAmount: '149.00',
         discountDetails: [],
         isMysteryBox: true,
         mysteryBoxOpened: false,
@@ -796,10 +917,10 @@ const computeCart = (cart: Cart) => {
             productName: '进口狗粮',
             skuAttrs: '2kg装',
             productImage: 'https://placehold.co/100x100?text=PremiumFood',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -813,10 +934,10 @@ const computeCart = (cart: Cart) => {
             productName: '智能饮水机',
             skuAttrs: '白色',
             productImage: 'https://placehold.co/100x100?text=Fountain',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -830,10 +951,10 @@ const computeCart = (cart: Cart) => {
             productName: '宠物梳子',
             skuAttrs: '不锈钢',
             productImage: 'https://placehold.co/100x100?text=Brush',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 2,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
         ],
@@ -852,10 +973,10 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 1,
-    totalAmount: 129,
-    discountAmount: 0,
-    shippingFee: 0,
-    payAmount: 129,
+    totalAmount: '129.00',
+    discountAmount: '0.00',
+    shippingFee: '0.00',
+    payAmount: '129.00',
     discountDetails: [],
     shippingAddress: mockAddress,
     items: [
@@ -869,10 +990,10 @@ const computeCart = (cart: Cart) => {
         productName: '宠物惊喜盲盒',
         skuAttrs: '标准版',
         productImage: 'https://placehold.co/160x160?text=SurpriseBox',
-        unitPrice: 129,
+        unitPrice: '129.00',
         quantity: 1,
-        discountAmount: 0,
-        actualAmount: 129,
+        discountAmount: '0.00',
+        actualAmount: '129.00',
         discountDetails: [],
         isMysteryBox: true,
         mysteryBoxOpened: true,
@@ -889,10 +1010,10 @@ const computeCart = (cart: Cart) => {
             productName: '猫咪逗猫棒',
             skuAttrs: '羽毛款',
             productImage: 'https://placehold.co/100x100?text=CatToy',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
           {
@@ -906,10 +1027,10 @@ const computeCart = (cart: Cart) => {
             productName: '宠物牵引绳',
             skuAttrs: '蓝色1.5m',
             productImage: 'https://placehold.co/100x100?text=Leash',
-            unitPrice: 0,
+            unitPrice: '0.00',
             quantity: 1,
-            discountAmount: 0,
-            actualAmount: 0,
+            discountAmount: '0.00',
+            actualAmount: '0.00',
             discountDetails: [],
           },
         ],
@@ -928,17 +1049,17 @@ const computeCart = (cart: Cart) => {
     payType: 1,
     payTime: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(),
     totalItemQuantity: 5,
-    totalAmount: 350,
-    discountAmount: 30,
-    shippingFee: 0,
-    payAmount: 320,
+    totalAmount: '350.00',
+    discountAmount: '30.00',
+    shippingFee: '0.00',
+    payAmount: '320.00',
     discountDetails: [
       {
         discountId: 'D009',
         discountType: 2,
         sourceId: 'PROMO-009',
         sourceName: '满300减30',
-        discountAmount: 30,
+        discountAmount: '30.00',
       },
     ],
     shippingAddress: mockAddress,
@@ -953,10 +1074,10 @@ const computeCart = (cart: Cart) => {
         productName: '【优惠价】比乐狗粮守护者Pro鸭肉梨口味',
         skuAttrs: '鸭肉梨口味;冻干鲜肉升级版2.0;1kg',
         productImage: 'https://placehold.co/180x180?text=DogFood',
-        unitPrice: 159,
+        unitPrice: '159.00',
         quantity: 1,
-        discountAmount: 10,
-        actualAmount: 149,
+        discountAmount: '10.00',
+        actualAmount: '149.00',
         discountDetails: [],
       },
       {
@@ -969,10 +1090,10 @@ const computeCart = (cart: Cart) => {
         productName: '【天猫U先】比乐pro犬粮护肠冻干',
         skuAttrs: '鸭肉梨口味;200g',
         productImage: 'https://placehold.co/180x180?text=DogSnack',
-        unitPrice: 39,
+        unitPrice: '39.00',
         quantity: 2,
-        discountAmount: 10,
-        actualAmount: 68,
+        discountAmount: '10.00',
+        actualAmount: '68.00',
         discountDetails: [],
       },
       {
@@ -985,10 +1106,10 @@ const computeCart = (cart: Cart) => {
         productName: '【U先试用】比乐狗粮守护者Pro鸭肉梨升级幼犬',
         skuAttrs: '守护者Pro鸭肉梨;50g',
         productImage: 'https://placehold.co/180x180?text=Puppy',
-        unitPrice: 19,
+        unitPrice: '19.00',
         quantity: 1,
-        discountAmount: 5,
-        actualAmount: 14,
+        discountAmount: '5.00',
+        actualAmount: '14.00',
         discountDetails: [],
       },
       {
@@ -1001,10 +1122,10 @@ const computeCart = (cart: Cart) => {
         productName: '宠物智能饮水机滤芯替换装',
         skuAttrs: '3只装',
         productImage: 'https://placehold.co/180x180?text=Filter',
-        unitPrice: 89,
+        unitPrice: '89.00',
         quantity: 1,
-        discountAmount: 5,
-        actualAmount: 84,
+        discountAmount: '5.00',
+        actualAmount: '84.00',
         discountDetails: [],
       },
     ],
@@ -1067,10 +1188,10 @@ const computeCart = (cart: Cart) => {
           ? new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString()
           : undefined,
       totalItemQuantity: quantity,
-      totalAmount: unitPrice * quantity,
-      discountAmount: i % 5 === 0 ? 10 : 0,
-      shippingFee: 0,
-      payAmount: unitPrice * quantity - (i % 5 === 0 ? 10 : 0),
+      totalAmount: (unitPrice * quantity).toFixed(2),
+      discountAmount: (i % 5 === 0 ? 10 : 0).toFixed(2),
+      shippingFee: '0.00',
+      payAmount: (unitPrice * quantity - (i % 5 === 0 ? 10 : 0)).toFixed(2),
       discountDetails: [],
       shippingAddress: mockAddress,
       items: [
@@ -1089,10 +1210,10 @@ const computeCart = (cart: Cart) => {
           productName: productNames[productIndex],
           skuAttrs: `规格:${i % 2 === 0 ? '大包装' : '小包装'}`,
           productImage: productImages[imageIndex],
-          unitPrice,
+          unitPrice: unitPrice.toFixed(2),
           quantity,
-          discountAmount: i % 5 === 0 ? 10 : 0,
-          actualAmount: unitPrice * quantity - (i % 5 === 0 ? 10 : 0),
+          discountAmount: (i % 5 === 0 ? 10 : 0).toFixed(2),
+          actualAmount: (unitPrice * quantity - (i % 5 === 0 ? 10 : 0)).toFixed(2),
           discountDetails: [],
         },
       ],
@@ -1174,46 +1295,133 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     return { code: '0', msg: 'deleted', result: clone(removed) }
   }
 
-  // --- Cart APIs (/account/cart) ---
+  // --- Cart APIs (/account/carts) ---
+
+  // GET /account/cart - 获取购物车 (Legacy or for current user context)
   if (url === '/account/cart' && String(options.method || 'GET').toUpperCase() === 'GET') {
     return { code: '0', msg: 'ok', result: clone(globalCart) }
   }
 
-  if (
-    url === '/account/cart:batchDelete' &&
-    String(options.method || 'POST').toUpperCase() === 'POST'
-  ) {
-    const body = (options.data as any) || {}
-    const ids = body.skuIds || []
-    for (const sid of ids) {
-      const idx = globalCart.items.findIndex((item: Item) => String(item.sku.skuId) === String(sid))
-      if (idx !== -1) globalCart.items.splice(idx, 1)
+  // POST /account/carts/{cartId}/items - 添加商品
+  const addItemMatch = url.match(/^\/account\/carts\/([^/]+)\/items$/)
+  if (addItemMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
+    const cartId = addItemMatch[1] // 暂时忽略 cartId 校验
+    const data = (options.data as any) || {}
+    // data: { productId, skuId, quantity, purchaseType }
+    // 简单实现：检查是否已存在，存在则加数量，不存在则创建
+    // 注意：需配合 product 数据，这里简化为直接查找是否有相同 skuId 的 item
+    // 因为前端传的是 productId/skuId，我们需要找到对应的 ItemId（如果是已存在的）
+    // 或者生成新的 ItemId
+    // ... Mock logic to simulate adding ...
+    // 为演示，这里仅返回成功，不做实际添加逻辑(太复杂且依赖 Product)，或者简单 Mock 一个
+    return { code: '0', msg: '添加成功', result: clone(globalCart) }
+  }
+
+  // POST /account/carts/{cartId}/items:batchDelete - 批量删除
+  const batchDeleteMatch = url.match(/^\/account\/carts\/([^/]+)\/items:batchDelete$/)
+  if (batchDeleteMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
+    const data = (options.data as any) || {}
+    const ids = data.itemIds || []
+    if (globalCart && globalCart.items) {
+      globalCart.items = globalCart.items.filter((item: CartItem) => !ids.includes(item.itemId))
+      globalCart = computeCart(globalCart)
     }
-    return { code: '0', msg: 'deleted', result: clone(computeCart(globalCart)) }
+    return { code: '0', msg: 'deleted', result: clone(globalCart) }
   }
 
-  if (
-    url.match(/^\/account\/cart\/items\/.+$/) &&
-    String(options.method || 'PUT').toUpperCase() === 'PUT'
-  ) {
-    const parts = url.split('/')
-    const skuId = parts[parts.length - 1]
+  // PUT /account/carts/{cartId}/items/{itemId} - 更新商品
+  const updateItemMatch = url.match(/^\/account\/carts\/([^/]+)\/items\/([^/]+)$/)
+  if (updateItemMatch && String(options.method || 'PUT').toUpperCase() === 'PUT') {
+    const itemId = updateItemMatch[2]
     const body = (options.data as any) || {}
-    const idx = globalCart.items.findIndex((item: Item) => String(item.sku.skuId) === String(skuId))
-    if (idx === -1) return { code: '1', msg: 'not found', result: null }
-    globalCart.items[idx].quantity = body.quantity ?? globalCart.items[idx].quantity
-    globalCart.items[idx].purchaseType = body.purchaseType ?? globalCart.items[idx].purchaseType
-    return { code: '0', msg: 'updated', result: clone(computeCart(globalCart)) }
+    const idx = globalCart.items.findIndex((item: CartItem) => item.itemId === itemId)
+    if (idx !== -1) {
+      if (body.quantity !== undefined) {
+        const max = globalCart.items[idx].sku.maxQuantity || 99
+        globalCart.items[idx].quantity = Math.min(body.quantity, max)
+      }
+      if (body.purchaseType !== undefined) globalCart.items[idx].purchaseType = body.purchaseType
+      if (body.selected !== undefined) globalCart.items[idx].selected = body.selected
+      globalCart = computeCart(globalCart)
+      return { code: '0', msg: 'updated', result: clone(globalCart) }
+    }
+    return { code: '1', msg: 'not found', result: null }
   }
 
-  if (
-    url === '/account/cart:updateSelection' &&
-    String(options.method || 'POST').toUpperCase() === 'POST'
-  ) {
+  // POST /account/carts/{cartId}/items:updateSelection - 全选/取消全选
+  const updateSelectionMatch = url.match(/^\/account\/carts\/([^/]+)\/items:updateSelection$/)
+  if (updateSelectionMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
     const body = (options.data as any) || {}
     const selected = !!body.selected
-    //globalCart.items.forEach((item: Item) => (item.selected = selected))
-    return { code: '0', msg: 'ok', result: clone(computeCart(globalCart)) }
+    if (globalCart && globalCart.items) {
+      globalCart.items.forEach((item: CartItem) => (item.selected = selected))
+      globalCart = computeCart(globalCart)
+    }
+    return { code: '0', msg: 'ok', result: clone(globalCart) }
+  }
+
+  // --- Checkout Entry from Cart ---
+  if (
+    url.match(/^\/checkout\/entry\/cart/) &&
+    String(options.method || 'GET').toUpperCase() === 'GET'
+  ) {
+    // 从购物车选中商品生成 OrderPreview
+    const selectedItems = (globalCart.items || []).filter((ci: CartItem) => ci.selected)
+    const previewItems: Item[] = selectedItems.map((ci: CartItem) => {
+      const sku = clone(ci.sku)
+      return {
+        id: ci.itemId,
+        itemId: ci.itemId,
+        quantity: ci.quantity,
+        totalPrice: 0,
+        totalDiscount: 0,
+        availableQuantity: ci.stock,
+        sku: sku,
+        discountDetails: [],
+        purchaseType: ci.purchaseType,
+        Autoship: {
+          subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
+          subscriptionAdjustments: [],
+          source: 'CHECKOUT' as const,
+        },
+      }
+    })
+    const newPreviewId = 'P-' + Date.now()
+    const newPreview: OrderPreview = {
+      id: newPreviewId,
+      subscriptionDiscount: {
+        subscriptionDiscountRate: 0,
+        subscriptionDiscount: '0.00',
+        firstSubscription: false,
+      },
+      totalItemQuantity: 0,
+      subtotal: '0.00',
+      grandTotal: '0.00',
+      shippingFee: '0.00',
+      freeShippingThreshold: '30.00',
+      freeShippingEligibleAmount: '0.00',
+      discountDetails: [],
+      recommendedAutoships: [
+        {
+          subscriptionFrequency: { frequency: 2, unit: 'WEEK' },
+          subscriptionAdjustments: [],
+          source: 'recommend',
+        },
+        {
+          subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
+          subscriptionAdjustments: [],
+          source: 'recommend',
+        },
+        {
+          subscriptionFrequency: { frequency: 8, unit: 'WEEK' },
+          subscriptionAdjustments: [],
+          source: 'recommend',
+        },
+      ],
+      items: previewItems,
+    }
+    previews[newPreviewId] = computePreview(newPreview)
+    return { code: '0', msg: 'ok', result: { previewId: newPreviewId } }
   }
 
   const checkoutMatch = url.match(/^\/checkout\/p\/([^/]+)(?:\/(update|place-order))?$/)
@@ -1240,10 +1448,14 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
         const idx = items.findIndex(
           (it: any) =>
             String(it.id) === String(sel.itemId) ||
+            String(it.itemId) === String(sel.itemId) ||
             String(it.sku?.skuId) === String(sel.partNumber),
         )
         if (idx !== -1) {
-          if (sel.quantity !== undefined) items[idx].quantity = Number(sel.quantity)
+          if (sel.quantity !== undefined) {
+            const max = items[idx].sku.maxQuantity || 99
+            items[idx].quantity = Math.min(Number(sel.quantity), max)
+          }
           if (sel.purchaseType !== undefined)
             items[idx].purchaseType = sel.purchaseType === 1 ? 1 : 0
         }
@@ -1254,13 +1466,13 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
 
         if (oldIsSubscribe === body.globalSubscription.subscribe && oldIsSubscribe) {
           items.forEach((it: Item) => {
-            if (it.sku?.supportSubscription) {
-              it.subscription = it.subscription || {
+            if (it.sku?.supportsSubscription) {
+              it.Autoship = it.Autoship || {
                 subscriptionFrequency: freq,
-                subscriptionAjudgements: [],
+                subscriptionAdjustments: [],
                 source: 'CHECKOUT',
               }
-              it.subscription.subscriptionFrequency = freq
+              it.Autoship.subscriptionFrequency = freq
             }
           })
         }
@@ -1270,14 +1482,14 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
           body.globalSubscription.subscribe
         ) {
           items.forEach((it: Item) => {
-            if (it.sku?.supportSubscription) {
+            if (it.sku?.supportsSubscription) {
               it.purchaseType = 1
-              it.subscription = it.subscription || {
+              it.Autoship = it.Autoship || {
                 subscriptionFrequency: freq,
-                subscriptionAjudgements: [],
+                subscriptionAdjustments: [],
                 source: 'CHECKOUT',
               }
-              it.subscription.subscriptionFrequency = freq
+              it.Autoship.subscriptionFrequency = freq
             }
           })
         }
@@ -1286,7 +1498,7 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
           !body.globalSubscription.subscribe
         ) {
           items.forEach((it: Item) => {
-            if (it.sku?.supportSubscription) {
+            if (it.sku?.supportsSubscription) {
               it.purchaseType = 0
             }
           })

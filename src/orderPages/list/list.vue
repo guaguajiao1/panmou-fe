@@ -62,7 +62,7 @@
             <view class="order-total">
               <text class="total-label">共{{ order.totalItemQuantity }}件</text>
               <text class="total-amount">
-                实付：<text class="amount">¥{{ order.payAmount.toFixed(2) }}</text>
+                实付：<text class="amount">¥{{ order.payAmount }}</text>
               </text>
             </view>
 

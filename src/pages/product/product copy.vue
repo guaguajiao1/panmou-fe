@@ -20,14 +20,14 @@
 
     <view class="scroll-content">
       <swiper class="swiper" circular indicator-dots autoplay>
-        <swiper-item v-for="(img, index) in data.item?.images" :key="index">
+        <swiper-item v-for="(img, index) in data.product?.images" :key="index">
           <image class="product-img" :src="img" mode="aspectFill" />
         </swiper-item>
       </swiper>
 
       <view class="info">
-        <text class="title">{{ data.item?.title }}</text>
-        <text class="sales">已售 {{ data.item?.vagueSellCount }}</text>
+        <text class="title">{{ data.product?.title }}</text>
+        <text class="sales">已售 {{ data.product?.vagueSellCount }}</text>
       </view>
 
       <view v-if="allParams.length > 0" class="param-preview" @click="showParams = true">
@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Data, BasicParam } from '@/types/product'
+import type { ProductData, BasicParam } from '@/types/product'
 import { getProductDetail } from '@/api/product.ts' // 假设的API路径
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -202,7 +202,7 @@ const allergies = [
   { label: '无', value: 'no' },
 ]
 
-const data = reactive<Data>({} as Data)
+const data = reactive<ProductData>({} as ProductData)
 const selectedSku = reactive<Record<string, string>>({})
 
 onLoad(async (options) => {
@@ -242,7 +242,7 @@ const selectedSkuId = computed(() => {
 // 价格计算 (单次购买)
 const selectedSkuPrice = computed(() => {
   if (selectedSkuId.value && data.skuCore?.sku2info) {
-    const priceText = data.skuCore.sku2info[selectedSkuId.value]?.price?.priceText
+    const priceText = data.skuCore.sku2info[selectedSkuId.value]?.priceText
     return priceText ? parseFloat(priceText.replace(/[^\d.]/g, '')) : 0
   }
   return 0
@@ -290,8 +290,8 @@ const showParams = ref(false)
 
 // 全部参数
 const allParams = computed<BasicParam[]>(() => {
-  const basic = data.item?.industryParamVO?.basicParamList || []
-  const enhance = data.item?.industryParamVO?.enhanceParamList || []
+  const basic = data.product?.industryParamVO?.basicParamList || []
+  const enhance = data.product?.industryParamVO?.enhanceParamList || []
   return [...basic, ...enhance]
 })
 

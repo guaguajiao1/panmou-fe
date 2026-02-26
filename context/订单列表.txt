@@ -1,0 +1,49 @@
+>> 本文件内容为 https://api.mcd.cn/bff/order/orders?orderCategoryId=1&page=1&size=10 的请求抓包详情，供您分析和定位问题。
+
+1. 请求内容 Request:
+
+GET /bff/order/orders?orderCategoryId=1&page=1&size=10 HTTP/1.1
+Host: api.mcd.cn
+Connection: keep-alive
+content-type: application/json
+apiVersion: 2.0
+xid: 
+authorization: hmac-auth-v1#8PIH3W05XtiaZhCknUdb#We3zPQPC4KByqxkJwR7GDA/RNBOQkIBTKZa2pqb95ZE=#hmac-sha256#Sat, 07 Feb 2026 13:33:14 GMT#ct;language;sid;sv;token;v;x-mcd-gw-v
+request-timestamp: 1770471194087
+ct: 31
+x-b3-traceid: 0BFF06168D5F468494608588403B3580
+x-b3-spanid: 0BFF06168D5F4684
+meddyid: MEDDY157721534140617119
+d: BhEmMW1e4N9V7tkjhnRTb8eS/e3gifDNw3pJIB0M6a+/nhfmk9YnqPtkCXJk24/QjckUZZEUZDq6CWzxu8xy27A==
+sid: a90a5e0d6baee5576f8fce486915e49d_
+language: zh
+sv: v4
+routingid: 19
+x-mcd-gw-v: 1
+tid: 00003TuL
+v: 7.0.27.1
+x-hmac-digest: KcXNYBWswLFa6sIeeAZboMB5XgYvr/u5GQcJfk89aww=
+Accept-Encoding: gzip,compress,br,deflate
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.64(0x18004034) NetType/WIFI Language/zh_CN
+Referer: https://servicewechat.com/wx25f982a55e60a540/454/page-frame.html
+
+
+
+2. 响应内容 Response:
+
+HTTP/1.1 200 OK
+Date: Sat, 07 Feb 2026 13:33:14 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers, Accept-Encoding
+x-br-response: sn=YmZmLW9yZGVyLXNlcnZpY2U=,si=1053
+access-control-expose-headers: traceresponse,x-br-response
+traceresponse: 00-d5e0bcf45bacc6197d49e9fe20939b27-3bc63a97af193935-00
+x-envoy-upstream-service-time: 21
+content-encoding: gzip
+
+{"success":true,"code":200,"message":"请求成功","datetime":"2026-02-07 21:33:14","traceId":"0bff06168d5f468494608588403b3580","data":{"list":[{"orderId":"1030572840000655772439117073","payId":"11940359508202188800","createTime":"2026-02-07 21:32:57","saleTime":"","channel":"45","orderType":"1","orderTypeName":"到店取餐","categoryId":1,"categoryName":"到店取餐","realTotalAmount":"61.9","mpOrderStatusCode":"10","orderStatusCode":"1","orderStatus":"待支付","expirePayTime":"2026-02-07 21:47:55","leftPaySecond":880,"pickupWaitOrder":0,"pickupWaitMinute":0,"storeCode":"1950153","storeName":"麦当劳北京民族园餐厅","beType":"1","beCode":"","storeInBusiness":true,"orderProductList":[{"sequence":3,"productCode":"9900002817","id":"1-9900002817","productName":"BFF四宫格小食盘","productType":"7","realSubtotal":"42.1","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/20260128/product/MS_9900002817_320.gif","subtotal":"42.1","comboItemList":[{"productCode":"516014","name":"麦乐鸡-5块","quantity":1},{"productCode":"516017","name":"麦麦脆汁鸡-带骨里脊","quantity":1},{"productCode":"516020","name":"中薯条","quantity":1},{"productCode":"520740","name":"蜜汁BBQ风味薄皮脆汁鸡-琵琶腿","quantity":1}]},{"sequence":4,"productCode":"521422","id":"1-521422","productName":"金元滚滚紫薯球","productType":"1","realSubtotal":"9.9","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_521422_320.png","subtotal":"9.9","comboItemList":[]},{"sequence":5,"productCode":"9900012402","id":"1-9900012402","productName":"脆汁鸡任选","productType":"7","realSubtotal":"9.9","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900012402_320.png","subtotal":"13","comboItemList":[{"productCode":"505416","name":"麦麦脆汁鸡-琵琶腿","quantity":1}]}],"eatType":1,"orderMode":"0","orderActionList":[{"code":"pay","name":"去支付"},{"code":"cancel","name":"取消订单"}]},{"orderId":"1030731760000550000086477856","payId":"11940324623978602496","createTime":"2026-02-07 19:14:20","saleTime":"","channel":"45","orderType":"1","orderTypeName":"到店取餐","categoryId":1,"categoryName":"到店取餐","realTotalAmount":"41.4","mpOrderStatusCode":"60","orderStatusCode":"7","orderStatus":"已取消","leftPaySecond":0,"pickupWaitOrder":0,"pickupWaitMinute":0,"storeCode":"1950153","storeName":"麦当劳北京民族园餐厅","beType":"1","beCode":"","storeInBusiness":true,"orderProductList":[{"sequence":1,"productCode":"9900013074","id":"1-9900013074","productName":"金拱豪门菠萝安格斯厚牛堡三件套","productType":"7","realSubtotal":"41.4","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900013074_320.png","subtotal":"41.4","comboItemList":[{"productCode":"521384","name":"金拱豪门菠萝安格斯厚牛堡 高达干酪片(不要)","quantity":1},{"productCode":"521385","name":"金来运转扭扭薯条","quantity":1},{"productCode":"3100","name":"可乐大杯","quantity":1}]}],"eatType":1,"orderMode":"0","orderActionList":[{"code":"another_one","name":"再来一单"}]},{"orderId":"1030379870000542780875616816","payId":"","createTime":"2025-04-06 20:37:41","saleTime":"2025-04-06 20:37:41","channel":"45","orderType":"1","orderTypeName":"到店取餐","categoryId":1,"categoryName":"到店取餐","realTotalAmount":"0","mpOrderStatusCode":"40","orderStatusCode":"6","orderStatus":"已完成","leftPaySecond":0,"pickupWaitOrder":0,"pickupWaitMinute":0,"storeCode":"1950037","storeName":"麦当劳北京成府路餐厅","beType":"1","beCode":"","storeInBusiness":true,"orderProductList":[{"sequence":1,"productCode":"9900004423","id":"1-9900004423","productName":"1+1小食自由拼","productType":"7","realSubtotal":"0","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900004423_320.png","subtotal":"23","comboItemList":[{"productCode":"1700","name":"麦辣鸡翅-2块","quantity":2}]}],"eatType":2,"orderMode":"0","orderActionList":[{"code":"another_one","name":"再来一单"},{"code":"invoice","name":"开发票","url":"/invoice/pages/invoiceOrderList"}]},{"orderId":"1030572960000622583838489747","payId":"","createTime":"2025-04-05 20:31:59","saleTime":"2025-04-05 20:31:59","channel":"45","orderType":"1","orderTypeName":"到店取餐","categoryId":1,"categoryName":"到店取餐","realTotalAmount":"0","mpOrderStatusCode":"40","orderStatusCode":"6","orderStatus":"已完成","leftPaySecond":0,"pickupWaitOrder":0,"pickupWaitMinute":0,"storeCode":"1950153","storeName":"麦当劳北京民族园餐厅","beType":"1","beCode":"","storeInBusiness":true,"orderProductList":[{"sequence":1,"productCode":"9900004423","id":"1-9900004423","productName":"1+1小食自由拼","productType":"7","realSubtotal":"0","quantity":1,"productImage":"https://menu-img.mcd.cn/pcm/prod/menu/ProductPool/product/MS_9900004423_320.png","subtotal":"23","comboItemList":[{"productCode":"1700","name":"麦辣鸡翅-2块","quantity":2}]}],"eatType":2,"orderMode":"0","orderActionList":[{"code":"another_one","name":"再来一单"},{"code":"invoice","name":"开发票","url":"/invoice/pages/invoiceOrderList"}]}]}}
+
+====
+该记录由 Stream 抓取，仅用于分析和学习，可 AppStore 搜索『抓包』下载，面向开发者永久免费使用。
