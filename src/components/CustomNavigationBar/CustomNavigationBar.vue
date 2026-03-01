@@ -78,8 +78,6 @@ const navigateBack = () => {
   right: 0;
   z-index: 999; /* 确保在最上层 */
   background-color: #ffffff; /* 背景色：白色 */
-  /* 确保整个容器不会被安全区覆盖 */
-  padding-top: var(--status-bar-height);
 
   /* 底部分隔线，1rpx 细线 */
   border-bottom: 1rpx solid #e0e0e0;
@@ -126,10 +124,7 @@ const navigateBack = () => {
 
 // 占位元素，防止内容被固定导航栏遮挡
 .navbar-placeholder {
-  // 此元素高度与固定导航栏高度一致
   /* height 属性由 template 中的内联 style 动态设置 */
-
-  /* 新增：底部分隔线与下方内容的间隔，已加大到 20rpx */
-  margin-bottom: 50rpx;
+  background-color: transparent;
 }
 </style>

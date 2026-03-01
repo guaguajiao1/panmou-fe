@@ -4,31 +4,8 @@
 
 import type { PetType } from './pet'
 
-/** 鲜食方案类型 */
-export type FreshFoodPlanType = 'full_meals' | 'mixer' | 'topper' | 'sampler'
-
 /** 配送频率单位 */
 export type FrequencyUnit = 'week' | 'month'
-
-/** 鲜食方案 */
-export interface FreshFoodPlan {
-  /** 方案ID */
-  id: string
-  /** 方案类型 */
-  type: FreshFoodPlanType
-  /** 方案名称 */
-  name: string
-  /** 描述 */
-  description: string
-  /** 图片URL */
-  image: string
-  /** 每日份量描述 */
-  portionDescription: string
-  /** 是否为试吃盒 */
-  isSampler: boolean
-  /** 是否推荐 */
-  recommended?: boolean
-}
 
 /** 配送频率选项 */
 export interface DeliveryFrequency {
@@ -66,53 +43,6 @@ export interface Recipe {
   selected?: boolean
   /** 是否推荐 */
   recommended?: boolean
-}
-
-/** 鲜食推荐结果 */
-export interface FreshFoodRecommendation {
-  /** 宠物ID */
-  petId: string
-  /** 宠物名称 */
-  petName: string
-  /** 宠物类型 */
-  petType: PetType
-  /** 宠物描述摘要 */
-  petSummary: string
-  /** 可选方案列表 */
-  plans: FreshFoodPlan[]
-  /** 配送频率选项 */
-  frequencies: DeliveryFrequency[]
-  /** 可选食谱 */
-  recipes: Recipe[]
-  /** 首单折扣百分比 */
-  firstOrderDiscount: number
-}
-
-/** 添加购物车/结算请求 */
-export interface FreshFoodOrderRequest {
-  /** 宠物ID */
-  petId: string
-  /** 选择的方案ID */
-  planId: string
-  /** 选择的配送频率ID */
-  frequencyId: string
-  /** 选择的食谱ID列表 */
-  recipeIds: string[]
-}
-
-/** 添加购物车响应 */
-export interface AddToCartResponse {
-  success: boolean
-  cartItemId?: string
-  message?: string
-}
-
-/** 立即结算响应 */
-export interface CheckoutResponse {
-  success: boolean
-  orderId?: string
-  checkoutUrl?: string
-  message?: string
 }
 
 /** 鲜食占比选项 */

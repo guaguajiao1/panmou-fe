@@ -1,5 +1,5 @@
 import type { AddressItem } from '@/types/address'
-import { type Item, type OrderPreview, type Subscription } from './../types/checkout.d'
+import { type Item, type OrderPreview } from './../types/checkout.d'
 import type { Cart, CartItem } from '@/types/cart'
 import type { OrderDetail, OrderSkuItem, DiscountDetail } from '@/types/order'
 import type { OrderShipment, ShipmentTrace } from '@/types/logistics'
@@ -26,99 +26,123 @@ const pets: Map<string, PetProfile> = new Map()
 // Helpers
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
 
+/**
+ * computePreview: Recalculate all prices for an OrderPreview.
+ *
+ * Pricing logic (per item):
+ *   originalPrice   = sku.originalPrice (base / list price, provided in raw data)
+ *   totalItemPrice   = originalPrice * quantity
+ *   totalItemDiscount = sum of |discountDetail.amount| * quantity   (+ subscription if applicable)
+ *   finalPrice       = originalPrice - perItemDiscount
+ *   grandTotal       = subtotal - totalDiscount
+ *
+ * Order-level discountDetails = aggregate item discounts by label.
+ */
 const computePreview = (orderPreview: OrderPreview) => {
   let numSubtotal = 0
-  let numGrandTotal = 0
   let numTotalDiscount = 0
   let numFreeShippingEligible = 0
   let numSubDiscount = 0
-  let maxSubRate = 0
+  let maxSubRate = ''
+  let maxSubRateNum = 0
   let hasSubscription = false
   orderPreview.totalItemQuantity = 0
-  orderPreview.discountDetails = []
 
-  orderPreview.items.forEach((it: Item) => {
+  orderPreview.items.forEach((it: any) => {
     const sku = it.sku
-    const basePrice = sku.realPrice || 0
+    // base price: use the numeric "rawPrice" we store internally, or parse originalPrice
+    const basePrice: number = sku._rawPrice ?? (parseFloat(sku.originalPrice) || 0)
 
-    // 保留现有促销折扣（如限时立减），并清除旧订阅折扣
+    // Keep existing promo discounts, remove old subscription discount
     it.discountDetails = (it.discountDetails || []).filter(
       (d: any) => d.promotionId !== 'MOCK-SUBSCRIPTION',
     )
 
-    it.totalPrice = (basePrice * it.quantity).toFixed(2)
-    const skuSubDiscount = (sku.subscriptionDiscountRate * basePrice) / 100
-    sku.subscriptionDiscount = skuSubDiscount.toFixed(2)
-
-    // 计算现有促销折扣总额
-    let existingDiscountSum = 0
+    // Per-unit promo discount (sum of all existing discount amounts, which are negative)
+    let promoDiscountPerUnit = 0
     it.discountDetails.forEach((d: any) => {
       const amt = parseFloat(d.amount)
-      if (!isNaN(amt) && amt < 0) existingDiscountSum += Math.abs(amt)
+      if (!isNaN(amt) && amt < 0) promoDiscountPerUnit += Math.abs(amt)
     })
 
+    // Subscription discount per unit
+    const subRateNum = parseFloat(sku.subscriptionDiscountRate) || 0
+    const skuSubDiscountPerUnit = (subRateNum * basePrice) / 100
+    sku.subscriptionDiscount = skuSubDiscountPerUnit.toFixed(2)
+
     if (it.purchaseType === 1 && sku.supportsSubscription) {
-      const itemSubDiscount = skuSubDiscount * it.quantity
+      const itemSubTotal = skuSubDiscountPerUnit * it.quantity
       it.discountDetails.push({
         label: '订阅折扣',
         isRecurring: true,
         promotionId: 'MOCK-SUBSCRIPTION',
         promotionCode: '',
-        amount: (-itemSubDiscount).toFixed(2),
-        displayLevel: 'ITEM',
+        amount: (-skuSubDiscountPerUnit).toFixed(2),
+        displayLevel: 'ITEM' as const,
         discountTarget: 'PRODUCT',
       })
-      // totalDiscount = 所有折扣之和（促销 + 订阅），自洽
-      it.totalDiscount = (existingDiscountSum + itemSubDiscount).toFixed(2)
-      numTotalDiscount += existingDiscountSum + itemSubDiscount
       hasSubscription = true
-    } else {
-      it.totalDiscount = existingDiscountSum > 0 ? existingDiscountSum.toFixed(2) : '0.00'
-      numTotalDiscount += existingDiscountSum
     }
 
-    // 计算 finalPrice (basePrice - 每件折扣总额)
-    const perItemDiscount =
-      existingDiscountSum / it.quantity +
-      (it.purchaseType === 1 && sku.supportsSubscription ? skuSubDiscount : 0)
-    sku.finalPrice = (basePrice - perItemDiscount).toFixed(2)
+    // Total per-unit discount
+    const allDiscountPerUnit =
+      promoDiscountPerUnit +
+      (it.purchaseType === 1 && sku.supportsSubscription ? skuSubDiscountPerUnit : 0)
+
+    // item-level computed fields
+    it.originalPrice = basePrice.toFixed(2)
+    it.finalPrice = (basePrice - allDiscountPerUnit).toFixed(2)
+    it.totalItemPrice = (basePrice * it.quantity).toFixed(2)
+    it.totalItemDiscount = (allDiscountPerUnit * it.quantity).toFixed(2)
+
+    // sku display fields
     sku.originalPrice = basePrice.toFixed(2)
+    sku.finalPrice = it.finalPrice
 
     numSubtotal += basePrice * it.quantity
+    numTotalDiscount += allDiscountPerUnit * it.quantity
     orderPreview.totalItemQuantity += it.quantity
     numFreeShippingEligible = numSubtotal
-    if (it.discountDetails.length > 0) {
-      orderPreview.discountDetails.push(...it.discountDetails)
+
+    // subscription stats
+    if (sku.supportsSubscription) {
+      if (subRateNum > maxSubRateNum) {
+        maxSubRateNum = subRateNum
+        maxSubRate = sku.subscriptionDiscountRate
+      }
+      if (it.purchaseType === 1) {
+        numSubDiscount += skuSubDiscountPerUnit * it.quantity
+      } else {
+        // potential subscription discount
+        numSubDiscount += skuSubDiscountPerUnit * it.quantity
+      }
     }
   })
 
-  numGrandTotal = numSubtotal - numTotalDiscount
+  const numGrandTotal = numSubtotal - numTotalDiscount
   orderPreview.subtotal = numSubtotal.toFixed(2)
   orderPreview.grandTotal = numGrandTotal.toFixed(2)
+  orderPreview.totalDiscount = numTotalDiscount.toFixed(2)
   orderPreview.freeShippingEligibleAmount = numFreeShippingEligible.toFixed(2)
 
-  if (hasSubscription) {
-    orderPreview.items.forEach((it: Item) => {
-      if (it.sku.supportsSubscription && it.purchaseType === 1) {
-        numSubDiscount += parseFloat(it.totalDiscount as string) || 0
-        if (it.sku.subscriptionDiscountRate > maxSubRate) {
-          maxSubRate = it.sku.subscriptionDiscountRate
-        }
+  // Aggregate order-level discount details by label
+  const labelMap = new Map<string, any>()
+  orderPreview.items.forEach((it: any) => {
+    ;(it.discountDetails || []).forEach((d: any) => {
+      const perUnitAmt = parseFloat(d.amount) || 0 // negative
+      const lineAmt = perUnitAmt * it.quantity
+      if (labelMap.has(d.label)) {
+        const existing = labelMap.get(d.label)
+        existing.amount = (parseFloat(existing.amount) + lineAmt).toFixed(2)
+      } else {
+        labelMap.set(d.label, { ...d, amount: lineAmt.toFixed(2) })
       }
     })
-  } else {
-    orderPreview.items.forEach((it: Item) => {
-      if (it.sku.supportsSubscription) {
-        const potentialDiscount = parseFloat(it.sku.subscriptionDiscount as string) * it.quantity
-        numSubDiscount += potentialDiscount
-        if (it.sku.subscriptionDiscountRate > maxSubRate) {
-          maxSubRate = it.sku.subscriptionDiscountRate
-        }
-      }
-    })
-  }
+  })
+  orderPreview.discountDetails = Array.from(labelMap.values())
+
   orderPreview.subscriptionDiscount.subscriptionDiscount = numSubDiscount.toFixed(2)
-  orderPreview.subscriptionDiscount.subscriptionDiscountRate = maxSubRate
+  orderPreview.subscriptionDiscount.subscriptionDiscountRate = maxSubRate || '0'
 
   if (!orderPreview.shippingAddress) {
     const defaultShippingAddress = addresses.find((a: AddressItem) => a.isDefault === 1)
@@ -128,159 +152,342 @@ const computePreview = (orderPreview: OrderPreview) => {
   return orderPreview
 }
 
+/**
+ * computeCart: Recalculate all prices for a Cart.
+ * Only SELECTED items contribute to cart-level totals (subtotal, grandTotal, totalDiscount).
+ * All items still get their per-item fields computed.
+ */
 const computeCart = (cart: Cart) => {
   let numSubtotal = 0
-  let numGrandTotal = 0
   let numTotalDiscount = 0
   cart.totalItemQuantity = 0
 
   cart.items.forEach((it: any) => {
     const sku = it.sku
-    const basePrice = parseFloat(sku.originalPrice) || parseFloat(sku.realPrice) || 0
+    const basePrice: number = sku._rawPrice ?? (parseFloat(sku.originalPrice) || 0)
 
-    // 保留现有促销折扣，清除旧订阅折扣
+    // Keep existing promo discounts, remove old subscription discount
     it.discountDetails = (it.discountDetails || []).filter(
       (d: any) => d.promotionId !== 'MOCK-SUBSCRIPTION',
     )
 
-    // 计算现有促销折扣总额 (每件)
-    let existingDiscountPerItem = 0
+    // Per-unit promo discount
+    let promoDiscountPerUnit = 0
     it.discountDetails.forEach((d: any) => {
       const amt = parseFloat(d.amount)
-      if (!isNaN(amt) && amt < 0) existingDiscountPerItem += Math.abs(amt)
+      if (!isNaN(amt) && amt < 0) promoDiscountPerUnit += Math.abs(amt)
     })
 
-    // 在已有促销折扣后的单价
-    let currentPrice = basePrice - existingDiscountPerItem
-
-    // 订阅折扣
-    let subscriptionDiscountAmount = 0
+    // Subscription discount per unit
+    const subRateNum = parseFloat(sku.subscriptionDiscountRate) || 0
+    let subscriptionDiscountPerUnit = 0
     if (it.purchaseType === 1 && sku.supportsSubscription) {
-      subscriptionDiscountAmount = (sku.subscriptionDiscountRate * currentPrice) / 100
-      currentPrice -= subscriptionDiscountAmount
+      subscriptionDiscountPerUnit = (subRateNum * basePrice) / 100
 
       it.discountDetails.push({
         label: `订阅省${sku.subscriptionDiscountRate}%`,
         isRecurring: true,
         promotionId: 'MOCK-SUBSCRIPTION',
         promotionCode: '',
-        amount: (-subscriptionDiscountAmount).toFixed(2),
-        displayLevel: 'ITEM',
+        amount: (-subscriptionDiscountPerUnit).toFixed(2),
+        displayLevel: 'ITEM' as const,
         discountTarget: 'PRODUCT',
       })
     }
+    sku.subscriptionDiscount = ((subRateNum * basePrice) / 100).toFixed(2)
 
-    // totalDiscount: 所有折扣之和 (促销 + 订阅), 自洽
-    const allDiscountPerItem = existingDiscountPerItem + subscriptionDiscountAmount
-    it.totalDiscount = allDiscountPerItem > 0 ? allDiscountPerItem.toFixed(2) : '0.00'
+    // Total per-unit discount
+    const allDiscountPerUnit = promoDiscountPerUnit + subscriptionDiscountPerUnit
 
-    // 更新 sku 展示字段
-    it.nowPrice = currentPrice.toFixed(2)
-    sku.finalPrice = currentPrice.toFixed(2)
+    // item-level computed fields (matching CartItem type)
+    it.originalPrice = basePrice.toFixed(2)
+    it.finalPrice = (basePrice - allDiscountPerUnit).toFixed(2)
+    it.totalItemPrice = (basePrice * it.quantity).toFixed(2)
+    it.totalItemDiscount = (allDiscountPerUnit * it.quantity).toFixed(2)
+    it.addedPrice = basePrice.toFixed(2)
+
+    // sku display fields
     sku.originalPrice = basePrice.toFixed(2)
-    sku.subscriptionDiscount = subscriptionDiscountAmount.toFixed(2)
+    sku.finalPrice = it.finalPrice
 
-    const lineTotal = currentPrice * it.quantity
-    numTotalDiscount += allDiscountPerItem * it.quantity
-    numSubtotal += basePrice * it.quantity
-    cart.totalItemQuantity += it.quantity
+    // Only selected items contribute to cart-level totals
+    if (it.selected) {
+      numTotalDiscount += allDiscountPerUnit * it.quantity
+      numSubtotal += basePrice * it.quantity
+      cart.totalItemQuantity += it.quantity
+    }
   })
 
-  numGrandTotal = numSubtotal - numTotalDiscount
+  const numGrandTotal = numSubtotal - numTotalDiscount
   cart.subtotal = numSubtotal.toFixed(2)
   cart.grandTotal = numGrandTotal.toFixed(2)
+  cart.totalDiscount = numTotalDiscount.toFixed(2)
   cart.freeShippingEligibleAmount = numGrandTotal.toFixed(2)
+
+  // Aggregate order-level discount details by label (only selected items)
+  const labelMap = new Map<string, any>()
+  cart.items.forEach((it: any) => {
+    if (!it.selected) return
+    ;(it.discountDetails || []).forEach((d: any) => {
+      const perUnitAmt = parseFloat(d.amount) || 0
+      const lineAmt = perUnitAmt * it.quantity
+      if (labelMap.has(d.label)) {
+        const existing = labelMap.get(d.label)
+        existing.amount = (parseFloat(existing.amount) + lineAmt).toFixed(2)
+      } else {
+        labelMap.set(d.label, { ...d, amount: lineAmt.toFixed(2) })
+      }
+    })
+  })
+  cart.discountDetails = Array.from(labelMap.values())
 
   return cart
 }
 
+/**
+ * Create sample mock data with rich discount details.
+ *
+ * ===== Item 1: 高级狗粮 (qty 2) =====
+ * originalPrice (base) = 199.90
+ * discounts per unit:
+ *   官方直降  -16.60   (P-DIRECT)
+ *   促销      -20.00   (P-PROMO)
+ *   Plus会员  -2.00    (P-PLUS)
+ *   首购优惠  -3.00    (P-FIRST)
+ *   total discount per unit = 41.60
+ * finalPrice = 199.90 - 41.60 = 158.30
+ * totalItemPrice = 199.90 * 2 = 399.80
+ * totalItemDiscount = 41.60 * 2 = 83.20
+ *
+ * ===== Item 2: 猫抓板 (qty 1) =====
+ * originalPrice = 89.90
+ * discounts per unit:
+ *   官方直降  -3.00    (P-DIRECT)
+ *   促销      -2.00    (P-PROMO)
+ *   total discount per unit = 5.00
+ * finalPrice = 89.90 - 5.00 = 84.90
+ * totalItemPrice = 89.90 * 1 = 89.90
+ * totalItemDiscount = 5.00 * 1 = 5.00
+ *
+ * ===== Item 3: 鲜食鸡胸肉 (qty 1, fresh food: sku.type=8) =====
+ * originalPrice = 29.90
+ * discounts per unit:
+ *   首购优惠  -3.00    (P-FIRST)
+ *   total discount per unit = 3.00
+ * finalPrice = 29.90 - 3.00 = 26.90
+ * totalItemPrice = 29.90
+ * totalItemDiscount = 3.00
+ *
+ * ===== Order Level =====
+ * subtotal = 399.80 + 89.90 + 29.90 = 519.60
+ * totalDiscount = 83.20 + 5.00 + 3.00 = 91.20
+ * grandTotal = 519.60 - 91.20 = 428.40
+ * Aggregated order discounts:
+ *   官方直降  -(16.60*2 + 3.00*1) = -36.20
+ *   促销      -(20.00*2 + 2.00*1) = -42.00
+ *   Plus会员  -(2.00*2) = -4.00
+ *   首购优惠  -(3.00*2 + 3.00*1) = -9.00
+ *   sum = 36.20 + 42.00 + 4.00 + 9.00 = 91.20 ✓
+ */
 ;(function createSamplePreviews() {
-  const items1: Item[] = [
-    {
-      id: '101',
-      itemId: 'ci-101',
-      quantity: 2,
-      totalPrice: '0.00',
-      totalDiscount: '0.00',
-      availableQuantity: 99,
-      sku: {
-        productId: '1101',
-        skuId: '101',
-        name: '高级狗咀嚼棒',
-        specs: '大号',
-        image: ['https://placehold.co/160x160?text=Chew'],
-        strikeThroughPrice: '80.00',
-        advertisedPrice: '65.00',
-        realPrice: 60,
-        originalPrice: '80.00',
-        finalPrice: '60.00',
-        supportsSubscription: true,
-        subscriptionDiscountRate: 5,
-        subscriptionDiscount: '0.00',
-        maxQuantity: 99,
-      },
-      discountDetails: [
+  // --- SKU definitions (shared _rawPrice for compute functions) ---
+  const skuDogFood: any = {
+    productId: '1101',
+    skuId: '101',
+    name: '高级狗粮',
+    desc: '天然无谷物配方，适合所有犬种',
+    specs: '大袋 10kg',
+    image: ['https://placehold.co/160x160?text=DogFood'],
+    strikeThroughPrice: '239.00',
+    advertisedPrice: '199.90',
+    originalPrice: '199.90',
+    finalPrice: '0.00', // will be computed
+    type: 1,
+    supportsSubscription: true,
+    subscriptionDiscountRate: '5',
+    subscriptionDiscount: '0.00',
+    maxQuantity: 99,
+    _rawPrice: 199.9,
+  }
+
+  const skuCatScratcher: any = {
+    productId: '1201',
+    skuId: '201',
+    name: '猫抓板',
+    desc: '耐磨瓦楞纸材质',
+    specs: '中号',
+    image: ['https://placehold.co/160x160?text=Scratch'],
+    strikeThroughPrice: '99.00',
+    advertisedPrice: '89.90',
+    originalPrice: '89.90',
+    finalPrice: '0.00',
+    type: 1,
+    supportsSubscription: true,
+    subscriptionDiscountRate: '5',
+    subscriptionDiscount: '0.00',
+    maxQuantity: 50,
+    _rawPrice: 89.9,
+  }
+
+  const skuFreshChicken: any = {
+    productId: '1301',
+    skuId: '301',
+    name: '鲜食鸡胸肉',
+    desc: '新鲜冷链配送',
+    specs: '200g/份',
+    image: ['https://placehold.co/160x160?text=FreshMeal'],
+    strikeThroughPrice: '35.00',
+    advertisedPrice: '29.90',
+    originalPrice: '29.90',
+    finalPrice: '0.00',
+    type: 8, // 鲜食类型
+    supportsSubscription: false,
+    subscriptionDiscountRate: '0',
+    subscriptionDiscount: '0.00',
+    maxQuantity: 1,
+    customization: {
+      items: [
         {
-          label: '限时立减20元',
-          isRecurring: false,
-          promotionId: 'P001',
-          promotionCode: '',
-          amount: '-20.00',
-          displayLevel: 'ITEM',
+          code: 'PROTEIN',
+          name: '蛋白质来源',
+          image: '',
+          mode: 1,
+          displayMode: 1,
+          values: [
+            { code: 'CHICKEN', name: '鸡胸肉', image: '', checked: 1 },
+            { code: 'BEEF', name: '牛肉', image: '', checked: 0 },
+          ],
         },
       ],
-      purchaseType: 0,
+    },
+    _rawPrice: 29.9,
+  }
+
+  // --- Checkout items ---
+  const items1: any[] = [
+    {
+      itemId: 'ci-101',
+      quantity: 2,
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
+      availableQuantity: 99,
+      sku: { ...skuDogFood },
+      discountDetails: [
+        {
+          label: '官方直降',
+          isRecurring: false,
+          promotionId: 'P-DIRECT',
+          promotionCode: '',
+          amount: '-16.60',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '促销',
+          isRecurring: false,
+          promotionId: 'P-PROMO',
+          promotionCode: '',
+          amount: '-20.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: 'Plus会员',
+          isRecurring: false,
+          promotionId: 'P-PLUS',
+          promotionCode: '',
+          amount: '-2.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '首购优惠',
+          isRecurring: false,
+          promotionId: 'P-FIRST',
+          promotionCode: '',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+      ],
+      purchaseType: 0 as const,
       Autoship: {
-        subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
+        subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
         subscriptionAdjustments: [],
-        source: 'CHECKOUT',
+        source: 'CHECKOUT' as const,
       },
     },
     {
-      id: '201',
       itemId: 'ci-201',
       quantity: 1,
-      totalPrice: '0.00',
-      totalDiscount: '0.00',
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
       availableQuantity: 50,
-      sku: {
-        productId: '1201',
-        skuId: '201',
-        name: '猫抓板',
-        specs: '中号',
-        image: ['https://placehold.co/160x160?text=Scratch'],
-        strikeThroughPrice: '40.00',
-        advertisedPrice: '32.00',
-        realPrice: 30,
-        originalPrice: '40.00',
-        finalPrice: '30.00',
-        supportsSubscription: true,
-        subscriptionDiscountRate: 5,
-        subscriptionDiscount: '0.00',
-        maxQuantity: 50,
-      },
+      sku: { ...skuCatScratcher },
       discountDetails: [
         {
-          label: '限时立减10元',
+          label: '官方直降',
           isRecurring: false,
-          promotionId: 'P002',
+          promotionId: 'P-DIRECT',
           promotionCode: '',
-          amount: '-10.00',
-          displayLevel: 'ITEM',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '促销',
+          isRecurring: false,
+          promotionId: 'P-PROMO',
+          promotionCode: '',
+          amount: '-2.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
         },
       ],
-      purchaseType: 0,
+      purchaseType: 0 as const,
       Autoship: {
-        subscriptionFrequency: { frequency: 4, unit: 'WEEK' },
+        subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
         subscriptionAdjustments: [],
-        source: 'CHECKOUT',
+        source: 'CHECKOUT' as const,
+      },
+    },
+    {
+      itemId: 'ci-301',
+      quantity: 1,
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
+      availableQuantity: 10,
+      sku: { ...skuFreshChicken },
+      discountDetails: [
+        {
+          label: '首购优惠',
+          isRecurring: false,
+          promotionId: 'P-FIRST',
+          promotionCode: '',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+      ],
+      purchaseType: 0 as const,
+      Autoship: {
+        subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
+        subscriptionAdjustments: [],
+        source: 'CHECKOUT' as const,
       },
     },
   ]
-  const orderPreview: OrderPreview = {
+
+  const orderPreview: any = {
     id: '1',
     subscriptionDiscount: {
-      subscriptionDiscountRate: 0,
+      subscriptionDiscountRate: '0',
       subscriptionDiscount: '0.00',
       firstSubscription: false,
     },
@@ -288,104 +495,147 @@ const computeCart = (cart: Cart) => {
     subtotal: '0.00',
     grandTotal: '0.00',
     shippingFee: '0.00',
-    freeShippingThreshold: '30.00',
+    freeShippingThreshold: '49.00',
     freeShippingEligibleAmount: '0.00',
+    totalDiscount: '0.00',
     discountDetails: [],
     recommendedAutoships: [],
     items: items1,
   }
 
-  const cartItems: CartItem[] = [
+  // --- Cart items (mirrors checkout items, adds cart-specific fields) ---
+  const cartItems: any[] = [
     {
       itemId: 'ci-101',
-      sku: {
-        skuId: '101',
-        productId: '1101',
-        name: '高级狗咀嚼棒',
-        image: ['https://placehold.co/160x160?text=Chew'],
-        strikeThroughPrice: '80.00',
-        advertisedPrice: '65.00',
-        realPrice: '60.00',
-        originalPrice: '80.00',
-        finalPrice: '60.00',
-        supportsSubscription: true,
-        subscriptionDiscountRate: 5,
-        subscriptionDiscount: '0.00',
-        maxQuantity: 99,
-        specs: '大号',
-      },
+      quantity: 2,
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
+      availableQuantity: 99,
+      addedPrice: '199.90',
+      sku: { ...skuDogFood },
       discountDetails: [
         {
-          label: '限时立减20元',
+          label: '官方直降',
           isRecurring: false,
-          promotionId: 'P001',
+          promotionId: 'P-DIRECT',
+          promotionCode: '',
+          amount: '-16.60',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '促销',
+          isRecurring: false,
+          promotionId: 'P-PROMO',
           promotionCode: '',
           amount: '-20.00',
-          displayLevel: 'ITEM',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: 'Plus会员',
+          isRecurring: false,
+          promotionId: 'P-PLUS',
+          promotionCode: '',
+          amount: '-2.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '首购优惠',
+          isRecurring: false,
+          promotionId: 'P-FIRST',
+          promotionCode: '',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
         },
       ],
-      quantity: 2,
-      price: 60,
-      nowPrice: 60,
-      stock: 99,
       selected: true,
       isEffective: true,
-      purchaseType: 0,
+      purchaseType: 0 as const,
     },
     {
       itemId: 'ci-201',
-      sku: {
-        skuId: '201',
-        productId: '1201',
-        name: '猫抓板',
-        image: ['https://placehold.co/160x160?text=Scratch'],
-        strikeThroughPrice: '40.00',
-        advertisedPrice: '32.00',
-        realPrice: '30.00',
-        originalPrice: '40.00',
-        finalPrice: '30.00',
-        supportsSubscription: true,
-        subscriptionDiscountRate: 5,
-        subscriptionDiscount: '0.00',
-        maxQuantity: 50,
-        specs: '中号',
-      },
+      quantity: 1,
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
+      availableQuantity: 50,
+      addedPrice: '89.90',
+      sku: { ...skuCatScratcher },
       discountDetails: [
         {
-          label: '限时立减10元',
+          label: '官方直降',
           isRecurring: false,
-          promotionId: 'P002',
+          promotionId: 'P-DIRECT',
           promotionCode: '',
-          amount: '-10.00',
-          displayLevel: 'ITEM',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+        {
+          label: '促销',
+          isRecurring: false,
+          promotionId: 'P-PROMO',
+          promotionCode: '',
+          amount: '-2.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
         },
       ],
-      quantity: 1,
-      price: 30,
-      nowPrice: 30,
-      stock: 50,
       selected: true,
       isEffective: true,
-      purchaseType: 0,
+      purchaseType: 0 as const,
+    },
+    {
+      itemId: 'ci-301',
+      quantity: 1,
+      originalPrice: '0.00',
+      finalPrice: '0.00',
+      totalItemPrice: '0.00',
+      totalItemDiscount: '0.00',
+      availableQuantity: 10,
+      addedPrice: '29.90',
+      sku: { ...skuFreshChicken },
+      discountDetails: [
+        {
+          label: '首购优惠',
+          isRecurring: false,
+          promotionId: 'P-FIRST',
+          promotionCode: '',
+          amount: '-3.00',
+          displayLevel: 'ITEM' as const,
+          discountTarget: 'PRODUCT',
+        },
+      ],
+      selected: true,
+      isEffective: true,
+      purchaseType: 0 as const,
     },
   ]
 
-  const cart: Cart = {
+  const cart: any = {
     uid: 'USER-001',
     cartId: 'CART-001',
     totalItemQuantity: 0,
     subtotal: '0.00',
     grandTotal: '0.00',
     shippingFee: '0.00',
-    freeShippingThreshold: '30.00',
+    freeShippingThreshold: '49.00',
     freeShippingEligibleAmount: '0.00',
+    totalDiscount: '0.00',
     discountDetails: [],
     items: cartItems,
   }
 
   previews['1'] = computePreview(orderPreview)
   globalCart = computeCart(cart)
-  console.log('server init', previews['1'])
+  console.log('server init cart', globalCart)
+  console.log('server init preview', previews['1'])
 })()
 
 // 初始化Mock订单数据
@@ -1367,17 +1617,18 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
   ) {
     // 从购物车选中商品生成 OrderPreview
     const selectedItems = (globalCart.items || []).filter((ci: CartItem) => ci.selected)
-    const previewItems: Item[] = selectedItems.map((ci: CartItem) => {
+    const previewItems: any[] = selectedItems.map((ci: any) => {
       const sku = clone(ci.sku)
       return {
-        id: ci.itemId,
         itemId: ci.itemId,
         quantity: ci.quantity,
-        totalPrice: 0,
-        totalDiscount: 0,
-        availableQuantity: ci.stock,
+        originalPrice: '0.00',
+        finalPrice: '0.00',
+        totalItemPrice: '0.00',
+        totalItemDiscount: '0.00',
+        availableQuantity: ci.availableQuantity || 99,
         sku: sku,
-        discountDetails: [],
+        discountDetails: clone(ci.discountDetails || []),
         purchaseType: ci.purchaseType,
         Autoship: {
           subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
@@ -1387,10 +1638,10 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
       }
     })
     const newPreviewId = 'P-' + Date.now()
-    const newPreview: OrderPreview = {
+    const newPreview: any = {
       id: newPreviewId,
       subscriptionDiscount: {
-        subscriptionDiscountRate: 0,
+        subscriptionDiscountRate: '0',
         subscriptionDiscount: '0.00',
         firstSubscription: false,
       },
@@ -1398,8 +1649,9 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
       subtotal: '0.00',
       grandTotal: '0.00',
       shippingFee: '0.00',
-      freeShippingThreshold: '30.00',
+      freeShippingThreshold: '49.00',
       freeShippingEligibleAmount: '0.00',
+      totalDiscount: '0.00',
       discountDetails: [],
       recommendedAutoships: [
         {

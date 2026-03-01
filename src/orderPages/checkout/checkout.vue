@@ -74,7 +74,7 @@
                 <view
                   class="item-image-wrapper"
                   v-for="item in subscriptionImageItems"
-                  :key="item.id"
+                  :key="item.itemId"
                 >
                   <image :src="item.sku.image?.[0]" class="item-image-sm"></image>
                 </view>
@@ -101,16 +101,47 @@
 
       <view class="section-card product-list-section">
         <view class="section-title">您的商品</view>
-        <CartItemCard
-          v-for="item in orderPreview.items"
-          :key="item.id"
-          :item="item"
-          scene="checkout"
-          @setQuantity="handleSetQuantity"
-          @delete="deleteItem"
-          @toggle-purchase-type="handleTogglePurchaseType"
-          @go-to-product-detail="goToProductDetail"
-        />
+
+        <view class="checkout-item-row" v-for="item in orderPreview.items" :key="item.itemId">
+          <ProductCard
+            class="checkout-product-card"
+            v-bind="toProductCardProps(item)"
+            @click="goToProductDetail(item)"
+          >
+            <!-- 鲜食 sku.type===8: 结算页无任何按钮 -->
+            <!-- 普通商品: 订阅切换 + 步进器 -->
+            <template v-if="!isFreshFood(item)">
+              <view class="subscription-row" v-if="item.sku?.supportsSubscription">
+                <view
+                  class="subscription-toggle"
+                  :class="{ active: item.purchaseType === 1 }"
+                  @click.stop="handleTogglePurchaseType(item)"
+                >
+                  <view class="radio-circle"></view>
+                  <text class="toggle-text">订阅</text>
+                  <text
+                    v-if="item.sku?.subscriptionDiscount && item.sku.subscriptionDiscount !== '0'"
+                    class="subscription-discount-text"
+                  >
+                    省 ¥{{ item.sku.subscriptionDiscount }}
+                  </text>
+                </view>
+              </view>
+
+              <view class="stepper-row">
+                <QuantityInput
+                  :modelValue="item.quantity"
+                  :min="1"
+                  :max="item.sku?.maxQuantity || 99"
+                  @change="(e: InputNumberBoxEvent) => onQuantityChange(item, e)"
+                  :inputWidth="100"
+                  :inputHeight="50"
+                  :size="28"
+                />
+              </view>
+            </template>
+          </ProductCard>
+        </view>
       </view>
 
       <view class="section-card payment-section">
@@ -148,7 +179,7 @@
 
       <view class="disclaimer-section">
         <text
-          >点击“立即支付”，即表示您同意我们的服务条款和隐私政策。如果您的订单包含订阅商品，您将授权我们定期向您的账户收费，直到您取消订阅为止。</text
+          >点击"立即支付"，即表示您同意我们的服务条款和隐私政策。如果您的订单包含订阅商品，您将授权我们定期向您的账户收费，直到您取消订阅为止。</text
         >
       </view>
     </scroll-view>
@@ -166,12 +197,15 @@ import { ref, computed, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import AddressForm from '@/components/AddressForm/AddressForm.vue'
 import SubscriptionFrequencyPicker from '@/components/SubscriptionFrequencyPicker/SubscriptionFrequencyPicker.vue'
+import ProductCard from '@/components/ProductCard/ProductCard.vue'
 import { useAddressStore } from '@/stores/modules/address'
 import { checkoutApi } from '@/api/checkout'
 import { addressApi } from '@/api/address'
 import type { OrderPreview, SubscriptionFrequency, UpdatePreviewParams } from '@/types/checkout'
-import type { AddressParams, AddressItem } from '@/types/address'
+import type { AddressItem } from '@/types/address'
 import type { Item } from '@/types/checkout'
+import type { ProductCardProps } from '@/types/product'
+import type { InputNumberBoxEvent } from '@/components/QuantityInput/QuantityInput.d.ts'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 onPullDownRefresh(() => {
@@ -192,13 +226,14 @@ const orderPreview = ref<OrderPreview>({
   shippingFee: '0.00',
   freeShippingThreshold: '0.00',
   freeShippingEligibleAmount: '0.00',
+  totalDiscount: '0.00',
   discountDetails: [],
   shippingAddress: undefined,
   recommendedAutoships: [],
   items: [],
   id: '',
   subscriptionDiscount: {
-    subscriptionDiscountRate: 0,
+    subscriptionDiscountRate: '0',
     subscriptionDiscount: '0.00',
     firstSubscription: false,
   },
@@ -206,6 +241,37 @@ const orderPreview = ref<OrderPreview>({
 
 const selectedFreqObj = ref<SubscriptionFrequency | null>(null)
 
+// --- 辅助方法 ---
+
+/** 判断鲜食商品 */
+const isFreshFood = (item: Item) => item.sku?.type === 8
+
+/** Item -> ProductCardProps 映射（纯展示，不做价格计算） */
+const toProductCardProps = (item: Item): ProductCardProps => {
+  const s = item.sku
+  const showOriginal =
+    item.originalPrice && item.originalPrice !== item.finalPrice ? item.originalPrice : undefined
+
+  const totalDiscount =
+    item.totalItemDiscount && item.totalItemDiscount !== '0' && item.totalItemDiscount !== '0.00'
+      ? `-\u00A5${item.totalItemDiscount}`
+      : undefined
+
+  return {
+    itemId: item.itemId,
+    image: s?.image?.[0] ?? '',
+    name: s?.name ?? '',
+    specs: s?.specs,
+    finalPrice: item.finalPrice ?? '',
+    originalPrice: showOriginal,
+    quantity: item.quantity || 1,
+    totalPrice: item.totalItemPrice,
+    totalDiscount,
+    discountDetails: item.discountDetails?.length > 0 ? item.discountDetails : undefined,
+  }
+}
+
+// --- 计算属性 ---
 const isSubscribing = computed(() =>
   orderPreview.value.items.some((item: Item) => item.purchaseType === 1),
 )
@@ -223,8 +289,7 @@ const subscriptionImageItems = computed(() => {
 
 const paymentButtonText = computed(() => {
   if (isSubmitting.value) return '处理中...'
-  const total = orderPreview.value.grandTotal ?? 0
-  console.log('Computed paymentButtonText, total=', total)
+  const total = orderPreview.value.grandTotal ?? '0.00'
   return `立即支付 ¥${total}`
 })
 
@@ -235,7 +300,6 @@ watch(
     if (!newAddress) {
       updateAddressOnServer('')
     } else if (newAddress && newAddress.id !== orderPreview.value.shippingAddress?.id) {
-      // orderPreview.value.shippingAddress = newAddress
       updateAddressOnServer(newAddress.id)
       console.log('Address store changed, updating server preview.')
     }
@@ -247,7 +311,6 @@ watch(
 const loadPreview = async () => {
   isLoading.value = true
   try {
-    // **Requirement 4**: Ensure previewId exists. Fallback to entryCart if not from URL.
     if (!previewId.value) {
       const entryRes = await checkoutApi.entryCart()
       if (entryRes && entryRes.code === '0') previewId.value = (entryRes.result as any).previewId
@@ -257,7 +320,6 @@ const loadPreview = async () => {
     const res = await checkoutApi.getPreview(previewId.value)
     if (res && res.code === '0') {
       orderPreview.value = res.result
-      // Set the selected address in the store for consistency
       if (res.result.shippingAddress) {
         addressStore.changeSelectedAddress(res.result.shippingAddress)
       }
@@ -283,20 +345,10 @@ const updateItem = async (item: { itemId: string; quantity: number; purchaseType
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
     if (res && res.code === '0') orderPreview.value = res.result
-    console.log('updateItem orderPreview.value === res.result ?', orderPreview.value === res.result)
   } catch (e) {
     console.warn('updateItem error', e)
   } finally {
     isLoading.value = false
-    console.log('updateItem completed orderPreview=', orderPreview.value)
-  }
-}
-
-const deleteItem = async (item: Item) => {
-  try {
-    // Reuse updateItem with quantity 0 to delete
-  } catch (error) {
-    console.error('删除失败', error)
   }
 }
 
@@ -314,18 +366,9 @@ const updateGlobalSubscription = async (subscribe: boolean) => {
   isLoading.value = true
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
-    console.log('vue orderPreview before update=', orderPreview.value)
-    console.log('updateGlobalSubscription response=', res)
-
     if (res && res.code === '0') orderPreview.value = res.result
-    console.log(
-      'updateGlobalSubscription orderPreview.value === res.result ?',
-      orderPreview.value === res.result,
-    )
-
-    console.log('vue orderPreview after update=', orderPreview.value)
   } catch (e) {
-    console.warn('vue updateGlobalSubscription error', e)
+    console.warn('updateGlobalSubscription error', e)
   } finally {
     isLoading.value = false
   }
@@ -338,7 +381,6 @@ const updateAddressOnServer = async (addressId: string | number) => {
   isLoading.value = true
   try {
     const res = await checkoutApi.updatePreview(previewId.value, params)
-    console.log('updateAddressOnServer response=', res)
     if (res && res.code === '0') orderPreview.value = res.result
   } catch (e) {
     console.warn('updateAddressOnServer error', e)
@@ -370,30 +412,26 @@ const placeOrder = async () => {
   }
 }
 
-const handleSetQuantity = (payload: { item: Item; quantity: number }) => {
-  const { item, quantity } = payload
+/** 数量变更 */
+const onQuantityChange = (item: Item, event: InputNumberBoxEvent) => {
   updateItem({
     itemId: item.itemId,
-    quantity: quantity,
+    quantity: event.value,
     purchaseType: item.purchaseType,
   })
 }
+
 const toggleGlobalSubscription = (subscribe: boolean) => {
   updateGlobalSubscription(subscribe)
 }
 
-const handleTogglePurchaseType = (payload: { item: Item; type: 0 | 1 }) => {
-  togglePurchaseType(payload.item, payload.type)
-}
-
-const togglePurchaseType = (item: Item, type: 0 | 1) => {
-  if (item.purchaseType !== type) {
-    updateItem({
-      itemId: item.itemId,
-      quantity: item.quantity,
-      purchaseType: type,
-    })
-  }
+const handleTogglePurchaseType = (item: Item) => {
+  const newType = item.purchaseType === 1 ? 0 : 1
+  updateItem({
+    itemId: item.itemId,
+    quantity: item.quantity,
+    purchaseType: newType,
+  })
 }
 
 const onFrequencyChange = () => {
@@ -406,7 +444,6 @@ const onAddressFormSave = async (formData: AddressItem) => {
     const res = await addressApi.create(formData)
     if (res && res.code === '0') {
       const created = res.result as AddressItem
-      // Update the address store, which will trigger the watcher to update the server
       addressStore.changeSelectedAddress(created)
       uni.hideLoading()
       uni.showToast({ title: '已使用新地址', icon: 'success' })
@@ -422,7 +459,6 @@ const onAddressFormSave = async (formData: AddressItem) => {
 }
 
 const goToAddressManagement = (id: string) => {
-  console.log('Navigating to address management with id=', id)
   uni.navigateTo({ url: `/accountPages/address_list/address_list?source=checkout&id=${id}` })
 }
 
@@ -436,16 +472,11 @@ onLoad((options) => {
   loadPreview()
 })
 
-// While the watcher is good, onShow is a reliable way to catch changes
-// if the user uses system back buttons.
 onShow(() => {
-  // This ensures that if the selected address in the store is different from
-  // what's displayed, it gets synced.
   if (
     addressStore.selectedAddress &&
     orderPreview.value.shippingAddress?.id !== addressStore.selectedAddress.id
   ) {
-    console.log('Address changed detected onShow, syncing.')
     orderPreview.value.shippingAddress = addressStore.selectedAddress
     updateAddressOnServer(addressStore.selectedAddress.id)
   }
@@ -474,29 +505,6 @@ onShow(() => {
   justify-content: center;
   align-items: center;
   z-index: 999;
-}
-.custom-nav-bar {
-  background-color: $uni-bg-color;
-  text-align: center;
-  padding: $uni-spacing-col-base;
-  padding-top: calc(var(--status-bar-height) + #{$uni-spacing-col-base});
-  border-bottom: 1px solid #eee;
-
-  .close-icon {
-    position: absolute;
-    left: $uni-spacing-row-lg;
-    top: 50%;
-    transform: translateY(-50%);
-    padding-top: var(--status-bar-height);
-    font-size: 48rpx;
-    font-weight: 300;
-    color: $uni-color-primary;
-  }
-
-  .title {
-    font-size: $uni-font-size-lg;
-    font-weight: bold;
-  }
 }
 .scroll-view-container {
   flex: 1;
@@ -661,128 +669,93 @@ onShow(() => {
   }
 }
 
-/* 商品列表区 (与 cart 保持一致) */
+/* 商品列表区 */
 .product-list-section {
   padding-left: 0;
   padding-right: 0;
-  .cart-item {
-    padding: $uni-spacing-col-lg $uni-spacing-row-lg;
-    .item-main {
-      display: flex;
-    }
-    .item-image {
-      width: 160rpx;
-      height: 160rpx;
-      border-radius: $uni-border-radius-base;
-      margin-right: $uni-spacing-row-base;
-      flex-shrink: 0;
-      background-color: #f4f4f4;
-      cursor: pointer;
-    }
-    .item-content-wrapper {
-      flex: 1;
-    }
-    .item-info {
-      padding-right: 40rpx;
-      cursor: pointer;
-      .item-name {
-        display: block;
-        font-size: $uni-font-size-base;
-        font-weight: 600;
-        color: $uni-text-color;
-        margin-bottom: $uni-spacing-col-sm;
-      }
-      .item-specs {
-        display: block;
-        font-size: $uni-font-size-sm;
-        color: $uni-text-color-grey;
-      }
-    }
-    .item-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 50rpx;
-      .quantity-stepper {
-        display: flex;
-        align-items: center;
-        border: 1px solid #ddd;
-        border-radius: 30rpx;
-        button {
-          background-color: transparent;
-          padding: 0;
-          margin: 0 20rpx;
-          font-size: 40rpx;
-          line-height: 50rpx;
-          width: 50rpx;
-          height: 50rpx;
-          color: $uni-text-color;
-          &:after {
-            display: none;
-          }
-          &[disabled] {
-            color: $uni-text-color-disable;
-          }
-        }
-        text {
-          font-size: $uni-font-size-base;
-          font-weight: 500;
-          min-width: 60rpx;
-          text-align: center;
-        }
-      }
-      .price-info {
-        text-align: right;
-        .current-price {
-          font-size: 32rpx;
-          font-weight: bold;
-          color: v-bind(themeColor);
-        }
-        .original-price {
-          font-size: 24rpx;
-          color: #999;
-          text-decoration: line-through;
-          display: block;
-        }
-      }
-    }
-    .purchase-type-selector {
-      margin-top: $uni-spacing-col-lg;
-      .type-option {
-        display: flex;
-        align-items: center;
-        padding: $uni-spacing-col-sm 0;
-        font-size: $uni-font-size-sm;
-        .radio-circle {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          border: 1px solid $uni-border-color;
-          margin-right: $uni-spacing-row-base;
-          position: relative;
-        }
-        .save-highlight {
-          color: $uni-color-error;
-          font-weight: bold;
-          margin-left: $uni-spacing-row-sm;
-        }
-        &.active .radio-circle {
-          border-color: v-bind(themeColor);
-          &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: v-bind(themeColor);
-          }
-        }
+}
+
+/* 结算页商品行 */
+.checkout-item-row {
+  background-color: #fff;
+  margin-bottom: $uni-spacing-col-base;
+}
+
+/* 覆写 ProductCard 样式：全宽无侧边框 */
+.checkout-product-card {
+  :deep(.product-card) {
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+    padding-left: $uni-spacing-row-lg;
+    padding-right: $uni-spacing-row-lg;
+  }
+}
+
+/* 订阅行 */
+.subscription-row {
+  margin-top: $uni-spacing-col-sm;
+  padding-top: $uni-spacing-col-sm;
+  display: flex;
+  align-items: center;
+  min-height: 50rpx;
+}
+
+.subscription-toggle {
+  display: flex;
+  align-items: center;
+  font-size: $uni-font-size-base;
+  color: $uni-text-color;
+  cursor: pointer;
+  padding: 10rpx 0;
+
+  .radio-circle {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 50%;
+    border: 2rpx solid $uni-border-color;
+    margin-right: 12rpx;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  &.active {
+    .radio-circle {
+      border-color: $uni-color-primary;
+      background-color: $uni-color-primary;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 12rpx;
+        height: 12rpx;
+        background-color: #fff;
+        border-radius: 50%;
       }
     }
   }
+
+  .toggle-text {
+    font-weight: 500;
+  }
+
+  .subscription-discount-text {
+    margin-left: 16rpx;
+    color: $uni-color-error;
+    font-size: 24rpx;
+    font-weight: 500;
+  }
+}
+
+/* 步进器行 */
+.stepper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rpx;
 }
 
 .payment-section {

@@ -74,7 +74,6 @@ export interface Sku {
   strikeThroughPrice: string // 划线价，商品详情页展示
   advertisedPrice: string // 广告价
   originalPrice: string // advertisedPrice，无advertisedPrice时为strikeThroughPrice，原始价格
-  finalPrice: string // 到手价，购物车、提单页等商品卡片展示的价格
   subscriptionPrice: string // 订阅价
   name: string
   image: string[]
@@ -85,9 +84,9 @@ export interface Sku {
   comboDiscount?: string // 组合优惠金额
   /** 是否支持订阅 */
   supportsSubscription: boolean
-  /** 订阅优惠率，0-100 */
+  /** 订阅优惠率，0-100,字符串类型只用来展示，不参与计算 */
   subscriptionDiscountRate: string
-  /** 订阅优惠（格式化字符串，仅展示） */
+  /** 订阅优惠文字（格式化字符串，仅展示） */
   subscriptionDiscount: string
   maxQuantity: number
   customization?: Customization
