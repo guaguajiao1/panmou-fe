@@ -98,10 +98,29 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { ToyCategory, ChewProduct } from '@/types/fresh-food'
+import type { Sku } from '@/types/product'
 
-const toyCategories = ref<ToyCategory[]>([])
-const chewList = ref<ChewProduct[]>([])
+interface ToyItem {
+  id: string
+  name: string
+  nameEn: string
+  image: string
+  description: string
+  selected?: boolean
+  quantity?: number
+  price: number
+}
+
+interface ChewItem {
+  id: string
+  name: string
+  image: string
+  price: number
+  quantity: number
+}
+
+const toyCategories = ref<ToyItem[]>([])
+const chewList = ref<ChewItem[]>([])
 const selectedToy = ref<string | null>(null)
 const toyQuantity = ref(1)
 const chewQuantities = ref<Record<string, number>>({})

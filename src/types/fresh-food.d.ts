@@ -3,9 +3,7 @@
  */
 
 import type { PetType } from './pet'
-
-/** 配送频率单位 */
-export type FrequencyUnit = 'week' | 'month'
+import type { Sku } from './product'
 
 /** 配送频率选项 */
 export interface DeliveryFrequency {
@@ -14,33 +12,27 @@ export interface DeliveryFrequency {
   /** 间隔数值 */
   interval: number
   /** 间隔单位 */
-  unit: FrequencyUnit
+  unit: 'week' | 'month'
   /** 显示文本 */
   label: string
-  /** 每日价格（格式化字符串，仅展示） */
-  pricePerDay: string
-  /** 每次配送包数 */
-  packsPerDelivery: number
+  /** 该占比+频率下的总袋数 n */
+  totalPacks: number
+  /** 配送周期天数（用于计算每日花费） */
+  deliveryDays: number
+  /** 固定运费（格式化字符串） */
+  shippingFee: string
   /** 标签，如"最划算"、"冰箱友好" */
   tag?: string
+  /** 是否推荐 */
+  recommended?: boolean
 }
 
-/** 食谱 */
-export interface Recipe {
-  /** 食谱ID */
-  id: string
-  /** 食谱名称 */
-  name: string
-  /** 描述 */
-  description: string
-  /** 图片URL */
-  image: string
-  /** 主要成分 */
-  ingredients: string[]
-  /** 营养成分 */
-  nutrition?: string
-  /** 是否选中 */
-  selected?: boolean
+/** 鲜食食谱SKU（包装Sku，附带用户选择数量） */
+export interface FreshFoodRecipeSku {
+  /** 食谱SKU（type=8 鲜食SKU） */
+  sku: Sku
+  /** 用户选择的数量（步进器控制） */
+  quantity: number
   /** 是否推荐 */
   recommended?: boolean
 }
@@ -59,74 +51,22 @@ export interface FreshFoodRatio {
   recommended?: boolean
   /** 说明图片 */
   image?: string
+  /** 该占比下的可选配送频率 */
+  frequencies: DeliveryFrequency[]
+  /** 该占比下的可选食谱SKU列表 */
+  recipes: FreshFoodRecipeSku[]
 }
 
-/** 价格矩阵项 (占比×频率的笛卡尔积) */
-export interface PriceMatrixItem {
-  /** 占比ID */
+/** 加入购物车/结算的请求参数 */
+export interface FreshFoodOrderParams {
+  /** 宠物ID */
+  petId: string
+  /** 选择的占比ID */
   ratioId: string
-  /** 频率ID */
+  /** 选择的配送频率ID */
   frequencyId: string
-  /** 每日价格 */
-  dailyPrice: number
-  /** 划线价总价 */
-  originalTotal: number
-  /** 优惠后总价 */
-  discountedTotal: number
-}
-
-/** 零食商品 */
-export interface SnackProduct {
-  /** 商品ID */
-  id: string
-  /** 名称 */
-  name: string
-  /** 英文名 */
-  nameEn: string
-  /** 图片 */
-  image: string
-  /** 成分列表 */
-  ingredients: string[]
-  /** 营养成分链接/说明 */
-  nutritionFacts?: string
-  /** 价格 */
-  price: number
-  /** 是否选中 */
-  selected?: boolean
-}
-
-/** 玩具类型 */
-export interface ToyCategory {
-  /** 类型ID */
-  id: string
-  /** 名称 */
-  name: string
-  /** 英文名 */
-  nameEn: string
-  /** 图片 */
-  image: string
-  /** 描述 */
-  description: string
-  /** 是否选中 */
-  selected?: boolean
-  /** 数量 */
-  quantity?: number
-  /** 价格 */
-  price: number
-}
-
-/** 磨牙棒商品 */
-export interface ChewProduct {
-  /** 商品ID */
-  id: string
-  /** 名称 */
-  name: string
-  /** 图片 */
-  image: string
-  /** 价格 */
-  price: number
-  /** 选择数量 */
-  quantity: number
+  /** 选择的食谱列表及数量 */
+  recipes: { skuId: string; quantity: number }[]
 }
 
 /** 统一页面数据结构 */
@@ -148,52 +88,15 @@ export interface FreshPlanPageData {
     pickyLevel?: string
     summary: string
   }
-  /** 食谱配置 */
-  recipes: {
-    /** 可选食谱列表 */
-    list: Recipe[]
-    /** 已选择的食谱ID */
-    selected: string[]
-    /** 最多可选数量 */
-    maxSelectable: number
-  }
   /** 占比配置 */
   ratios: {
-    /** 可选占比列表 */
+    /** 可选占比列表（每个占比含各自的频率和食谱） */
     list: FreshFoodRatio[]
     /** 当前选择的占比ID */
     selected: string
   }
-  /** 频率配置 */
-  frequencies: {
-    /** 可选频率列表 */
-    list: DeliveryFrequency[]
-    /** 当前选择的频率ID */
-    selected: string
-  }
-  /** 价格矩阵 */
-  priceMatrix: PriceMatrixItem[]
   /** 首单折扣百分比 */
   firstOrderDiscount: number
   /** 后续订单提示 */
   futureOrderNote: string
-  /** 零食配置 */
-  snacks?: {
-    /** 零食列表 */
-    list: SnackProduct[]
-    /** 已选择的零食ID */
-    selected: string | null
-  }
-  /** 玩具配置 */
-  toys?: {
-    /** 玩具类型列表 */
-    categories: ToyCategory[]
-    /** 已选择的类型ID */
-    selected: string | null
-  }
-  /** 磨牙棒配置 */
-  chews?: {
-    /** 磨牙棒列表 */
-    list: ChewProduct[]
-  }
 }

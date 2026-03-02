@@ -17,32 +17,7 @@
         </view>
       </view>
 
-      <!-- 1. 食谱选择（最上方） -->
-      <view class="section recipes-section">
-        <view class="section-header">
-          <text class="section-title">选择食谱</text>
-          <text class="section-hint">最多选择{{ planData.recipes.maxSelectable }}款</text>
-        </view>
-        <view class="recipes-grid">
-          <view
-            v-for="recipe in planData.recipes.list"
-            :key="recipe.id"
-            class="recipe-card"
-            :class="{ selected: planData.recipes.selected.includes(recipe.id) }"
-            @click="toggleRecipe(recipe.id)"
-          >
-            <view v-if="recipe.recommended" class="recipe-recommended-tag">推荐</view>
-            <view v-if="planData.recipes.selected.includes(recipe.id)" class="recipe-check">
-              <uni-icons type="checkbox-filled" size="16" color="#00a86b" />
-            </view>
-            <image class="recipe-image" :src="recipe.image" mode="aspectFill" />
-            <text class="recipe-name">{{ recipe.name }}</text>
-            <text class="recipe-detail-btn" @click.stop="viewRecipeDetail(recipe.id)">详情</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 2. 鲜食占比 -->
+      <!-- 1. 鲜食占比 -->
       <view class="section ratio-section">
         <view class="section-header">
           <text class="section-title">鲜食占比</text>
@@ -68,25 +43,69 @@
         </view>
       </view>
 
-      <!-- 3. 配送频率 -->
+      <!-- 2. 配送频率 -->
       <view class="section frequency-section">
         <view class="section-header">
           <text class="section-title">配送频率</text>
         </view>
         <view class="frequency-options">
           <view
-            v-for="freq in planData.frequencies.list"
+            v-for="freq in currentFrequencies"
             :key="freq.id"
             class="frequency-card"
             :class="{
-              selected: planData.frequencies.selected === freq.id,
+              selected: selectedFrequencyId === freq.id,
               'has-tag': freq.tag,
             }"
             @click="selectFrequency(freq.id)"
           >
             <view v-if="freq.tag" class="freq-tag">{{ freq.tag }}</view>
+            <view v-if="freq.recommended" class="freq-recommend-tag">推荐</view>
             <text class="freq-label">{{ freq.label }}</text>
-            <text class="freq-packs">每次配送{{ freq.packsPerDelivery }}包</text>
+            <text class="freq-packs">每次配送{{ freq.totalPacks }}袋</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 3. 食谱列表（含步进器） -->
+      <view class="section recipes-section">
+        <view class="section-header">
+          <text class="section-title">选择食谱</text>
+          <text class="section-hint">
+            已选 {{ totalSelectedQuantity }}/{{ totalPacks }} 袋，{{ selectedRecipeCount }}/3 种
+          </text>
+        </view>
+        <view class="recipes-list">
+          <view
+            v-for="recipeSku in currentRecipes"
+            :key="recipeSku.sku.skuId"
+            class="recipe-card"
+            :class="{ active: recipeSku.quantity > 0 }"
+          >
+            <view v-if="recipeSku.recommended" class="recipe-recommended-tag">推荐</view>
+            <image class="recipe-image" :src="recipeSku.sku.image?.[0] || ''" mode="aspectFill" />
+            <view class="recipe-info">
+              <text class="recipe-name">{{ recipeSku.sku.name }}</text>
+              <text class="recipe-desc">{{ recipeSku.sku.desc }}</text>
+              <text class="recipe-price">¥{{ recipeSku.sku.originalPrice }}/袋</text>
+            </view>
+            <view class="recipe-stepper">
+              <view
+                class="stepper-btn minus"
+                :class="{ disabled: recipeSku.quantity <= 0 }"
+                @click="decreaseRecipeQuantity(recipeSku.sku.skuId)"
+              >
+                <text>−</text>
+              </view>
+              <text class="stepper-value">{{ recipeSku.quantity }}</text>
+              <view
+                class="stepper-btn plus"
+                :class="{ disabled: !canIncrease(recipeSku.sku.skuId) }"
+                @click="increaseRecipeQuantity(recipeSku.sku.skuId)"
+              >
+                <text>+</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>
@@ -98,29 +117,21 @@
     <!-- 食谱详情弹窗 -->
     <view v-if="showRecipePopup" class="recipe-popup-mask" @click="closeRecipePopup">
       <view class="recipe-popup" @click.stop>
-        <!-- 关闭按钮 -->
         <view class="popup-close" @click="closeRecipePopup">
           <uni-icons type="close" size="24" color="#666" />
         </view>
-
-        <!-- 可滚动内容 -->
         <scroll-view class="popup-scroll" scroll-y>
-          <!-- 食谱主图（圆形） -->
           <view class="popup-image-container">
             <image
               class="popup-main-image"
-              :src="recipeDetail?.item?.images?.[0] || ''"
+              :src="recipeDetail?.product?.images?.[0] || ''"
               mode="aspectFill"
             />
           </view>
-
-          <!-- 食谱名称 -->
-          <view class="popup-title">{{ recipeDetail?.item?.title }}</view>
-
-          <!-- 详情图片列表 -->
+          <view class="popup-title">{{ recipeDetail?.product?.title }}</view>
           <view class="popup-detail-images">
             <image
-              v-for="(img, index) in recipeDetail?.item?.detailImages"
+              v-for="(img, index) in recipeDetail?.product?.detailImages"
               :key="index"
               class="detail-image"
               :src="img"
@@ -131,27 +142,32 @@
       </view>
     </view>
 
+    <!-- 底部栏 -->
     <view class="footer-bar">
       <view class="price-info">
         <view class="price-row">
-          <text class="price-current">¥{{ currentPrice.discountedTotal.toFixed(2) }}</text>
-          <text class="price-daily">(¥{{ currentPrice.dailyPrice.toFixed(2) }}/天)</text>
+          <text class="price-current">¥{{ totalCost.toFixed(2) }}</text>
+          <text class="price-daily">(¥{{ dailyCost.toFixed(2) }}/天)</text>
         </view>
         <text class="discount-note">🎉 首单立减{{ planData.firstOrderDiscount }}%</text>
-        <text class="future-note">¥{{ currentPrice.originalTotal.toFixed(2) }} 后续订单价格</text>
+        <text class="shipping-note">运费: ¥{{ currentShippingFee }}</text>
       </view>
       <view class="action-buttons">
-        <button class="btn-cart" @click="addToCart">加入购物车</button>
-        <button class="btn-checkout" @click="checkout">立即结算</button>
+        <button class="btn-cart" :disabled="!isOrderValid" @click="addToCart">加入购物车</button>
+        <button class="btn-checkout" :disabled="!isOrderValid" @click="checkout">立即结算</button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { FreshPlanPageData, PriceMatrixItem } from '@/types/fresh-food'
+import type {
+  FreshPlanPageData,
+  FreshFoodRecipeSku,
+  FreshFoodOrderParams,
+} from '@/types/fresh-food'
 import type { ProductData } from '@/types/product'
 import { getProductDetail } from '@/api/product'
 
@@ -160,6 +176,7 @@ const isLoading = ref(false)
 const showRecipePopup = ref(false)
 const recipeDetail = ref<ProductData | null>(null)
 const isLoadingRecipe = ref(false)
+const selectedFrequencyId = ref('')
 
 // 统一页面数据
 const planData = reactive<FreshPlanPageData>({
@@ -174,74 +191,305 @@ const planData = reactive<FreshPlanPageData>({
     neutered: false,
     summary: '',
   },
-  recipes: {
-    list: [],
-    selected: [],
-    maxSelectable: 3,
-  },
   ratios: {
     list: [],
     selected: '',
   },
-  frequencies: {
-    list: [],
-    selected: '',
-  },
-  priceMatrix: [],
   firstOrderDiscount: 50,
   futureOrderNote: '',
 })
 
-// 当前价格（从矩阵查表）
-const currentPrice = computed<PriceMatrixItem>(() => {
-  const item = planData.priceMatrix.find(
-    (p) =>
-      p.ratioId === planData.ratios.selected && p.frequencyId === planData.frequencies.selected,
-  )
-  return (
-    item || {
-      ratioId: '',
-      frequencyId: '',
-      dailyPrice: 0,
-      originalTotal: 0,
-      discountedTotal: 0,
-    }
-  )
+// ========== Computed ==========
+
+/** 当前选中的占比对象 */
+const currentRatio = computed(() => {
+  return planData.ratios.list.find((r) => r.id === planData.ratios.selected)
 })
 
-// 加载方案数据
-const loadPlanData = async (recipeIds?: string[]) => {
+/** 当前占比下的配送频率列表 */
+const currentFrequencies = computed(() => {
+  return currentRatio.value?.frequencies || []
+})
+
+/** 当前选中的频率对象 */
+const currentFrequency = computed(() => {
+  return currentFrequencies.value.find((f) => f.id === selectedFrequencyId.value)
+})
+
+/** 当前占比下的食谱SKU列表 */
+const currentRecipes = computed(() => {
+  return currentRatio.value?.recipes || []
+})
+
+/** 当前占比+频率下的总袋数 n */
+const totalPacks = computed(() => {
+  return currentFrequency.value?.totalPacks || 0
+})
+
+/** 已选食谱种类数（quantity > 0 的食谱数） */
+const selectedRecipeCount = computed(() => {
+  return currentRecipes.value.filter((r) => r.quantity > 0).length
+})
+
+/** 已选食谱总数量 */
+const totalSelectedQuantity = computed(() => {
+  return currentRecipes.value.reduce((sum, r) => sum + r.quantity, 0)
+})
+
+/** 当前频率的运费 */
+const currentShippingFee = computed(() => {
+  return currentFrequency.value?.shippingFee || '0'
+})
+
+/** 食谱总价 = ∑(sku.originalPrice × quantity) */
+const totalRecipePrice = computed(() => {
+  return currentRecipes.value.reduce((sum, r) => {
+    return sum + parseFloat(r.sku.originalPrice || '0') * r.quantity
+  }, 0)
+})
+
+/** 总费用 = 食谱总价 + 运费 */
+const totalCost = computed(() => {
+  return totalRecipePrice.value + parseFloat(currentShippingFee.value || '0')
+})
+
+/** 每日花费 = 总费用 / 配送周期天数 */
+const dailyCost = computed(() => {
+  const days = currentFrequency.value?.deliveryDays || 1
+  return totalCost.value / days
+})
+
+/** 订单是否有效（总数量 = n） */
+const isOrderValid = computed(() => {
+  return totalSelectedQuantity.value === totalPacks.value && totalPacks.value > 0
+})
+
+// ========== 方法 ==========
+
+/** 判断是否还能增加某食谱数量 */
+const canIncrease = (skuId: string) => {
+  // 总数不能超过 n
+  if (totalSelectedQuantity.value >= totalPacks.value) return false
+  // 找到当前食谱
+  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
+  if (!recipe) return false
+  // 如果当前数量为0，检查已选种类数是否已达3
+  if (recipe.quantity === 0 && selectedRecipeCount.value >= 3) return false
+  return true
+}
+
+/** 均分食谱数量：将 n 均分给推荐食谱，有余数从前往后依次加1 */
+const distributeRecipes = () => {
+  const recipes = currentRecipes.value
+  if (recipes.length === 0 || totalPacks.value === 0) return
+
+  // 先全部归零
+  recipes.forEach((r) => (r.quantity = 0))
+
+  // 找到推荐食谱，如果没有推荐，则取前3个
+  let targetRecipes = recipes.filter((r) => r.recommended)
+  if (targetRecipes.length === 0) {
+    targetRecipes = recipes.slice(0, Math.min(3, recipes.length))
+  }
+  // 最多3种
+  targetRecipes = targetRecipes.slice(0, 3)
+
+  const n = totalPacks.value
+  const base = Math.floor(n / targetRecipes.length)
+  const remainder = n % targetRecipes.length
+
+  targetRecipes.forEach((r, idx) => {
+    r.quantity = base + (idx < remainder ? 1 : 0)
+  })
+}
+
+/** 选择占比 */
+const selectRatio = (id: string) => {
+  if (planData.ratios.selected === id) return
+  planData.ratios.selected = id
+
+  // 切换频率为推荐或第一个
+  const freqs = currentFrequencies.value
+  const recommended = freqs.find((f) => f.recommended)
+  selectedFrequencyId.value = recommended?.id || freqs[0]?.id || ''
+
+  // 均分食谱
+  distributeRecipes()
+}
+
+/** 选择频率 */
+const selectFrequency = (id: string) => {
+  if (selectedFrequencyId.value === id) return
+  selectedFrequencyId.value = id
+
+  // 频率变了 → totalPacks(n) 变了 → 重新均分
+  distributeRecipes()
+}
+
+/** 增加食谱数量 */
+const increaseRecipeQuantity = (skuId: string) => {
+  if (!canIncrease(skuId)) {
+    if (totalSelectedQuantity.value >= totalPacks.value) {
+      uni.showToast({ title: `总数不能超过${totalPacks.value}袋`, icon: 'none' })
+    } else {
+      uni.showToast({ title: '最多选择3种食谱', icon: 'none' })
+    }
+    return
+  }
+  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
+  if (recipe) recipe.quantity++
+}
+
+/** 减少食谱数量 */
+const decreaseRecipeQuantity = (skuId: string) => {
+  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
+  if (recipe && recipe.quantity > 0) {
+    recipe.quantity--
+  }
+}
+
+/** 查看食谱详情 */
+const viewRecipeDetail = async (skuId: string) => {
+  isLoadingRecipe.value = true
+  showRecipePopup.value = true
+  try {
+    const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
+    const productId = recipe?.sku.productId || skuId
+    const data = await getProductDetail(productId)
+    recipeDetail.value = data
+  } catch (e) {
+    console.error('加载食谱详情失败', e)
+    uni.showToast({ title: '加载失败', icon: 'none' })
+    showRecipePopup.value = false
+  } finally {
+    isLoadingRecipe.value = false
+  }
+}
+
+/** 关闭食谱详情弹窗 */
+const closeRecipePopup = () => {
+  showRecipePopup.value = false
+  recipeDetail.value = null
+}
+
+/** 构建订单参数 */
+const buildOrderParams = (): FreshFoodOrderParams => {
+  return {
+    petId: planData.pet.id,
+    ratioId: planData.ratios.selected,
+    frequencyId: selectedFrequencyId.value,
+    recipes: currentRecipes.value
+      .filter((r) => r.quantity > 0)
+      .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+  }
+}
+
+/** 加入购物车 */
+const addToCart = async () => {
+  if (!isOrderValid.value) {
+    uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
+    return
+  }
+  const params = buildOrderParams()
+  console.log('加入购物车参数:', params)
+
+  uni.showLoading({ title: '添加中...' })
+  try {
+    // TODO: 调用真实 API
+    // await freshFoodApi.addToCart(params)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    uni.hideLoading()
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '添加失败', icon: 'none' })
+  }
+}
+
+/** 立即结算 */
+const checkout = async () => {
+  if (!isOrderValid.value) {
+    uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
+    return
+  }
+  const params = buildOrderParams()
+  console.log('立即结算参数:', params)
+
+  uni.showLoading({ title: '处理中...' })
+  try {
+    // TODO: 调用真实 API
+    // await freshFoodApi.checkout(params)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    uni.hideLoading()
+    uni.navigateTo({
+      url: `/freshFoodPages/fresh_food_snacks/fresh_food_snacks?petId=${planData.pet.id}`,
+    })
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+// ========== 数据加载 ==========
+
+const loadPlanData = async () => {
   isLoading.value = true
   try {
-    let url = `/api/fresh-food/plan?petId=${petId.value}`
-    if (recipeIds && recipeIds.length > 0) {
-      url += `&recipeIds=${recipeIds.join(',')}`
-    }
-
     const res = await uni.request({
-      url,
+      url: `/api/fresh-food/plan?petId=${petId.value}`,
       method: 'GET',
     })
-
     if (res.statusCode === 200 && res.data) {
       const data = res.data as { code: string; result: FreshPlanPageData }
       if (data.code === '0' && data.result) {
         Object.assign(planData, data.result)
+        // 默认选推荐占比
+        const recommendedRatio = planData.ratios.list.find((r) => r.recommended)
+        planData.ratios.selected = recommendedRatio?.id || planData.ratios.list[0]?.id || ''
+        // 默认选推荐频率
+        const freqs = currentFrequencies.value
+        const recommendedFreq = freqs.find((f) => f.recommended)
+        selectedFrequencyId.value = recommendedFreq?.id || freqs[0]?.id || ''
+        // 均分食谱
+        distributeRecipes()
       }
     }
   } catch (e) {
     console.error('加载方案数据失败', e)
-    // 使用mock数据
     loadMockData()
   } finally {
     isLoading.value = false
   }
 }
 
-// Mock数据
+/** Mock 辅助：创建鲜食 SKU */
+const makeFreshSku = (
+  id: string,
+  name: string,
+  desc: string,
+  price: string,
+  imageEmoji: string,
+) => ({
+  skuId: id,
+  productId: id,
+  strikeThroughPrice: price,
+  advertisedPrice: price,
+  originalPrice: price,
+  subscriptionPrice: price,
+  name,
+  image: [`https://placehold.co/200x200/90EE90/333?text=${encodeURIComponent(imageEmoji)}`],
+  desc,
+  specs: '',
+  type: 8,
+  supportsSubscription: true,
+  subscriptionDiscountRate: '0',
+  subscriptionDiscount: '',
+  maxQuantity: 99,
+})
+
 const loadMockData = () => {
   planData.pet = {
-    id: petId.value,
+    id: petId.value || 'pet1',
     name: '小西',
     type: 'dog',
     avatar: 'https://placehold.co/80x80/f5e6d3/333?text=🐕',
@@ -257,37 +505,17 @@ const loadMockData = () => {
     summary: '成年柴犬，体型标准，活动量适中',
   }
 
-  planData.recipes = {
-    list: [
-      {
-        id: 'r1',
-        name: '鸡肉蒬菜餐',
-        description: '选用优质鸡胸肉，搭配新鲜时令蔬菜，低脂肪高蛋白，适合控制体重的狗狗',
-        image: 'https://placehold.co/200x200/90EE90/333?text=🍗',
-        ingredients: ['鸡胸肉', '胡萝卜', '西兰花', '糟米', '鱼油'],
-        nutrition: '蛋白质25g | 脂肪8g | 碳水化合物30g | 热量280kcal',
-        recommended: true,
-      },
-      {
-        id: 'r2',
-        name: '牛肉红薯餐',
-        description: '精选牛腿肉，配以香甜红薯和南瓜，富含铁元素，增强抗疲劳能力',
-        image: 'https://placehold.co/200x200/F4A460/333?text=🥩',
-        ingredients: ['牛腿肉', '红薯', '南瓜', '燕麦', '亚麻籽油'],
-        nutrition: '蛋白质22g | 脂肪12g | 碳水化合物35g | 热量320kcal',
-      },
-      {
-        id: 'r3',
-        name: '三文鱼餐',
-        description: '深海三文鱼配新鲜蔬菜，富含Omega-3脂肪酸，促进毛发健康亮泽',
-        image: 'https://placehold.co/200x200/FFA07A/333?text=🐟',
-        ingredients: ['三文鱼', '菠菜', '土豆', '豆角', '橄榄油'],
-        nutrition: '蛋白质20g | 脂肪15g | 碳水化合物28g | 热量300kcal',
-      },
-    ],
-    selected: ['r1'],
-    maxSelectable: 3,
-  }
+  // 通用食谱 SKU
+  const chickenSku = makeFreshSku(
+    'r1',
+    '鸡肉蔬菜餐',
+    '选用优质鸡胸肉，搭配新鲜时令蔬菜',
+    '25.00',
+    '🍗',
+  )
+  const beefSku = makeFreshSku('r2', '牛肉红薯餐', '精选牛腿肉，配以香甜红薯和南瓜', '28.00', '🥩')
+  const fishSku = makeFreshSku('r3', '三文鱼餐', '深海三文鱼，富含Omega-3脂肪酸', '32.00', '🐟')
+  const lambSku = makeFreshSku('r4', '羊肉糙米餐', '新西兰羊肉，搭配有机糙米', '30.00', '🐑')
 
   planData.ratios = {
     list: [
@@ -298,6 +526,44 @@ const loadMockData = () => {
         percentage: 100,
         recommended: true,
         image: 'https://placehold.co/60x40/00a86b/fff?text=100%25',
+        frequencies: [
+          {
+            id: 'f100_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 14,
+            deliveryDays: 14,
+            shippingFee: '0',
+            tag: '最划算',
+            recommended: true,
+          },
+          {
+            id: 'f100_3w',
+            interval: 3,
+            unit: 'week',
+            label: '每3周',
+            totalPacks: 21,
+            deliveryDays: 21,
+            shippingFee: '0',
+            tag: '🧊 冰箱友好',
+          },
+          {
+            id: 'f100_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 28,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku, quantity: 0, recommended: true },
+          { sku: beefSku, quantity: 0, recommended: true },
+          { sku: fishSku, quantity: 0 },
+          { sku: lambSku, quantity: 0 },
+        ],
       },
       {
         id: 'ratio50',
@@ -305,6 +571,41 @@ const loadMockData = () => {
         description: '鲜食搭配干粮',
         percentage: 50,
         image: 'https://placehold.co/60x40/ffa500/fff?text=50%25',
+        frequencies: [
+          {
+            id: 'f50_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 7,
+            deliveryDays: 14,
+            shippingFee: '0',
+            recommended: true,
+          },
+          {
+            id: 'f50_3w',
+            interval: 3,
+            unit: 'week',
+            label: '每3周',
+            totalPacks: 11,
+            deliveryDays: 21,
+            shippingFee: '5',
+          },
+          {
+            id: 'f50_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 14,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku, quantity: 0, recommended: true },
+          { sku: beefSku, quantity: 0 },
+          { sku: fishSku, quantity: 0, recommended: true },
+        ],
       },
       {
         id: 'ratio25',
@@ -312,294 +613,50 @@ const loadMockData = () => {
         description: '鲜食作为辅食',
         percentage: 25,
         image: 'https://placehold.co/60x40/6495ed/fff?text=25%25',
+        frequencies: [
+          {
+            id: 'f25_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 4,
+            deliveryDays: 14,
+            shippingFee: '0',
+            recommended: true,
+          },
+          {
+            id: 'f25_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 7,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku, quantity: 0, recommended: true },
+          { sku: beefSku, quantity: 0 },
+        ],
       },
     ],
-    selected: 'ratio100',
+    selected: '',
   }
-
-  planData.frequencies = {
-    list: [
-      {
-        id: 'f1',
-        interval: 2,
-        unit: 'week',
-        label: '每2周',
-        pricePerDay: 0,
-        packsPerDelivery: 14,
-        tag: '最划算',
-      },
-      {
-        id: 'f2',
-        interval: 3,
-        unit: 'week',
-        label: '每3周',
-        pricePerDay: 0,
-        packsPerDelivery: 21,
-        tag: '🧊 冰箱友好',
-      },
-      {
-        id: 'f3',
-        interval: 4,
-        unit: 'week',
-        label: '每4周',
-        pricePerDay: 0,
-        packsPerDelivery: 28,
-      },
-    ],
-    selected: 'f1',
-  }
-
-  // 价格矩阵 (占比 × 频率)
-  planData.priceMatrix = [
-    // 100%鲜食
-    {
-      ratioId: 'ratio100',
-      frequencyId: 'f1',
-      dailyPrice: 25,
-      originalTotal: 700,
-      discountedTotal: 350,
-    },
-    {
-      ratioId: 'ratio100',
-      frequencyId: 'f2',
-      dailyPrice: 24,
-      originalTotal: 1008,
-      discountedTotal: 504,
-    },
-    {
-      ratioId: 'ratio100',
-      frequencyId: 'f3',
-      dailyPrice: 23,
-      originalTotal: 1288,
-      discountedTotal: 644,
-    },
-    // 50%鲜食
-    {
-      ratioId: 'ratio50',
-      frequencyId: 'f1',
-      dailyPrice: 15,
-      originalTotal: 420,
-      discountedTotal: 210,
-    },
-    {
-      ratioId: 'ratio50',
-      frequencyId: 'f2',
-      dailyPrice: 14,
-      originalTotal: 588,
-      discountedTotal: 294,
-    },
-    {
-      ratioId: 'ratio50',
-      frequencyId: 'f3',
-      dailyPrice: 13,
-      originalTotal: 728,
-      discountedTotal: 364,
-    },
-    // 25%鲜食
-    {
-      ratioId: 'ratio25',
-      frequencyId: 'f1',
-      dailyPrice: 8,
-      originalTotal: 224,
-      discountedTotal: 112,
-    },
-    {
-      ratioId: 'ratio25',
-      frequencyId: 'f2',
-      dailyPrice: 7.5,
-      originalTotal: 315,
-      discountedTotal: 157.5,
-    },
-    {
-      ratioId: 'ratio25',
-      frequencyId: 'f3',
-      dailyPrice: 7,
-      originalTotal: 392,
-      discountedTotal: 196,
-    },
-  ]
 
   planData.firstOrderDiscount = 50
   planData.futureOrderNote = '后续订单按原价计算'
 
-  // 零食数据
-  planData.snacks = {
-    list: [
-      {
-        id: 'snack1',
-        name: '牛肉',
-        nameEn: 'Beef',
-        image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🥩+牛肉条',
-        ingredients: ['牛肉（蛋白质）', '苹果（纤维）', '海盐（电解质）'],
-        nutritionFacts: 'Nutrition Facts 营养成分',
-        price: 39,
-        selected: false,
-      },
-      {
-        id: 'snack2',
-        name: '猪肉',
-        nameEn: 'Pork',
-        image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🥓+猪肉条',
-        ingredients: ['猪肉（蛋白质）', '梨（纤维）', '海盐（电解质）'],
-        nutritionFacts: 'Nutrition Facts 营养成分',
-        price: 35,
-        selected: false,
-      },
-      {
-        id: 'snack3',
-        name: '鸡肉',
-        nameEn: 'Chicken',
-        image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🍗+鸡肉条',
-        ingredients: ['鸡肉（蛋白质）', '苹果（纤维）', '海盐（电解质）'],
-        nutritionFacts: 'Nutrition Facts 营养成分',
-        price: 32,
-        selected: false,
-      },
-    ],
-    selected: null,
-  }
+  // 默认选推荐占比
+  const recommendedRatio = planData.ratios.list.find((r) => r.recommended)
+  planData.ratios.selected = recommendedRatio?.id || planData.ratios.list[0]?.id || ''
 
-  // 玩具类型数据
-  planData.toys = {
-    categories: [
-      {
-        id: 'toy1',
-        name: '毛绒玩具',
-        nameEn: 'Plush Toys',
-        image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=🧸+毛绒',
-        description: '软性材料',
-        price: 49,
-        selected: false,
-        quantity: 0,
-      },
-      {
-        id: 'toy2',
-        name: '耐用咀嚼玩具',
-        nameEn: 'Durable Chew Toys',
-        image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=🦴+耐用',
-        description: '坚韧材料',
-        price: 59,
-        selected: false,
-        quantity: 0,
-      },
-      {
-        id: 'toy3',
-        name: '组合盒',
-        nameEn: 'Combo Box',
-        image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=📦+组合',
-        description: '蓬松又坚韧',
-        price: 89,
-        selected: false,
-        quantity: 0,
-      },
-    ],
-    selected: null,
-  }
+  // 默认选推荐频率
+  const freqs = currentFrequencies.value
+  const recommendedFreq = freqs.find((f) => f.recommended)
+  selectedFrequencyId.value = recommendedFreq?.id || freqs[0]?.id || ''
 
-  // 磨牙棒数据
-  planData.chews = {
-    list: [
-      {
-        id: 'chew1',
-        name: '天然牛皮磨牙棒',
-        image: 'https://placehold.co/200x200/fff3e0/e65100?text=🦴+牛皮',
-        price: 29,
-        quantity: 0,
-      },
-      {
-        id: 'chew2',
-        name: '鹿角磨牙棒',
-        image: 'https://placehold.co/200x200/fff3e0/e65100?text=🦌+鹿角',
-        price: 45,
-        quantity: 0,
-      },
-      {
-        id: 'chew3',
-        name: '洁齿磨牙骨',
-        image: 'https://placehold.co/200x200/fff3e0/e65100?text=🦷+洁齿',
-        price: 25,
-        quantity: 0,
-      },
-    ],
-  }
-}
-
-// 切换食谱
-const toggleRecipe = async (id: string) => {
-  const current = [...planData.recipes.selected]
-  if (current.includes(id)) {
-    if (current.length > 1) {
-      planData.recipes.selected = current.filter((r) => r !== id)
-    }
-  } else if (current.length < planData.recipes.maxSelectable) {
-    planData.recipes.selected = [...current, id]
-  } else {
-    uni.showToast({ title: `最多选择${planData.recipes.maxSelectable}款食谱`, icon: 'none' })
-    return
-  }
-  // 切换食谱后重新请求数据
-  await loadPlanData(planData.recipes.selected)
-}
-
-// 查看食谱详情
-const viewRecipeDetail = async (id: string) => {
-  isLoadingRecipe.value = true
-  showRecipePopup.value = true
-  try {
-    const data = await getProductDetail(id)
-    recipeDetail.value = data
-  } catch (e) {
-    console.error('加载食谱详情失败', e)
-    uni.showToast({ title: '加载失败', icon: 'none' })
-    showRecipePopup.value = false
-  } finally {
-    isLoadingRecipe.value = false
-  }
-}
-
-// 关闭食谱详情弹窗
-const closeRecipePopup = () => {
-  showRecipePopup.value = false
-  recipeDetail.value = null
-}
-
-// 选择占比
-const selectRatio = (id: string) => {
-  planData.ratios.selected = id
-}
-
-// 选择频率
-const selectFrequency = (id: string) => {
-  planData.frequencies.selected = id
-}
-
-// 加入购物车
-const addToCart = async () => {
-  uni.showLoading({ title: '添加中...' })
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    uni.hideLoading()
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
-  } catch {
-    uni.hideLoading()
-    uni.showToast({ title: '添加失败', icon: 'none' })
-  }
-}
-
-// 立即结算
-const checkout = async () => {
-  uni.showLoading({ title: '处理中...' })
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    uni.hideLoading()
-    // 先跳转到零食选择页
-    uni.navigateTo({
-      url: `/freshFoodPages/fresh_food_snacks/fresh_food_snacks?petId=${planData.pet.id}`,
-    })
-  } catch {
-    uni.hideLoading()
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
+  // 均分食谱
+  distributeRecipes()
 }
 
 onLoad((options) => {
@@ -607,7 +664,6 @@ onLoad((options) => {
     petId.value = options.petId
     loadPlanData()
   } else {
-    // 无petId时用mock
     loadMockData()
   }
 })
@@ -682,70 +738,6 @@ onLoad((options) => {
       font-size: 24rpx;
       color: #999;
     }
-  }
-}
-
-// 食谱
-.recipes-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.recipe-card {
-  position: relative;
-  width: calc((100% - 24rpx) / 3);
-  padding: 10rpx 6rpx;
-  background-color: #f8f8f8;
-  border-radius: 12rpx;
-  box-sizing: border-box;
-  border: 2rpx solid transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  &.selected {
-    border-color: #00a86b;
-    background-color: #e8f5e9;
-  }
-
-  .recipe-recommended-tag {
-    position: absolute;
-    top: -8rpx;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #ff6600;
-    color: #fff;
-    font-size: 18rpx;
-    padding: 2rpx 10rpx;
-    border-radius: 6rpx;
-    white-space: nowrap;
-  }
-
-  .recipe-check {
-    position: absolute;
-    top: 4rpx;
-    right: 4rpx;
-  }
-
-  .recipe-image {
-    width: 70rpx;
-    height: 70rpx;
-    border-radius: 8rpx;
-    margin-bottom: 8rpx;
-  }
-
-  .recipe-name {
-    font-size: 22rpx;
-    color: #333;
-    text-align: center;
-    margin-bottom: 4rpx;
-    line-height: 1.2;
-  }
-
-  .recipe-detail-btn {
-    font-size: 20rpx;
-    color: #00a86b;
   }
 }
 
@@ -846,6 +838,17 @@ onLoad((options) => {
     white-space: nowrap;
   }
 
+  .freq-recommend-tag {
+    position: absolute;
+    top: -10rpx;
+    right: 8rpx;
+    background-color: #ff6600;
+    color: #fff;
+    font-size: 16rpx;
+    padding: 2rpx 8rpx;
+    border-radius: 6rpx;
+  }
+
   .freq-label {
     display: block;
     font-size: 26rpx;
@@ -857,6 +860,121 @@ onLoad((options) => {
   .freq-packs {
     font-size: 20rpx;
     color: #666;
+  }
+}
+
+// 食谱列表
+.recipes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.recipe-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 16rpx;
+  background-color: #f8f8f8;
+  border-radius: 12rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.2s ease;
+
+  &.active {
+    border-color: #00a86b;
+    background-color: #e8f5e9;
+  }
+
+  .recipe-recommended-tag {
+    position: absolute;
+    top: -8rpx;
+    left: 16rpx;
+    background-color: #ff6600;
+    color: #fff;
+    font-size: 18rpx;
+    padding: 2rpx 10rpx;
+    border-radius: 6rpx;
+  }
+
+  .recipe-image {
+    width: 100rpx;
+    height: 100rpx;
+    border-radius: 12rpx;
+    flex-shrink: 0;
+  }
+
+  .recipe-info {
+    flex: 1;
+    margin-left: 16rpx;
+
+    .recipe-name {
+      display: block;
+      font-size: 28rpx;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4rpx;
+    }
+
+    .recipe-desc {
+      display: block;
+      font-size: 22rpx;
+      color: #666;
+      margin-bottom: 4rpx;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .recipe-price {
+      font-size: 24rpx;
+      color: #ff6600;
+      font-weight: 500;
+    }
+  }
+
+  .recipe-stepper {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-left: 12rpx;
+    flex-shrink: 0;
+  }
+
+  .stepper-btn {
+    width: 52rpx;
+    height: 52rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2rpx solid #ddd;
+    background-color: #fff;
+
+    text {
+      font-size: 28rpx;
+      color: #333;
+      line-height: 1;
+    }
+
+    &.plus {
+      background-color: #00a86b;
+      border-color: #00a86b;
+
+      text {
+        color: #fff;
+      }
+    }
+
+    &.disabled {
+      opacity: 0.4;
+    }
+  }
+
+  .stepper-value {
+    font-size: 28rpx;
+    font-weight: 600;
+    min-width: 40rpx;
+    text-align: center;
   }
 }
 
@@ -894,12 +1012,6 @@ onLoad((options) => {
       color: #ff6600;
     }
 
-    .price-original {
-      font-size: 24rpx;
-      color: #999;
-      text-decoration: line-through;
-    }
-
     .price-daily {
       font-size: 22rpx;
       color: #666;
@@ -912,7 +1024,7 @@ onLoad((options) => {
       margin-bottom: 2rpx;
     }
 
-    .future-note {
+    .shipping-note {
       font-size: 20rpx;
       color: #999;
     }
@@ -930,6 +1042,10 @@ onLoad((options) => {
 
       &::after {
         border: none;
+      }
+
+      &[disabled] {
+        opacity: 0.5;
       }
     }
 

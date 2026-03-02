@@ -54,9 +54,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { SnackProduct } from '@/types/fresh-food'
+import type { Sku } from '@/types/product'
 
-const snackList = ref<SnackProduct[]>([])
+interface SnackItem {
+  id: string
+  name: string
+  nameEn: string
+  image: string
+  ingredients: string[]
+  nutritionFacts?: string
+  price: number
+  selected?: boolean
+}
+
+const snackList = ref<SnackItem[]>([])
 const selectedSnack = ref<string | null>(null)
 const petId = ref('')
 
