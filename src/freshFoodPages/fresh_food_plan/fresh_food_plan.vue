@@ -170,6 +170,12 @@ import type {
 } from '@/types/fresh-food'
 import type { ProductData } from '@/types/product'
 import { getProductDetail } from '@/api/product'
+import { useFreshFoodStore } from '@/stores'
+import { freshFoodApi } from '@/api/fresh-food'
+import { cartApi } from '@/api/cart'
+import { checkoutApi } from '@/api/checkout'
+
+const freshFoodStore = useFreshFoodStore()
 
 const petId = ref('')
 const isLoading = ref(false)
@@ -372,15 +378,39 @@ const closeRecipePopup = () => {
   recipeDetail.value = null
 }
 
-/** 构建订单参数 */
-const buildOrderParams = (): FreshFoodOrderParams => {
-  return {
-    petId: planData.pet.id,
+/** 保存选择到 store */
+const saveSelectionsToStore = (action: 'addToCart' | 'checkout') => {
+  freshFoodStore.flowAction = action
+  freshFoodStore.planSelections = {
     ratioId: planData.ratios.selected,
     frequencyId: selectedFrequencyId.value,
     recipes: currentRecipes.value
       .filter((r) => r.quantity > 0)
       .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+  }
+}
+
+/** 执行最终操作 (当没有snacks和toys页面时使用) */
+const executeFinalAction = async (action: 'addToCart' | 'checkout') => {
+  const params = {
+    planId: freshFoodStore.planId,
+    planSelections: freshFoodStore.planSelections,
+    items: freshFoodStore.extraItems,
+  }
+
+  if (action === 'addToCart') {
+    await cartApi.addItem('my-cart', params)
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+    freshFoodStore.clearState()
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/cart/cart' })
+    }, 1000)
+  } else {
+    const res = await checkoutApi.entryDirect(params)
+    freshFoodStore.clearState()
+    uni.navigateTo({
+      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
+    })
   }
 }
 
@@ -390,19 +420,22 @@ const addToCart = async () => {
     uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
     return
   }
-  const params = buildOrderParams()
-  console.log('加入购物车参数:', params)
 
-  uni.showLoading({ title: '添加中...' })
-  try {
-    // TODO: 调用真实 API
-    // await freshFoodApi.addToCart(params)
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    uni.hideLoading()
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
-  } catch {
-    uni.hideLoading()
-    uni.showToast({ title: '添加失败', icon: 'none' })
+  saveSelectionsToStore('addToCart')
+
+  // 判断是否有下一页（snacks）
+  const hasNextPage = true // TODO: 可通过 planData 配置控制
+  if (hasNextPage) {
+    uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
+  } else {
+    uni.showLoading({ title: '添加中...' })
+    try {
+      await executeFinalAction('addToCart')
+    } catch {
+      uni.showToast({ title: '添加失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
   }
 }
 
@@ -412,21 +445,21 @@ const checkout = async () => {
     uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
     return
   }
-  const params = buildOrderParams()
-  console.log('立即结算参数:', params)
 
-  uni.showLoading({ title: '处理中...' })
-  try {
-    // TODO: 调用真实 API
-    // await freshFoodApi.checkout(params)
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    uni.hideLoading()
-    uni.navigateTo({
-      url: `/freshFoodPages/fresh_food_snacks/fresh_food_snacks?petId=${planData.pet.id}`,
-    })
-  } catch {
-    uni.hideLoading()
-    uni.showToast({ title: '操作失败', icon: 'none' })
+  saveSelectionsToStore('checkout')
+
+  const hasNextPage = true
+  if (hasNextPage) {
+    uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
+  } else {
+    uni.showLoading({ title: '处理中...' })
+    try {
+      await executeFinalAction('checkout')
+    } catch {
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
   }
 }
 
@@ -435,14 +468,15 @@ const checkout = async () => {
 const loadPlanData = async () => {
   isLoading.value = true
   try {
-    const res = await uni.request({
-      url: `/api/fresh-food/plan?petId=${petId.value}`,
-      method: 'GET',
-    })
-    if (res.statusCode === 200 && res.data) {
-      const data = res.data as { code: string; result: FreshPlanPageData }
-      if (data.code === '0' && data.result) {
-        Object.assign(planData, data.result)
+    // 1. 创建 Plan
+    const createRes = await freshFoodApi.createPlan({ petId: petId.value })
+    if (createRes.code === '0' && createRes.result) {
+      freshFoodStore.planId = createRes.result.planId
+
+      // 2. 获取 Plan 详情
+      const planRes = await freshFoodApi.getPlan(freshFoodStore.planId)
+      if (planRes.code === '0' && planRes.result) {
+        Object.assign(planData, planRes.result)
         // 默认选推荐占比
         const recommendedRatio = planData.ratios.list.find((r) => r.recommended)
         planData.ratios.selected = recommendedRatio?.id || planData.ratios.list[0]?.id || ''

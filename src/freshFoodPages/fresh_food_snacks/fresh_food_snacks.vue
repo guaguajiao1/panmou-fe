@@ -54,7 +54,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { Sku } from '@/types/product'
+import { useFreshFoodStore } from '@/stores'
+import { cartApi } from '@/api/cart'
+import { checkoutApi } from '@/api/checkout'
 
 interface SnackItem {
   id: string
@@ -67,6 +69,7 @@ interface SnackItem {
   selected?: boolean
 }
 
+const freshFoodStore = useFreshFoodStore()
 const snackList = ref<SnackItem[]>([])
 const selectedSnack = ref<string | null>(null)
 const petId = ref('')
@@ -76,23 +79,68 @@ const selectSnack = (id: string) => {
   selectedSnack.value = selectedSnack.value === id ? null : id
 }
 
+/** 执行最终操作 (当没有toys页面时使用) */
+const executeFinalAction = async () => {
+  const params = {
+    planId: freshFoodStore.planId,
+    planSelections: freshFoodStore.planSelections,
+    items: freshFoodStore.extraItems,
+  }
+
+  if (freshFoodStore.flowAction === 'addToCart') {
+    await cartApi.addItem('my-cart', params)
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+    freshFoodStore.clearState()
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/cart/cart' })
+    }, 1000)
+  } else if (freshFoodStore.flowAction === 'checkout') {
+    const res = await checkoutApi.entryDirect(params)
+    freshFoodStore.clearState()
+    uni.navigateTo({
+      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
+    })
+  } else {
+    uni.showToast({ title: '未知操作类型', icon: 'none' })
+  }
+}
+
+const proceedNext = async () => {
+  const hasNextPage = true // TODO: 判断是否有 Toys 页面配置
+  if (hasNextPage) {
+    uni.navigateTo({ url: '/freshFoodPages/fresh_food_toys/fresh_food_toys' })
+  } else {
+    uni.showLoading({ title: '处理中...' })
+    try {
+      await executeFinalAction()
+    } catch {
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
+  }
+}
+
 // 跳过
 const skip = () => {
-  uni.navigateTo({
-    url: `/freshFoodPages/fresh_food_toys/fresh_food_toys?petId=${petId.value}`,
-  })
+  proceedNext()
 }
 
 // 添加到计划
 const addToPlan = () => {
   if (!selectedSnack.value) return
 
-  // 存储选择到本地
-  uni.setStorageSync('selectedSnack', selectedSnack.value)
+  const snack = snackList.value.find((s) => s.id === selectedSnack.value)
+  if (snack) {
+    freshFoodStore.extraItems.push({
+      productId: snack.id,
+      skuId: snack.id,
+      quantity: 1,
+      purchaseType: 0,
+    })
+  }
 
-  uni.navigateTo({
-    url: `/freshFoodPages/fresh_food_toys/fresh_food_toys?petId=${petId.value}`,
-  })
+  proceedNext()
 }
 
 // 加载 mock 数据

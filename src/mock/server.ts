@@ -4,6 +4,12 @@ import type { Cart, CartItem } from '@/types/cart'
 import type { OrderDetail, OrderSkuItem, DiscountDetail } from '@/types/order'
 import type { OrderShipment, ShipmentTrace } from '@/types/logistics'
 import type { PetProfile, PetEnums, EnumItem } from '@/types/pet'
+import type {
+  FreshFoodPlan,
+  FreshFoodRatio,
+  DeliveryFrequency,
+  FreshFoodRecipeSku,
+} from '@/types/fresh-food'
 import { OrderState, OrderItemState, ItemType, ShipmentState } from '@/types/order-state'
 // Development mock server implementing Address, Cart and Checkout APIs
 // Returns Data<T> objects that match the http wrapper expectations
@@ -22,6 +28,7 @@ let globalCart: any = {}
 const previews: Record<string, any> = {}
 const orders: Map<string, OrderDetail> = new Map()
 const pets: Map<string, PetProfile> = new Map()
+const plans: Map<string, FreshFoodPlan> = new Map()
 
 // Helpers
 const clone = (v: any) => JSON.parse(JSON.stringify(v))
@@ -1552,18 +1559,161 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
     return { code: '0', msg: 'ok', result: clone(globalCart) }
   }
 
-  // POST /account/carts/{cartId}/items - 添加商品
+  // POST /account/carts/{cartId}/items - 添加商品（支持普通商品 + 鲜食 Plan）
   const addItemMatch = url.match(/^\/account\/carts\/([^/]+)\/items$/)
   if (addItemMatch && String(options.method || 'POST').toUpperCase() === 'POST') {
-    const cartId = addItemMatch[1] // 暂时忽略 cartId 校验
+    const cartId = addItemMatch[1]
     const data = (options.data as any) || {}
-    // data: { productId, skuId, quantity, purchaseType }
-    // 简单实现：检查是否已存在，存在则加数量，不存在则创建
-    // 注意：需配合 product 数据，这里简化为直接查找是否有相同 skuId 的 item
-    // 因为前端传的是 productId/skuId，我们需要找到对应的 ItemId（如果是已存在的）
-    // 或者生成新的 ItemId
-    // ... Mock logic to simulate adding ...
-    // 为演示，这里仅返回成功，不做实际添加逻辑(太复杂且依赖 Product)，或者简单 Mock 一个
+
+    // 1. 处理普通 items 数组
+    const items = data.items || []
+    items.forEach((itemInfo: any) => {
+      const existingIdx = globalCart.items.findIndex(
+        (item: CartItem) =>
+          item.sku.skuId === itemInfo.skuId && item.purchaseType === itemInfo.purchaseType,
+      )
+      if (existingIdx !== -1) {
+        globalCart.items[existingIdx].quantity += itemInfo.quantity
+      } else {
+        const newItem: any = {
+          itemId: 'item_' + Date.now() + Math.floor(Math.random() * 1000),
+          quantity: itemInfo.quantity || 1,
+          originalPrice: '0.00',
+          finalPrice: '0.00',
+          totalItemPrice: '0.00',
+          totalItemDiscount: '0.00',
+          availableQuantity: 99,
+          sku: {
+            skuId: itemInfo.skuId,
+            productId: itemInfo.productId || itemInfo.skuId,
+            productName: '商品 ' + itemInfo.skuId,
+            strikeThroughPrice: '100.00',
+            advertisedPrice: '100.00',
+            originalPrice: '100.00',
+            subscriptionPrice: '90.00',
+            name: '商品 ' + itemInfo.skuId,
+            image: ['https://placehold.co/200x200/ccc/333?text=Item'],
+            desc: '',
+            specs: '',
+            type: 1,
+            supportsSubscription: true,
+            subscriptionDiscountRate: '10',
+            subscriptionDiscount: '',
+            maxQuantity: 99,
+            attributes: [],
+          },
+          selected: true,
+          addedPrice: '100.00',
+          isEffective: true,
+          purchaseType: itemInfo.purchaseType || 0,
+          discountDetails: [],
+        }
+        globalCart.items.unshift(newItem)
+      }
+    })
+
+    // 2. 处理鲜食计划
+    if (data.planId) {
+      const plan = plans.get(data.planId)
+      const sel = data.planSelections
+      if (plan && sel) {
+        plan.ratioId = sel.ratioId
+        plan.frequencyId = sel.frequencyId
+        plan.recipes = sel.recipes
+        plan.updatedAt = new Date().toISOString()
+
+        // 查找占比和频率名称
+        const ratio = plan.ratios.list.find((r: any) => r.id === sel.ratioId)
+        const freq = ratio?.frequencies?.find((f: any) => f.id === sel.frequencyId)
+
+        // 生成 specs 文本，如 "鸡肉蔬菜餐 7袋, 牛肉红薯餐 7袋"
+        const specsText = (sel.recipes || [])
+          .map((r: any) => {
+            const recipeSku = ratio?.recipes?.find((rs: any) => rs.sku.skuId === r.skuId)
+            const name = recipeSku?.sku?.name || r.skuId
+            return `${name} ${r.quantity}袋`
+          })
+          .join(', ')
+
+        // 计算总价
+        let totalPrice = 0
+        ;(sel.recipes || []).forEach((r: any) => {
+          const recipeSku = ratio?.recipes?.find((rs: any) => rs.sku.skuId === r.skuId)
+          totalPrice += parseFloat(recipeSku?.sku?.originalPrice || '0') * r.quantity
+        })
+        const priceStr = totalPrice.toFixed(2)
+
+        const planSkuId = `fr_${data.planId}`
+        const existingIdx = globalCart.items.findIndex(
+          (item: CartItem) => item.sku.skuId === planSkuId,
+        )
+        if (existingIdx === -1) {
+          const newPlanItem: any = {
+            itemId: 'item_' + Date.now() + Math.floor(Math.random() * 1000),
+            quantity: 1,
+            originalPrice: priceStr,
+            finalPrice: priceStr,
+            totalItemPrice: priceStr,
+            totalItemDiscount: '0.00',
+            availableQuantity: 99,
+            sku: {
+              skuId: planSkuId,
+              productId: planSkuId,
+              strikeThroughPrice: priceStr,
+              advertisedPrice: priceStr,
+              originalPrice: priceStr,
+              subscriptionPrice: priceStr,
+              name: '为您准备的鲜食定制方案',
+              productName: '为您准备的鲜食定制方案',
+              image: [
+                'https://placehold.co/200x200/90EE90/333?text=%F0%9F%A5%97+%E9%B2%9C%E9%A3%9F',
+              ],
+              desc: plan.pet?.name ? `${plan.pet.name}的专属定制` : '鲜食定制方案',
+              specs: specsText,
+              type: 8,
+              supportsSubscription: true,
+              subscriptionDiscountRate: '0',
+              subscriptionDiscount: '',
+              maxQuantity: 1,
+              customization: {
+                items: [
+                  {
+                    code: 'ratio',
+                    name: '鲜食占比',
+                    mode: 0,
+                    displayMode: 0,
+                    values: [{ code: sel.ratioId, name: ratio?.name || sel.ratioId, checked: 1 }],
+                  },
+                  {
+                    code: 'frequency',
+                    name: '配送周期',
+                    mode: 0,
+                    displayMode: 0,
+                    values: [
+                      { code: sel.frequencyId, name: freq?.label || sel.frequencyId, checked: 1 },
+                    ],
+                  },
+                ],
+              },
+              attributes: [],
+            },
+            selected: true,
+            addedPrice: priceStr,
+            isEffective: true,
+            purchaseType: 1,
+            discountDetails: [],
+          }
+          globalCart.items.unshift(newPlanItem)
+        }
+      }
+    }
+
+    // 兼容旧格式：直接传 productId/skuId
+    if (!data.items && !data.planId && data.skuId) {
+      // 旧逻辑兜底
+    }
+
+    globalCart = computeCart(globalCart)
     return { code: '0', msg: '添加成功', result: clone(globalCart) }
   }
 
@@ -1608,6 +1758,158 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
       globalCart = computeCart(globalCart)
     }
     return { code: '0', msg: 'ok', result: clone(globalCart) }
+  }
+
+  // --- POST /checkout/entry/direct 立即购买/快结算 ---
+  if (
+    url.match(/^\/checkout\/entry\/direct$/) &&
+    String(options.method || 'POST').toUpperCase() === 'POST'
+  ) {
+    const data = (options.data as any) || {}
+    const previewItems: any[] = []
+
+    // 1. 处理普通 items
+    ;(data.items || []).forEach((itemInfo: any) => {
+      previewItems.push({
+        itemId: 'd_item_' + Date.now() + Math.random(),
+        quantity: itemInfo.quantity || 1,
+        originalPrice: '100.00',
+        finalPrice: '100.00',
+        totalItemPrice: (100 * (itemInfo.quantity || 1)).toFixed(2),
+        totalItemDiscount: '0.00',
+        availableQuantity: 99,
+        sku: {
+          skuId: itemInfo.skuId,
+          productId: itemInfo.productId || itemInfo.skuId,
+          strikeThroughPrice: '100.00',
+          advertisedPrice: '100.00',
+          originalPrice: '100.00',
+          subscriptionPrice: '90.00',
+          name: '商品 ' + itemInfo.skuId,
+          image: ['https://placehold.co/200x200/ccc/333?text=Item'],
+          desc: '',
+          specs: '',
+          type: 1,
+          supportsSubscription: true,
+          subscriptionDiscountRate: '10',
+          subscriptionDiscount: '',
+          maxQuantity: 99,
+        },
+        discountDetails: [],
+        purchaseType: itemInfo.purchaseType || 0,
+        Autoship: {
+          subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
+          subscriptionAdjustments: [],
+          source: 'CHECKOUT' as const,
+        },
+      })
+    })
+
+    // 2. 处理鲜食计划
+    if (data.planId) {
+      const plan = plans.get(data.planId)
+      const sel = data.planSelections
+      if (plan && sel) {
+        plan.ratioId = sel.ratioId
+        plan.frequencyId = sel.frequencyId
+        plan.recipes = sel.recipes
+        plan.updatedAt = new Date().toISOString()
+
+        const ratio = plan.ratios.list.find((r: any) => r.id === sel.ratioId)
+        const freq = ratio?.frequencies?.find((f: any) => f.id === sel.frequencyId)
+        const specsText = (sel.recipes || [])
+          .map((r: any) => {
+            const recipeSku = ratio?.recipes?.find((rs: any) => rs.sku.skuId === r.skuId)
+            const name = recipeSku?.sku?.name || r.skuId
+            return `${name} ${r.quantity}袋`
+          })
+          .join(', ')
+
+        let totalPrice = 0
+        ;(sel.recipes || []).forEach((r: any) => {
+          const recipeSku = ratio?.recipes?.find((rs: any) => rs.sku.skuId === r.skuId)
+          totalPrice += parseFloat(recipeSku?.sku?.originalPrice || '0') * r.quantity
+        })
+        const priceStr = totalPrice.toFixed(2)
+        const planSkuId = `fr_${data.planId}`
+
+        previewItems.push({
+          itemId: 'd_item_' + Date.now() + Math.random(),
+          quantity: 1,
+          originalPrice: priceStr,
+          finalPrice: priceStr,
+          totalItemPrice: priceStr,
+          totalItemDiscount: '0.00',
+          availableQuantity: 99,
+          sku: {
+            skuId: planSkuId,
+            productId: planSkuId,
+            strikeThroughPrice: priceStr,
+            advertisedPrice: priceStr,
+            originalPrice: priceStr,
+            subscriptionPrice: priceStr,
+            name: '为您准备的鲜食定制方案',
+            image: ['https://placehold.co/200x200/90EE90/333?text=%F0%9F%A5%97+%E9%B2%9C%E9%A3%9F'],
+            desc: plan.pet?.name ? `${plan.pet.name}的专属定制` : '鲜食定制方案',
+            specs: specsText,
+            type: 8,
+            supportsSubscription: true,
+            subscriptionDiscountRate: '0',
+            subscriptionDiscount: '',
+            maxQuantity: 1,
+            customization: {
+              items: [
+                {
+                  code: 'ratio',
+                  name: '鲜食占比',
+                  mode: 0,
+                  displayMode: 0,
+                  values: [{ code: sel.ratioId, name: ratio?.name || sel.ratioId, checked: 1 }],
+                },
+                {
+                  code: 'frequency',
+                  name: '配送周期',
+                  mode: 0,
+                  displayMode: 0,
+                  values: [
+                    { code: sel.frequencyId, name: freq?.label || sel.frequencyId, checked: 1 },
+                  ],
+                },
+              ],
+            },
+          },
+          discountDetails: [],
+          purchaseType: 1,
+          Autoship: {
+            subscriptionFrequency: { frequency: 4, unit: 'WEEK' as const },
+            subscriptionAdjustments: [],
+            source: 'CHECKOUT' as const,
+          },
+        })
+      }
+    }
+
+    const newPreviewId = 'P-' + Date.now()
+    const newPreview: any = {
+      id: newPreviewId,
+      subscriptionDiscount: {
+        subscriptionDiscountRate: '0',
+        subscriptionDiscount: '0.00',
+        firstSubscription: false,
+      },
+      totalItemQuantity: 0,
+      subtotal: '0.00',
+      grandTotal: '0.00',
+      shippingFee: '0.00',
+      freeShippingThreshold: '49.00',
+      freeShippingEligibleAmount: '0.00',
+      totalDiscount: '0.00',
+      discountDetails: [],
+      recommendedAutoships: [],
+      items: previewItems,
+    }
+    previews[newPreviewId] = computePreview(newPreview)
+    return { code: '0', msg: 'ok', result: { previewId: newPreviewId } }
   }
 
   // --- Checkout Entry from Cart ---
@@ -2682,6 +2984,225 @@ export const mockRequest = async (options: UniApp.RequestOptions): Promise<Data<
       ctaText: '开启专属鲜食之旅',
     }
     return { code: '0', msg: 'ok', result: landingData }
+  }
+
+  // --- Fresh Food Plans API ---
+
+  // POST /api/fresh-food/plans - 创建定制方案
+  if (
+    url.match(/^\/api\/fresh-food\/plans$/) &&
+    String(options.method || 'POST').toUpperCase() === 'POST'
+  ) {
+    const data = (options.data as any) || {}
+    const petId = data.petId
+
+    // 用与 fresh_food_plan.vue loadMockData() 完全相同的数据填充
+    const makeFreshSku = (
+      id: string,
+      name: string,
+      desc: string,
+      price: string,
+      imageEmoji: string,
+    ) => ({
+      skuId: id,
+      productId: id,
+      strikeThroughPrice: price,
+      advertisedPrice: price,
+      originalPrice: price,
+      subscriptionPrice: price,
+      name,
+      productName: name,
+      image: [`https://placehold.co/200x200/90EE90/333?text=${encodeURIComponent(imageEmoji)}`],
+      desc,
+      specs: '',
+      type: 8,
+      supportsSubscription: true,
+      subscriptionDiscountRate: '0',
+      subscriptionDiscount: '',
+      maxQuantity: 99,
+    })
+
+    const chickenSku = makeFreshSku(
+      'r1',
+      '鸡肉蔬菜餐',
+      '选用优质鸡胸肉，搭配新鲜时令蔬菜',
+      '25.00',
+      '🍗',
+    )
+    const beefSku = makeFreshSku(
+      'r2',
+      '牛肉红薯餐',
+      '精选牛腿肉，配以香甜红薯和南瓜',
+      '28.00',
+      '🥩',
+    )
+    const fishSku = makeFreshSku('r3', '三文鱼餐', '深海三文鱼，富含Omega-3脂肪酸', '32.00', '🐟')
+    const lambSku = makeFreshSku('r4', '羊肉糙米餐', '新西兰羊肉，搭配有机糙米', '30.00', '🐑')
+
+    const ratios: FreshFoodRatio[] = [
+      {
+        id: 'ratio100',
+        name: '100%鲜食',
+        description: '完全以鲜食为主',
+        percentage: 100,
+        recommended: true,
+        image: 'https://placehold.co/60x40/00a86b/fff?text=100%25',
+        frequencies: [
+          {
+            id: 'f100_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 14,
+            deliveryDays: 14,
+            shippingFee: '0',
+            tag: '最划算',
+            recommended: true,
+          },
+          {
+            id: 'f100_3w',
+            interval: 3,
+            unit: 'week',
+            label: '每3周',
+            totalPacks: 21,
+            deliveryDays: 21,
+            shippingFee: '0',
+            tag: '🧊 冰箱友好',
+          },
+          {
+            id: 'f100_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 28,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku as any, quantity: 0, recommended: true },
+          { sku: beefSku as any, quantity: 0, recommended: true },
+          { sku: fishSku as any, quantity: 0 },
+          { sku: lambSku as any, quantity: 0 },
+        ],
+      },
+      {
+        id: 'ratio50',
+        name: '50%鲜食',
+        description: '鲜食搭配干粮',
+        percentage: 50,
+        image: 'https://placehold.co/60x40/ffa500/fff?text=50%25',
+        frequencies: [
+          {
+            id: 'f50_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 7,
+            deliveryDays: 14,
+            shippingFee: '0',
+            recommended: true,
+          },
+          {
+            id: 'f50_3w',
+            interval: 3,
+            unit: 'week',
+            label: '每3周',
+            totalPacks: 11,
+            deliveryDays: 21,
+            shippingFee: '5',
+          },
+          {
+            id: 'f50_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 14,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku as any, quantity: 0, recommended: true },
+          { sku: beefSku as any, quantity: 0 },
+          { sku: fishSku as any, quantity: 0, recommended: true },
+        ],
+      },
+      {
+        id: 'ratio25',
+        name: '25%鲜食',
+        description: '鲜食作为辅食',
+        percentage: 25,
+        image: 'https://placehold.co/60x40/6495ed/fff?text=25%25',
+        frequencies: [
+          {
+            id: 'f25_2w',
+            interval: 2,
+            unit: 'week',
+            label: '每2周',
+            totalPacks: 4,
+            deliveryDays: 14,
+            shippingFee: '0',
+            recommended: true,
+          },
+          {
+            id: 'f25_4w',
+            interval: 4,
+            unit: 'week',
+            label: '每4周',
+            totalPacks: 7,
+            deliveryDays: 28,
+            shippingFee: '10',
+          },
+        ],
+        recipes: [
+          { sku: chickenSku as any, quantity: 0, recommended: true },
+          { sku: beefSku as any, quantity: 0 },
+        ],
+      },
+    ]
+
+    const pet = pets.get(petId) || {
+      id: petId || 'pet_mock',
+      name: '小西',
+      type: 'dog' as const,
+      avatar: 'https://placehold.co/80x80/f5e6d3/333?text=🐕',
+      breedName: '柴犬',
+      birthday: '2022-05-15',
+      gender: 'male' as const,
+      neutered: true,
+      currentWeight: 12,
+      idealWeight: 11,
+      bodyCondition: 'ideal',
+      activityLevel: 'moderate',
+      pickyLevel: 'sometimes',
+      summary: '成年柴犬，体型标准，活动量适中',
+    }
+
+    const planId = 'plan_' + Date.now()
+    const newPlan: FreshFoodPlan = {
+      planId,
+      petId: pet.id,
+      uid: 'USER-001',
+      pet: pet as any,
+      ratios: { list: ratios, selected: ratios[0].id },
+      firstOrderDiscount: 50,
+      futureOrderNote: '后续订单按原价计算',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    plans.set(planId, newPlan)
+    return { code: '0', msg: 'ok', result: { planId } }
+  }
+
+  // GET /api/fresh-food/plans/{planId} - 获取方案详情
+  const planMatch = url.match(/^\/api\/fresh-food\/plans\/([^/]+)$/)
+  if (planMatch && String(options.method || 'GET').toUpperCase() === 'GET') {
+    const planId = planMatch[1]
+    const plan = plans.get(planId)
+    if (!plan) return { code: '1', msg: 'Plan not found', result: null }
+    return { code: '0', msg: 'ok', result: clone(plan) }
   }
 
   return null

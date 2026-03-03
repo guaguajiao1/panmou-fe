@@ -27,6 +27,8 @@ import type {
   CheckoutResult,
   UpdatePreviewParams,
   PlaceOrderResult,
+  DirectCheckoutParams,
+  DirectCheckoutResult,
 } from '@/types/checkout'
 import { http } from '@/utils/http'
 
@@ -35,6 +37,15 @@ import { http } from '@/utils/http'
  * 风格与 src/api/address.ts 保持一致
  */
 export const checkoutApi = {
+  /** 通用的直接结算（不经过购物车） */
+  entryDirect(data: DirectCheckoutParams) {
+    return http<DirectCheckoutResult>({
+      method: 'POST',
+      url: '/checkout/entry/direct',
+      data,
+    })
+  },
+
   /**
    * 购物车 -> 结账入口 (返回 previewId)
    */

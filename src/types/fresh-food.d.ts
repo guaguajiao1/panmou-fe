@@ -69,6 +69,19 @@ export interface FreshFoodOrderParams {
   recipes: { skuId: string; quantity: number }[]
 }
 
+/** 服务端存储的完整 Plan 详情（以 planId 为 key 存储于内存 Map） */
+export interface FreshFoodPlan extends FreshPlanPageData {
+  planId: string
+  uid: string
+  petId: string
+  /** 用户确认后的选择 */
+  ratioId?: string
+  frequencyId?: string
+  recipes?: { skuId: string; quantity: number }[]
+  createdAt?: string
+  updatedAt?: string
+}
+
 /** 统一页面数据结构 */
 export interface FreshPlanPageData {
   /** 宠物信息 */

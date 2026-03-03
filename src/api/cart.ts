@@ -1,4 +1,4 @@
-import type { Cart } from '@/types/cart'
+import type { Cart, AddToCartParams } from '@/types/cart'
 import { http } from '@/utils/http'
 
 // --- 为函数参数定义类型别名，使代码更清晰 ---
@@ -40,7 +40,7 @@ export const cartApi = {
    * @param cartId 购物车ID
    * @param data 商品信息
    */
-  addItem(cartId: string, data: AddItemParams) {
+  addItem(cartId: string, data: AddToCartParams) {
     return http({
       method: 'POST',
       url: `/account/carts/${cartId}/items`,

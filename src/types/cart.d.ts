@@ -41,3 +41,17 @@ export interface Cart {
 
   items: CartItem[]
 }
+
+/** 通用加入购物车请求参数（支持批量商品 + 鲜食 Plan） */
+export interface AddToCartParams {
+  /** 批量商品 */
+  items?: { productId: string; skuId: string; quantity: number; purchaseType: 0 | 1 }[]
+  /** 鲜食 planId */
+  planId?: string
+  /** 鲜食用户选择 */
+  planSelections?: {
+    ratioId: string
+    frequencyId: string
+    recipes: { skuId: string; quantity: number }[]
+  }
+}

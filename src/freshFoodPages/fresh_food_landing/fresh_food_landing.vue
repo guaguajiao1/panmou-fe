@@ -1,5 +1,7 @@
 <template>
   <view class="landing-page">
+    <CustomNavigationBar title="狗狗鲜食订阅" show-back />
+
     <!-- 加载状态 -->
     <view v-if="isLoading" class="loading-container">
       <uni-load-more status="loading" />

@@ -98,7 +98,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { Sku } from '@/types/product'
+import { useFreshFoodStore } from '@/stores'
+import { cartApi } from '@/api/cart'
+import { checkoutApi } from '@/api/checkout'
 
 interface ToyItem {
   id: string
@@ -119,6 +121,7 @@ interface ChewItem {
   quantity: number
 }
 
+const freshFoodStore = useFreshFoodStore()
 const toyCategories = ref<ToyItem[]>([])
 const chewList = ref<ChewItem[]>([])
 const selectedToy = ref<string | null>(null)
@@ -194,6 +197,43 @@ const totalPrice = computed(() => {
   return total
 })
 
+/** 执行最终操作 */
+const executeFinalAction = async () => {
+  const params = {
+    planId: freshFoodStore.planId,
+    planSelections: freshFoodStore.planSelections,
+    items: freshFoodStore.extraItems,
+  }
+
+  if (freshFoodStore.flowAction === 'addToCart') {
+    await cartApi.addItem('my-cart', params)
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+    freshFoodStore.clearState()
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/cart/cart' })
+    }, 1000)
+  } else if (freshFoodStore.flowAction === 'checkout') {
+    const res = await checkoutApi.entryDirect(params)
+    freshFoodStore.clearState()
+    uni.navigateTo({
+      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
+    })
+  } else {
+    uni.showToast({ title: '未知操作类型', icon: 'none' })
+  }
+}
+
+const goToCheckout = async () => {
+  uni.showLoading({ title: '处理中...' })
+  try {
+    await executeFinalAction()
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
 // 跳过
 const skip = () => {
   goToCheckout()
@@ -201,27 +241,27 @@ const skip = () => {
 
 // 添加到计划
 const addToPlan = () => {
-  // 存储选择
-  const selection = {
-    toy: selectedToy.value
-      ? {
-          id: selectedToy.value,
-          quantity: toyQuantity.value,
-        }
-      : null,
-    chews: selectedChews.value.map((c) => ({
-      id: c.id,
-      quantity: chewQuantities.value[c.id],
-    })),
+  // 存储玩具
+  if (selectedToy.value && toyQuantity.value > 0) {
+    freshFoodStore.extraItems.push({
+      productId: selectedToy.value,
+      skuId: selectedToy.value,
+      quantity: toyQuantity.value,
+      purchaseType: 0,
+    })
   }
-  uni.setStorageSync('selectedToysAndChews', selection)
-  goToCheckout()
-}
 
-const goToCheckout = () => {
-  uni.navigateTo({
-    url: `/orderPages/checkout/checkout?previewId=fresh-${petId.value}`,
+  // 存储磨牙棒
+  selectedChews.value.forEach((c) => {
+    freshFoodStore.extraItems.push({
+      productId: c.id,
+      skuId: c.id,
+      quantity: chewQuantities.value[c.id],
+      purchaseType: 0,
+    })
   })
+
+  goToCheckout()
 }
 
 // 加载 mock 数据

@@ -118,3 +118,22 @@ export interface UpdatePreviewParams {
 export interface PlaceOrderResult {
   orderId: string
 }
+
+/** 通用立即结算请求参数（支持批量商品 + 鲜食 Plan） */
+export interface DirectCheckoutParams {
+  /** 批量商品 */
+  items?: { productId: string; skuId: string; quantity: number; purchaseType: 0 | 1 }[]
+  /** 鲜食 planId */
+  planId?: string
+  /** 鲜食用户选择 */
+  planSelections?: {
+    ratioId: string
+    frequencyId: string
+    recipes: { skuId: string; quantity: number }[]
+  }
+}
+
+/** 通用立即结算响应 */
+export interface DirectCheckoutResult {
+  previewId: string
+}
