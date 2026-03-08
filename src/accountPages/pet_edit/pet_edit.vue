@@ -78,7 +78,7 @@
         :disabled="!canProceed"
         @click="saveAndContinue"
       >
-        {{ isCustomize ? 'Continue' : '保存' }}
+        {{ isCustomize ? '制定鲜食' : '保存' }}
       </button>
     </view>
 
@@ -129,11 +129,6 @@
         </picker-view>
       </view>
     </uni-popup>
-
-    <!-- 删除按钮（编辑模式） -->
-    <view v-if="isEdit && currentStep === 1" class="delete-section">
-      <button class="btn-delete" @click="deletePet">删除宠物</button>
-    </view>
   </view>
 </template>
 
@@ -141,6 +136,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { petApi } from '@/api/pet'
+import { freshFoodApi } from '@/api/fresh-food'
 import type { PetFormData, PetEnums, WizardMode, EnumItem, PetType } from '@/types/pet'
 import StepBasicInfo from './components/StepBasicInfo.vue'
 import StepWeight from './components/StepWeight.vue'
@@ -366,11 +362,17 @@ const saveAndContinue = async () => {
 
     if (res && res.code === '0') {
       if (isCustomize.value) {
-        // 定制模式：跳转到推荐页面
+        // 定制模式：先创建鲜食方案，再跳转到方案页
         const savedPetId = res.result.id
-        uni.redirectTo({
-          url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?petId=${savedPetId}`,
-        })
+        const planRes = await freshFoodApi.createPlan({ petId: savedPetId })
+        if (planRes && planRes.code === '0') {
+          const planId = planRes.result.planId
+          uni.redirectTo({
+            url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?planId=${planId}`,
+          })
+        } else {
+          uni.showToast({ title: '创建鲜食方案失败', icon: 'none' })
+        }
       } else {
         // 普通模式：返回列表
         uni.showToast({ title: isEdit.value ? '保存成功' : '添加成功', icon: 'success' })
@@ -384,24 +386,6 @@ const saveAndContinue = async () => {
     uni.showToast({ title: '保存失败', icon: 'none' })
   } finally {
     isLoading.value = false
-  }
-}
-
-const deletePet = async () => {
-  const { confirm } = await uni.showModal({
-    title: '提示',
-    content: '确定要删除这只宠物吗？',
-  })
-  if (!confirm) return
-
-  try {
-    const res = await petApi.delete(petId.value)
-    if (res && res.code === '0') {
-      uni.showToast({ title: '删除成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 1500)
-    }
-  } catch (e) {
-    uni.showToast({ title: '删除失败', icon: 'none' })
   }
 }
 
@@ -503,25 +487,6 @@ onLoad(async (options) => {
 
     &[disabled] {
       background-color: #ccc;
-    }
-  }
-}
-
-.delete-section {
-  padding: 20rpx 30rpx;
-  background-color: #fff;
-
-  .btn-delete {
-    background-color: transparent;
-    color: #f56c6c;
-    border: 1rpx solid #f56c6c;
-    height: 88rpx;
-    line-height: 88rpx;
-    border-radius: 44rpx;
-    font-size: 28rpx;
-
-    &::after {
-      border: none;
     }
   }
 }

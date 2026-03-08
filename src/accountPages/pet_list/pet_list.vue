@@ -14,11 +14,14 @@
           v-for="(pet, index) in pets"
           :key="pet.id"
           class="pet-card"
-          :class="{ dragging: draggingIndex === index }"
+          :class="[
+            'pet-card',
+            { dragging: draggingIndex === index, selectable: propsSource === 'customize' },
+          ]"
           @longpress="startDrag(index)"
           @touchmove.prevent="onDrag"
           @touchend="endDrag"
-          @click="editPet(pet.id)"
+          @click="onPetClick(pet.id)"
         >
           <image class="pet-avatar" :src="pet.avatar" mode="aspectFill" />
           <view class="pet-info">
@@ -37,7 +40,23 @@
               <text v-if="pet.hasHealthIssues" class="tag warning">健康问题</text>
             </view>
           </view>
-          <view class="drag-handle">
+          <view class="actions" v-if="propsSource !== 'customize'">
+            <uni-icons
+              type="compose"
+              size="22"
+              color="#666"
+              @click.stop="editPet(pet.id)"
+            ></uni-icons>
+
+            <uni-icons
+              class="delete-icon"
+              type="trash"
+              size="22"
+              color="#666"
+              @click.stop="deletePet(pet.id)"
+            ></uni-icons>
+          </view>
+          <view class="drag-handle" v-if="propsSource !== 'customize'">
             <uni-icons type="bars" size="24" color="#ccc" />
           </view>
         </view>
@@ -66,9 +85,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onLoad } from '@dcloudio/uni-app'
 import { petApi } from '@/api/pet'
 import type { PetProfile } from '@/types/pet'
+
+const propsSource = ref('')
+
+onLoad((options) => {
+  if (options?.source) {
+    propsSource.value = options.source
+  }
+})
 
 const pets = ref<PetProfile[]>([])
 const isLoading = ref(false)
@@ -101,6 +128,35 @@ const addPet = () => {
 const editPet = (petId: string) => {
   if (draggingIndex.value !== null) return
   uni.navigateTo({ url: `/accountPages/pet_edit/pet_edit?id=${petId}` })
+}
+
+const onPetClick = (petId: string) => {
+  if (propsSource.value === 'customize') {
+    editPet(petId)
+  }
+}
+
+// 删除宠物
+const deletePet = (petId: string) => {
+  uni.showModal({
+    title: '确认删除',
+    content: '您确定要删除这只宠物吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const deleteRes = await petApi.delete(petId)
+          if (deleteRes.code === '0') {
+            uni.showToast({ icon: 'success', title: '删除成功' })
+            loadPets()
+          } else {
+            uni.showToast({ icon: 'none', title: deleteRes.msg || '删除失败' })
+          }
+        } catch (error) {
+          uni.showToast({ icon: 'none', title: '删除失败' })
+        }
+      }
+    },
+  })
 }
 
 // 拖拽排序
@@ -168,6 +224,10 @@ onShow(() => {
     transform: scale(1.02);
     box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
     z-index: 100;
+  }
+
+  &.selectable:active {
+    background-color: #f9f9f9;
   }
 
   .pet-avatar {
@@ -245,6 +305,16 @@ onShow(() => {
           color: #e65100;
         }
       }
+    }
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    padding-left: 16rpx;
+
+    .delete-icon {
+      margin-left: 24rpx;
     }
   }
 

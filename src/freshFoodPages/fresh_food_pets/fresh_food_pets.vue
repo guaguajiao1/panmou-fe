@@ -81,14 +81,14 @@ const loadPets = async () => {
 
 const selectPet = (pet: PetProfile) => {
   // 传递 lockedType 参数，锁定宠物类型不可修改
-  uni.navigateTo({
+  uni.redirectTo({
     url: `/accountPages/pet_edit/pet_edit?id=${pet.id}&mode=customize&lockedType=${petType.value}`,
   })
 }
 
 const addNewPet = () => {
   // 传递 lockedType 参数，锁定宠物类型不可修改
-  uni.navigateTo({
+  uni.redirectTo({
     url: `/accountPages/pet_edit/pet_edit?mode=customize&lockedType=${petType.value}`,
   })
 }

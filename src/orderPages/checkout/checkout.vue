@@ -3,7 +3,7 @@
     <view class="loading-overlay" v-if="isLoading">
       <uni-load-more status="loading" :showText="false"></uni-load-more>
     </view>
-    <CustomNavigationBar title="确认订单"></CustomNavigationBar>
+    <CustomNavigationBar title="确认订单" />
 
     <scroll-view scroll-y class="scroll-view-container">
       <view class="address-section-wrapper">
@@ -108,9 +108,14 @@
             v-bind="toProductCardProps(item)"
             @click="goToProductDetail(item)"
           >
-            <!-- 鲜食 sku.type===8: 结算页无任何按钮 -->
+            <!-- 鲜食 sku.type===8: 结算页显示查看计划按钮 -->
+            <template v-if="isFreshFood(item)">
+              <view class="action-row">
+                <button class="action-button" @click.stop="onViewPlan(item)">查看计划</button>
+              </view>
+            </template>
             <!-- 普通商品: 订阅切换 + 步进器 -->
-            <template v-if="!isFreshFood(item)">
+            <template v-else>
               <view class="subscription-row" v-if="item.sku?.supportsSubscription">
                 <view
                   class="subscription-toggle"
@@ -245,6 +250,13 @@ const selectedFreqObj = ref<SubscriptionFrequency | null>(null)
 
 /** 判断鲜食商品 */
 const isFreshFood = (item: Item) => item.sku?.type === 8
+
+const onViewPlan = (item: Item) => {
+  if (!item.sku?.planId) return
+  uni.navigateTo({
+    url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?planId=${item.sku.planId}&scene=checkout&itemId=${item.itemId}`,
+  })
+}
 
 /** Item -> ProductCardProps 映射（纯展示，不做价格计算） */
 const toProductCardProps = (item: Item): ProductCardProps => {
@@ -689,6 +701,31 @@ onShow(() => {
     margin-bottom: 0;
     padding-left: $uni-spacing-row-lg;
     padding-right: $uni-spacing-row-lg;
+  }
+}
+
+/* 鲜食操作行 */
+.action-row {
+  display: flex;
+  align-items: center;
+  margin-top: 30rpx;
+  gap: 20rpx;
+}
+
+.action-button {
+  font-size: 28rpx;
+  color: $uni-color-primary;
+  background-color: #fff;
+  border: 1rpx solid $uni-color-primary;
+  border-radius: 32rpx;
+  padding: 0;
+  width: 200rpx;
+  height: 64rpx;
+  line-height: 62rpx;
+  text-align: center;
+
+  &::after {
+    border: none;
   }
 }
 

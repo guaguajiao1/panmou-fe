@@ -1,31 +1,37 @@
 <template>
   <view class="toys-page">
-    <CustomNavigationBar title="玩具 & 磨牙棒" show-back />
+    <CustomNavigationBar
+      title="玩具 & 磨牙棒"
+      :back-icon="flowCompleted ? 'close' : 'back'"
+      :custom-back="true"
+      @back="handleBack"
+    />
 
     <scroll-view scroll-y class="toys-content">
       <!-- 玩具区域 -->
       <view class="section toys-section">
         <view class="section-header">
-          <text class="section-title">🧸 选择玩具类型</text>
+          <text class="section-title">选择玩具类型</text>
           <text class="section-desc">为你的狗狗挑选合适的玩具</text>
+          <text class="section-price-info">{{ toysConfig?.toyPriceNote }}</text>
         </view>
 
         <view class="toy-categories">
           <view
             v-for="toy in toyCategories"
-            :key="toy.id"
+            :key="toy.skuId"
             class="toy-card"
-            :class="{ selected: selectedToy === toy.id }"
-            @click="selectToy(toy.id)"
+            :class="{ selected: selectedToy === toy.skuId }"
+            @click="selectToy(toy.skuId)"
           >
-            <view class="toy-image-wrapper" :class="{ selected: selectedToy === toy.id }">
-              <image class="toy-image" :src="toy.image" mode="aspectFit" />
+            <view class="toy-image-wrapper" :class="{ selected: selectedToy === toy.skuId }">
+              <image class="toy-image" :src="toy.image?.[0]" mode="aspectFit" />
             </view>
-            <text class="toy-name">{{ toy.nameEn }} {{ toy.name }}</text>
-            <text class="toy-desc">{{ toy.description }}</text>
+            <text class="toy-name">{{ toy.name }}</text>
+            <text class="toy-desc">{{ toy.desc }}</text>
 
             <!-- 数量选择器 -->
-            <view v-if="selectedToy === toy.id" class="quantity-picker">
+            <view v-if="selectedToy === toy.skuId" class="quantity-picker">
               <view class="qty-btn" @click.stop="decreaseQty('toy')">
                 <text>−</text>
               </view>
@@ -43,22 +49,26 @@
         <view class="section-header">
           <text class="section-title">🦴 磨牙棒</text>
           <text class="section-desc">帮助保持口腔健康</text>
+          <text class="section-price-info">{{
+            toysConfig?.chewPriceNote || '首单免费，后续10元'
+          }}</text>
         </view>
 
         <view class="chews-list">
-          <view v-for="chew in chewList" :key="chew.id" class="chew-card">
-            <image class="chew-image" :src="chew.image" mode="aspectFit" />
+          <view v-for="chew in chewList" :key="chew.skuId" class="chew-card">
+            <image class="chew-image" :src="chew.image?.[0]" mode="aspectFit" />
             <view class="chew-info">
               <text class="chew-name">{{ chew.name }}</text>
-              <text class="chew-price">¥{{ chew.price }}/件</text>
+              <text class="chew-ingredient">{{ chew.ingredient || chew.desc }}</text>
+              <text class="chew-detail-link" @click.stop="openIngredientPopup(chew)">查看详情</text>
             </view>
             <!-- 数量选择器 -->
             <view class="quantity-picker">
-              <view class="qty-btn" @click="decreaseChewQty(chew.id)">
+              <view class="qty-btn" @click="decreaseChewQty(chew.skuId)">
                 <text>−</text>
               </view>
-              <text class="qty-value">{{ chewQuantities[chew.id] || 0 }}</text>
-              <view class="qty-btn" @click="increaseChewQty(chew.id)">
+              <text class="qty-value">{{ chewQuantities[chew.skuId] || 0 }}</text>
+              <view class="qty-btn" @click="increaseChewQty(chew.skuId)">
                 <text>+</text>
               </view>
             </view>
@@ -66,31 +76,38 @@
         </view>
       </view>
 
-      <!-- 选购汇总 -->
-      <view v-if="hasSelection" class="summary-section">
-        <text class="summary-title">已选商品</text>
-        <view v-if="selectedToy && toyQuantity > 0" class="summary-item">
-          <text>{{ getSelectedToyName }} × {{ toyQuantity }}</text>
-          <text class="summary-price">¥{{ getSelectedToyPrice * toyQuantity }}</text>
-        </view>
-        <view v-for="chew in selectedChews" :key="chew.id" class="summary-item">
-          <text>{{ chew.name }} × {{ chewQuantities[chew.id] }}</text>
-          <text class="summary-price">¥{{ chew.price * chewQuantities[chew.id] }}</text>
-        </view>
-        <view class="summary-total">
-          <text>合计</text>
-          <text class="total-price">¥{{ totalPrice }}</text>
-        </view>
-      </view>
-
       <!-- 底部占位 -->
       <view class="footer-placeholder" />
     </scroll-view>
 
+    <!-- 成分图片弹窗 -->
+    <view v-if="showIngredientPopup" class="popup-mask" @click="closeIngredientPopup">
+      <view class="popup-container" @click.stop>
+        <view class="popup-close" @click="closeIngredientPopup">
+          <uni-icons type="close" size="24" color="#666" />
+        </view>
+        <scroll-view scroll-y class="popup-scroll">
+          <image class="popup-image" :src="ingredientPopupImage" mode="widthFix" />
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 成功加入购物车后的底部栏 -->
+    <view v-if="flowCompleted" class="footer-bar success-footer">
+      <view class="success-banner">
+        <uni-icons type="checkmarkempty" size="20" color="#00a86b" />
+        <text class="success-text">已成功加入购物车！</text>
+      </view>
+      <view class="success-actions">
+        <button class="btn-cart" @click="goToCart">去购物车</button>
+        <button class="btn-another" @click="goToCustomizeAnother">为另一只狗狗定制</button>
+      </view>
+    </view>
+
     <!-- 底部固定栏 -->
-    <view class="footer-bar">
-      <button class="btn-skip" @click="skip">Skip 跳过</button>
-      <button class="btn-add" @click="addToPlan">Add to Plan 添加到计划</button>
+    <view v-else class="footer-bar">
+      <button class="btn-skip" @click="skip">跳过</button>
+      <button class="btn-add" :disabled="!hasSelection" @click="addToPlan">添加到计划</button>
     </view>
   </view>
 </template>
@@ -101,33 +118,39 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useFreshFoodStore } from '@/stores'
 import { cartApi } from '@/api/cart'
 import { checkoutApi } from '@/api/checkout'
-
-interface ToyItem {
-  id: string
-  name: string
-  nameEn: string
-  image: string
-  description: string
-  selected?: boolean
-  quantity?: number
-  price: number
-}
-
-interface ChewItem {
-  id: string
-  name: string
-  image: string
-  price: number
-  quantity: number
-}
+import type { Sku } from '@/types/product'
 
 const freshFoodStore = useFreshFoodStore()
-const toyCategories = ref<ToyItem[]>([])
-const chewList = ref<ChewItem[]>([])
+
+const toysConfig = computed(() => freshFoodStore.currentPlan?.toys)
+const toyCategories = computed<Sku[]>(() => toysConfig.value?.toyCategories || [])
+const chewList = computed<Sku[]>(() => toysConfig.value?.chews || [])
+
 const selectedToy = ref<string | null>(null)
 const toyQuantity = ref(1)
 const chewQuantities = ref<Record<string, number>>({})
-const petId = ref('')
+
+const flowCompleted = ref(false)
+
+// 追踪本页添加的商品ID
+const addedItemIds = ref<string[]>([])
+
+// 成分弹窗
+const showIngredientPopup = ref(false)
+const ingredientPopupImage = ref('')
+
+const openIngredientPopup = (chew: Sku) => {
+  if (chew.ingredientImage) {
+    ingredientPopupImage.value = chew.ingredientImage
+    showIngredientPopup.value = true
+  } else {
+    uni.showToast({ title: '暂无详情', icon: 'none' })
+  }
+}
+
+const closeIngredientPopup = () => {
+  showIngredientPopup.value = false
+}
 
 // 选择玩具
 const selectToy = (id: string) => {
@@ -168,36 +191,41 @@ const decreaseChewQty = (id: string) => {
 }
 
 // 计算属性
-const getSelectedToyName = computed(() => {
-  const toy = toyCategories.value.find((t) => t.id === selectedToy.value)
-  return toy ? `${toy.nameEn} ${toy.name}` : ''
-})
-
-const getSelectedToyPrice = computed(() => {
-  const toy = toyCategories.value.find((t) => t.id === selectedToy.value)
-  return toy?.price || 0
-})
-
 const selectedChews = computed(() => {
-  return chewList.value.filter((c) => chewQuantities.value[c.id] > 0)
+  return chewList.value.filter((c) => chewQuantities.value[c.skuId] > 0)
 })
 
 const hasSelection = computed(() => {
   return (selectedToy.value && toyQuantity.value > 0) || selectedChews.value.length > 0
 })
 
-const totalPrice = computed(() => {
-  let total = 0
-  if (selectedToy.value && toyQuantity.value > 0) {
-    total += getSelectedToyPrice.value * toyQuantity.value
-  }
-  for (const chew of selectedChews.value) {
-    total += chew.price * (chewQuantities.value[chew.id] || 0)
-  }
-  return total
-})
+/** 回退到 landing 并清除中间页面，可选链式跳转 */
+const clearStackAndNavigate = (targetUrl?: string) => {
+  const pages = getCurrentPages()
+  const landingIndex = pages.findIndex((p) => p.route?.includes('fresh_food_landing'))
+  const delta = landingIndex > -1 ? pages.length - 1 - landingIndex : pages.length
 
-/** 执行最终操作 */
+  uni.navigateBack({
+    delta,
+    complete: () => {
+      if (targetUrl) {
+        setTimeout(() => uni.navigateTo({ url: targetUrl }), 500)
+      }
+    },
+  })
+}
+
+/** 前往购物车 */
+const goToCart = () => {
+  clearStackAndNavigate('/pages/cart/cart')
+}
+
+/** 为另一只狗狗定制 */
+const goToCustomizeAnother = () => {
+  clearStackAndNavigate('/freshFoodPages/fresh_food_pets/fresh_food_pets')
+}
+
+/** 执行最终操作：成功后清理堆栈并跳转 */
 const executeFinalAction = async () => {
   const params = {
     planId: freshFoodStore.planId,
@@ -207,17 +235,12 @@ const executeFinalAction = async () => {
 
   if (freshFoodStore.flowAction === 'addToCart') {
     await cartApi.addItem('my-cart', params)
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
     freshFoodStore.clearState()
-    setTimeout(() => {
-      uni.switchTab({ url: '/pages/cart/cart' })
-    }, 1000)
+    flowCompleted.value = true // 显示成功操作栏
   } else if (freshFoodStore.flowAction === 'checkout') {
     const res = await checkoutApi.entryDirect(params)
     freshFoodStore.clearState()
-    uni.navigateTo({
-      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
-    })
+    clearStackAndNavigate(`/orderPages/checkout/checkout?previewId=${res.result.previewId}`)
   } else {
     uni.showToast({ title: '未知操作类型', icon: 'none' })
   }
@@ -228,10 +251,23 @@ const goToCheckout = async () => {
   try {
     await executeFinalAction()
   } catch {
-    uni.showToast({ title: '操作失败', icon: 'none' })
+    uni.showToast({ title: '加入购物车失败，请稍后重试', icon: 'none' })
   } finally {
     uni.hideLoading()
   }
+}
+
+// 回退：清理本页添加的商品
+const handleBack = () => {
+  if (flowCompleted.value) {
+    clearStackAndNavigate()
+    return
+  }
+
+  if (addedItemIds.value.length > 0) {
+    freshFoodStore.removeExtraItemsByIds(addedItemIds.value)
+  }
+  uni.navigateBack()
 }
 
 // 跳过
@@ -243,84 +279,35 @@ const skip = () => {
 const addToPlan = () => {
   // 存储玩具
   if (selectedToy.value && toyQuantity.value > 0) {
-    freshFoodStore.extraItems.push({
-      productId: selectedToy.value,
-      skuId: selectedToy.value,
-      quantity: toyQuantity.value,
-      purchaseType: 0,
-    })
+    const toy = toyCategories.value.find((t) => t.skuId === selectedToy.value)
+    if (toy) {
+      freshFoodStore.extraItems.push({
+        productId: toy.productId || toy.skuId,
+        skuId: toy.skuId,
+        quantity: toyQuantity.value,
+        purchaseType: 1,
+      })
+      addedItemIds.value.push(toy.productId || toy.skuId)
+    }
   }
 
   // 存储磨牙棒
   selectedChews.value.forEach((c) => {
     freshFoodStore.extraItems.push({
-      productId: c.id,
-      skuId: c.id,
-      quantity: chewQuantities.value[c.id],
-      purchaseType: 0,
+      productId: c.productId || c.skuId,
+      skuId: c.skuId,
+      quantity: chewQuantities.value[c.skuId],
+      purchaseType: 1,
     })
+    addedItemIds.value.push(c.productId || c.skuId)
   })
 
   goToCheckout()
 }
 
-// 加载 mock 数据
-const loadMockData = () => {
-  toyCategories.value = [
-    {
-      id: 'toy1',
-      name: '毛绒玩具',
-      nameEn: 'Plush Toys',
-      image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=🧸',
-      description: 'Soft Materials 软性材料',
-      price: 49,
-    },
-    {
-      id: 'toy2',
-      name: '耐用咀嚼玩具',
-      nameEn: 'Durable Chew Toys',
-      image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=🦴',
-      description: 'Tough Materials 坚韧材料',
-      price: 59,
-    },
-    {
-      id: 'toy3',
-      name: '组合盒',
-      nameEn: 'Combo Box',
-      image: 'https://placehold.co/200x200/e3f2fd/1976d2?text=📦',
-      description: 'Fluffy & Tough 蓬松又坚韧',
-      price: 89,
-    },
-  ]
-
-  chewList.value = [
-    {
-      id: 'chew1',
-      name: '天然牛皮磨牙棒',
-      image: 'https://placehold.co/120x120/fff3e0/e65100?text=🦴',
-      price: 29,
-      quantity: 0,
-    },
-    {
-      id: 'chew2',
-      name: '鹿角磨牙棒',
-      image: 'https://placehold.co/120x120/fff3e0/e65100?text=🦌',
-      price: 45,
-      quantity: 0,
-    },
-    {
-      id: 'chew3',
-      name: '洁齿磨牙骨',
-      image: 'https://placehold.co/120x120/fff3e0/e65100?text=🦷',
-      price: 25,
-      quantity: 0,
-    },
-  ]
-}
-
-onLoad((options) => {
-  petId.value = options?.petId || ''
-  loadMockData()
+onLoad(() => {
+  // 默认选中第一个玩具
+  selectedToy.value = toyCategories.value[0]?.skuId || null
 })
 </script>
 
@@ -357,6 +344,14 @@ onLoad((options) => {
   .section-desc {
     font-size: 24rpx;
     color: #666;
+  }
+
+  .section-price-info {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #1976d2;
+    margin-top: 8rpx;
   }
 }
 
@@ -481,50 +476,63 @@ onLoad((options) => {
     margin-bottom: 4rpx;
   }
 
-  .chew-price {
-    font-size: 24rpx;
-    color: #e65100;
-  }
-}
-
-// 汇总区域
-.summary-section {
-  margin: 20rpx;
-  padding: 24rpx;
-  background-color: #fff;
-  border-radius: 16rpx;
-
-  .summary-title {
+  .chew-ingredient {
     display: block;
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 16rpx;
+    font-size: 22rpx;
+    color: #666;
+    margin-bottom: 4rpx;
+  }
+
+  .chew-detail-link {
+    font-size: 24rpx;
+    color: #e6a23c;
+    font-weight: 500;
   }
 }
 
-.summary-item {
+// 成分弹窗
+.popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: space-between;
-  font-size: 26rpx;
-  color: #666;
-  margin-bottom: 12rpx;
-
-  .summary-price {
-    color: #333;
-  }
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.summary-total {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 16rpx;
-  border-top: 1rpx solid #eee;
-  font-size: 28rpx;
-  font-weight: 600;
+.popup-container {
+  width: 100%;
+  height: 85vh;
+  background-color: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  position: relative;
+  overflow: hidden;
 
-  .total-price {
-    color: #e65100;
+  .popup-close {
+    position: absolute;
+    top: 20rpx;
+    right: 20rpx;
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    z-index: 10;
+  }
+
+  .popup-scroll {
+    height: 100%;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .popup-image {
+    width: 100%;
   }
 }
 
@@ -571,5 +579,68 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: center;
+
+  &:disabled {
+    background-color: #ccc;
+    color: #fff;
+    border: none;
+    opacity: 1;
+  }
+}
+
+// 成功底部栏
+.footer-bar.success-footer {
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 30rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  height: auto;
+
+  .success-banner {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-bottom: 8rpx;
+  }
+
+  .success-text {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #333;
+  }
+
+  .success-actions {
+    display: flex;
+    width: 100%;
+    gap: 24rpx;
+
+    button {
+      flex: 1;
+      height: 80rpx;
+      font-size: 28rpx;
+      font-weight: 600;
+      border-radius: 40rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+
+      &::after {
+        border: none;
+      }
+    }
+
+    button.btn-cart {
+      color: #ff69b4; /* 粉色字体 */
+      border: 2rpx solid #ff69b4; /* 粉色边框 */
+    }
+
+    button.btn-another {
+      color: #ff3b30; /* 红色字体 */
+      border: 2rpx solid #ff3b30; /* 红色边框 */
+    }
+  }
 }
 </style>

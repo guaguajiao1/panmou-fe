@@ -5,6 +5,14 @@ import { computed } from 'vue'
 const props = defineProps<{
   // 导航栏标题内容
   title: string
+  /** 左侧图标类型：'close'（×）或 'back'（<），默认 close */
+  backIcon?: 'close' | 'back'
+  /** 自定义返回：为 true 时点击返回按钮抛出 @back 事件，不调用 navigateBack */
+  customBack?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'back'): void
 }>()
 
 // 获取系统信息，特别是状态栏高度
@@ -21,6 +29,10 @@ const navBarHeight = computed(() => {
 
 // 后退/关闭按钮点击事件
 const navigateBack = () => {
+  if (props.customBack) {
+    emit('back')
+    return
+  }
   // uni.navigateBack() 用于返回上一页或关闭当前页面
   uni.navigateBack({
     delta: 1,
@@ -52,7 +64,7 @@ const navigateBack = () => {
       <view class="navbar-left">
         <uni-icons
           class="close-icon"
-          type="closeempty"
+          :type="props.backIcon === 'back' ? 'left' : 'closeempty'"
           size="22"
           color="#007aff"
           @click="navigateBack"

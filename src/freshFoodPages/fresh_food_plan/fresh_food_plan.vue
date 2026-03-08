@@ -1,8 +1,21 @@
 <template>
   <view class="fresh-food-plan-page">
-    <CustomNavigationBar title="定制方案" show-back />
+    <CustomNavigationBar
+      title="定制方案"
+      :back-icon="flowCompleted ? 'close' : 'back'"
+      :custom-back="true"
+      @back="handleBack"
+    />
 
-    <scroll-view scroll-y class="plan-content">
+    <!-- 加载态 -->
+    <view v-if="isLoading" class="loading-overlay">
+      <view class="loading-content">
+        <view class="loading-spinner" />
+        <text class="loading-text">正在计算、定制中...</text>
+      </view>
+    </view>
+
+    <scroll-view v-else scroll-y class="plan-content">
       <!-- 宠物信息摘要 -->
       <view class="pet-summary">
         <image
@@ -12,7 +25,7 @@
           mode="aspectFill"
         />
         <view class="pet-info">
-          <text class="pet-name">{{ planData.pet.name }}的专属方案</text>
+          <text class="pet-name">定制{{ planData.pet.name }}的专属方案</text>
           <text class="pet-desc">{{ planData.pet.summary }}</text>
         </view>
       </view>
@@ -28,7 +41,7 @@
             :key="ratio.id"
             class="ratio-card"
             :class="{
-              selected: planData.ratios.selected === ratio.id,
+              selected: ratio.selected,
               recommended: ratio.recommended,
             }"
             @click="selectRatio(ratio.id)"
@@ -48,13 +61,16 @@
         <view class="section-header">
           <text class="section-title">配送频率</text>
         </view>
+        <text class="first-order-note" v-if="planData.firstOrderNote">{{
+          planData.firstOrderNote
+        }}</text>
         <view class="frequency-options">
           <view
             v-for="freq in currentFrequencies"
             :key="freq.id"
             class="frequency-card"
             :class="{
-              selected: selectedFrequencyId === freq.id,
+              selected: freq.selected,
               'has-tag': freq.tag,
             }"
             @click="selectFrequency(freq.id)"
@@ -86,13 +102,15 @@
             <image class="recipe-image" :src="recipeSku.sku.image?.[0] || ''" mode="aspectFill" />
             <view class="recipe-info">
               <text class="recipe-name">{{ recipeSku.sku.name }}</text>
-              <text class="recipe-desc">{{ recipeSku.sku.desc }}</text>
-              <text class="recipe-price">¥{{ recipeSku.sku.originalPrice }}/袋</text>
+              <text class="recipe-desc">{{ recipeSku.sku.ingredient }}</text>
+              <text class="recipe-detail-link" @click.stop="openIngredientPopup(recipeSku.sku)"
+                >查看详情</text
+              >
             </view>
             <view class="recipe-stepper">
               <view
                 class="stepper-btn minus"
-                :class="{ disabled: recipeSku.quantity <= 0 }"
+                :class="{ disabled: recipeSku.quantity <= 0 || isViewOnly }"
                 @click="decreaseRecipeQuantity(recipeSku.sku.skuId)"
               >
                 <text>−</text>
@@ -100,7 +118,7 @@
               <text class="stepper-value">{{ recipeSku.quantity }}</text>
               <view
                 class="stepper-btn plus"
-                :class="{ disabled: !canIncrease(recipeSku.sku.skuId) }"
+                :class="{ disabled: !canIncrease(recipeSku.sku.skuId) || isViewOnly }"
                 @click="increaseRecipeQuantity(recipeSku.sku.skuId)"
               >
                 <text>+</text>
@@ -114,45 +132,56 @@
       <view class="footer-placeholder" />
     </scroll-view>
 
-    <!-- 食谱详情弹窗 -->
-    <view v-if="showRecipePopup" class="recipe-popup-mask" @click="closeRecipePopup">
+    <!-- 成分详情弹窗 -->
+    <view v-if="showIngredientPopup" class="recipe-popup-mask" @click="closeIngredientPopup">
       <view class="recipe-popup" @click.stop>
-        <view class="popup-close" @click="closeRecipePopup">
+        <view class="popup-close" @click="closeIngredientPopup">
           <uni-icons type="close" size="24" color="#666" />
         </view>
         <scroll-view class="popup-scroll" scroll-y>
-          <view class="popup-image-container">
-            <image
-              class="popup-main-image"
-              :src="recipeDetail?.product?.images?.[0] || ''"
-              mode="aspectFill"
-            />
-          </view>
-          <view class="popup-title">{{ recipeDetail?.product?.title }}</view>
-          <view class="popup-detail-images">
-            <image
-              v-for="(img, index) in recipeDetail?.product?.detailImages"
-              :key="index"
-              class="detail-image"
-              :src="img"
-              mode="widthFix"
-            />
-          </view>
+          <image
+            v-if="ingredientPopupData.image"
+            class="popup-ingredient-image"
+            :src="ingredientPopupData.image"
+            mode="widthFix"
+          />
         </scroll-view>
       </view>
     </view>
 
-    <!-- 底部栏 -->
-    <view class="footer-bar">
+    <!-- 成功加入购物车后的底部栏 -->
+    <view v-if="flowCompleted" class="footer-bar success-footer">
+      <view class="success-banner">
+        <uni-icons type="checkmarkempty" size="20" color="#00a86b" />
+        <text class="success-text">已成功加入购物车！</text>
+      </view>
+      <view class="success-actions">
+        <button class="btn-cart" @click="goToCart">去购物车</button>
+        <button class="btn-another" @click="goToCustomizeAnother">为另一只狗狗定制</button>
+      </view>
+    </view>
+
+    <!-- 正常的底部栏 -->
+    <view v-else-if="!isLoading" class="footer-bar">
       <view class="price-info">
         <view class="price-row">
           <text class="price-current">¥{{ totalCost.toFixed(2) }}</text>
           <text class="price-daily">(¥{{ dailyCost.toFixed(2) }}/天)</text>
         </view>
-        <text class="discount-note">🎉 首单立减{{ planData.firstOrderDiscount }}%</text>
-        <text class="shipping-note">运费: ¥{{ currentShippingFee }}</text>
+        <text class="discount-note">{{ planData.firstOrderNote }}</text>
+        <text class="future-order-note">后续订单 ¥{{ totalCost.toFixed(2) }}</text>
       </view>
-      <view class="action-buttons">
+      <view class="action-buttons" v-if="scene === 'cart' || scene === 'subscription'">
+        <button
+          class="btn-checkout"
+          :style="{ width: '240rpx', margin: '0' }"
+          :disabled="!isOrderValid"
+          @click="handleSave"
+        >
+          保存
+        </button>
+      </view>
+      <view class="action-buttons" v-else-if="!isViewOnly">
         <button class="btn-cart" :disabled="!isOrderValid" @click="addToCart">加入购物车</button>
         <button class="btn-checkout" :disabled="!isOrderValid" @click="checkout">立即结算</button>
       </view>
@@ -161,15 +190,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import type {
-  FreshPlanPageData,
-  FreshFoodRecipeSku,
-  FreshFoodOrderParams,
-} from '@/types/fresh-food'
-import type { ProductData } from '@/types/product'
-import { getProductDetail } from '@/api/product'
+import { ref, computed, reactive } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import type { FreshPlanPageData } from '@/types/fresh-food'
+import type { Sku } from '@/types/product'
 import { useFreshFoodStore } from '@/stores'
 import { freshFoodApi } from '@/api/fresh-food'
 import { cartApi } from '@/api/cart'
@@ -177,12 +201,19 @@ import { checkoutApi } from '@/api/checkout'
 
 const freshFoodStore = useFreshFoodStore()
 
-const petId = ref('')
-const isLoading = ref(false)
-const showRecipePopup = ref(false)
-const recipeDetail = ref<ProductData | null>(null)
-const isLoadingRecipe = ref(false)
-const selectedFrequencyId = ref('')
+const isLoading = ref(true)
+const flowCompleted = ref(false)
+
+const scene = ref<'cart' | 'subscription' | 'checkout' | ''>('')
+const cartId = ref('')
+const itemId = ref('')
+const subscriptionId = ref('')
+
+const isViewOnly = computed(() => scene.value === 'checkout')
+
+// 成分弹窗
+const showIngredientPopup = ref(false)
+const ingredientPopupData = reactive({ image: '' })
 
 // 统一页面数据
 const planData = reactive<FreshPlanPageData>({
@@ -199,17 +230,24 @@ const planData = reactive<FreshPlanPageData>({
   },
   ratios: {
     list: [],
-    selected: '',
+    wholeRatioNote: '',
   },
-  firstOrderDiscount: 50,
-  futureOrderNote: '',
+  firstOrderDiscount: 0,
+  firstOrderNote: '',
+  snacks: null,
+  toys: null,
+  planId: '',
+  uid: '',
+  petId: '',
+  createdAt: '',
+  updatedAt: '',
 })
 
 // ========== Computed ==========
 
 /** 当前选中的占比对象 */
 const currentRatio = computed(() => {
-  return planData.ratios.list.find((r) => r.id === planData.ratios.selected)
+  return planData.ratios.list.find((r) => r.selected)
 })
 
 /** 当前占比下的配送频率列表 */
@@ -219,7 +257,7 @@ const currentFrequencies = computed(() => {
 
 /** 当前选中的频率对象 */
 const currentFrequency = computed(() => {
-  return currentFrequencies.value.find((f) => f.id === selectedFrequencyId.value)
+  return currentFrequencies.value.find((f) => f.selected)
 })
 
 /** 当前占比下的食谱SKU列表 */
@@ -254,9 +292,11 @@ const totalRecipePrice = computed(() => {
   }, 0)
 })
 
-/** 总费用 = 食谱总价 + 运费 */
+/** 总费用计算 (假设首单有首单折扣计算，这里按用户的需求 "实时计算出后续订单原价" 逻辑的话) */
 const totalCost = computed(() => {
-  return totalRecipePrice.value + parseFloat(currentShippingFee.value || '0')
+  // 注意，后端也许会给计算好的 price, 但是这里前端实时计算以展示
+  const baseCost = totalRecipePrice.value + parseFloat(currentShippingFee.value || '0')
+  return baseCost
 })
 
 /** 每日花费 = 总费用 / 配送周期天数 */
@@ -311,13 +351,17 @@ const distributeRecipes = () => {
 
 /** 选择占比 */
 const selectRatio = (id: string) => {
-  if (planData.ratios.selected === id) return
-  planData.ratios.selected = id
+  if (isViewOnly.value) return
+  const currentRatioObj = planData.ratios.list.find((r) => r.id === id)
+  if (currentRatioObj?.selected) return
+
+  planData.ratios.list.forEach((r) => (r.selected = r.id === id))
 
   // 切换频率为推荐或第一个
   const freqs = currentFrequencies.value
   const recommended = freqs.find((f) => f.recommended)
-  selectedFrequencyId.value = recommended?.id || freqs[0]?.id || ''
+  const targetFreqId = recommended?.id || freqs[0]?.id || ''
+  freqs.forEach((f) => (f.selected = f.id === targetFreqId))
 
   // 均分食谱
   distributeRecipes()
@@ -325,8 +369,11 @@ const selectRatio = (id: string) => {
 
 /** 选择频率 */
 const selectFrequency = (id: string) => {
-  if (selectedFrequencyId.value === id) return
-  selectedFrequencyId.value = id
+  if (isViewOnly.value) return
+  const currentFreq = currentFrequencies.value.find((f) => f.id === id)
+  if (currentFreq?.selected) return
+
+  currentFrequencies.value.forEach((f) => (f.selected = f.id === id))
 
   // 频率变了 → totalPacks(n) 变了 → 重新均分
   distributeRecipes()
@@ -334,6 +381,7 @@ const selectFrequency = (id: string) => {
 
 /** 增加食谱数量 */
 const increaseRecipeQuantity = (skuId: string) => {
+  if (isViewOnly.value) return
   if (!canIncrease(skuId)) {
     if (totalSelectedQuantity.value >= totalPacks.value) {
       uni.showToast({ title: `总数不能超过${totalPacks.value}袋`, icon: 'none' })
@@ -343,50 +391,75 @@ const increaseRecipeQuantity = (skuId: string) => {
     return
   }
   const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
-  if (recipe) recipe.quantity++
+  if (recipe) {
+    recipe.quantity++
+  }
 }
 
 /** 减少食谱数量 */
 const decreaseRecipeQuantity = (skuId: string) => {
+  if (isViewOnly.value) return
   const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
   if (recipe && recipe.quantity > 0) {
     recipe.quantity--
   }
 }
 
-/** 查看食谱详情 */
-const viewRecipeDetail = async (skuId: string) => {
-  isLoadingRecipe.value = true
-  showRecipePopup.value = true
-  try {
-    const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
-    const productId = recipe?.sku.productId || skuId
-    const data = await getProductDetail(productId)
-    recipeDetail.value = data
-  } catch (e) {
-    console.error('加载食谱详情失败', e)
-    uni.showToast({ title: '加载失败', icon: 'none' })
-    showRecipePopup.value = false
-  } finally {
-    isLoadingRecipe.value = false
-  }
+/** 打开成分详情弹窗 */
+const openIngredientPopup = (sku: Sku) => {
+  ingredientPopupData.image = sku.ingredientImage || ''
+  showIngredientPopup.value = true
 }
 
-/** 关闭食谱详情弹窗 */
-const closeRecipePopup = () => {
-  showRecipePopup.value = false
-  recipeDetail.value = null
+/** 关闭成分弹窗 */
+const closeIngredientPopup = () => {
+  showIngredientPopup.value = false
 }
 
 /** 保存选择到 store */
 const saveSelectionsToStore = (action: 'addToCart' | 'checkout') => {
   freshFoodStore.flowAction = action
   freshFoodStore.planSelections = {
-    ratioId: planData.ratios.selected,
-    frequencyId: selectedFrequencyId.value,
+    ratioId: currentRatio.value?.id || '',
+    frequencyId: currentFrequency.value?.id || '',
     recipes: currentRecipes.value
       .filter((r) => r.quantity > 0)
       .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+  }
+}
+
+/** 回退到 landing 并清除中间页面，可选链式跳转 */
+const clearStackAndNavigate = (targetUrl?: string) => {
+  const pages = getCurrentPages()
+  const landingIndex = pages.findIndex((p) => p.route?.includes('fresh_food_landing'))
+  const delta = landingIndex > -1 ? pages.length - 1 - landingIndex : pages.length
+
+  uni.navigateBack({
+    delta,
+    complete: () => {
+      if (targetUrl) {
+        setTimeout(() => uni.navigateTo({ url: targetUrl }), 500)
+      }
+    },
+  })
+}
+
+/** 前往购物车 */
+const goToCart = () => {
+  clearStackAndNavigate('/pages/cart/cart')
+}
+
+/** 为另一只狗狗定制 */
+const goToCustomizeAnother = () => {
+  clearStackAndNavigate('/freshFoodPages/fresh_food_pets/fresh_food_pets')
+}
+
+/** 顶部栏返回按钮处理 */
+const handleBack = () => {
+  if (flowCompleted.value) {
+    clearStackAndNavigate()
+  } else {
+    uni.navigateBack()
   }
 }
 
@@ -400,305 +473,134 @@ const executeFinalAction = async (action: 'addToCart' | 'checkout') => {
 
   if (action === 'addToCart') {
     await cartApi.addItem('my-cart', params)
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
     freshFoodStore.clearState()
-    setTimeout(() => {
-      uni.switchTab({ url: '/pages/cart/cart' })
-    }, 1000)
+    flowCompleted.value = true // 显示成功操作栏
   } else {
     const res = await checkoutApi.entryDirect(params)
     freshFoodStore.clearState()
-    uni.navigateTo({
-      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
-    })
+    clearStackAndNavigate(`/orderPages/checkout/checkout?previewId=${res.result.previewId}`)
+  }
+}
+
+/** 判断是否有下一页，并跳转 */
+const proceedNext = (action: 'addToCart' | 'checkout') => {
+  const hasSnacks = planData.snacks && planData.snacks.list?.length > 0
+  const hasToys =
+    planData.toys && (planData.toys.toyCategories?.length > 0 || planData.toys.chews?.length > 0)
+
+  if (hasSnacks) {
+    uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
+  } else if (hasToys) {
+    uni.navigateTo({ url: '/freshFoodPages/fresh_food_toys/fresh_food_toys' })
+  } else {
+    // 已经是最后一步
+    uni.showLoading({ title: '处理中...' })
+    executeFinalAction(action)
+      .catch(() => {
+        uni.showToast({
+          title: action === 'addToCart' ? '加入购物车失败，请稍后重试' : '结算失败，请稍后重试',
+          icon: 'none',
+        })
+      })
+      .finally(() => {
+        uni.hideLoading()
+      })
   }
 }
 
 /** 加入购物车 */
-const addToCart = async () => {
+const addToCart = () => {
   if (!isOrderValid.value) {
     uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
     return
   }
-
   saveSelectionsToStore('addToCart')
-
-  // 判断是否有下一页（snacks）
-  const hasNextPage = true // TODO: 可通过 planData 配置控制
-  if (hasNextPage) {
-    uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
-  } else {
-    uni.showLoading({ title: '添加中...' })
-    try {
-      await executeFinalAction('addToCart')
-    } catch {
-      uni.showToast({ title: '添加失败', icon: 'none' })
-    } finally {
-      uni.hideLoading()
-    }
-  }
+  proceedNext('addToCart')
 }
 
 /** 立即结算 */
-const checkout = async () => {
+const checkout = () => {
+  if (!isOrderValid.value) {
+    uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
+    return
+  }
+  saveSelectionsToStore('checkout')
+  proceedNext('checkout')
+}
+
+/** 场景值为 cart/subscription 时的单独保存逻辑 */
+const handleSave = async () => {
   if (!isOrderValid.value) {
     uni.showToast({ title: `请选满${totalPacks.value}袋食谱`, icon: 'none' })
     return
   }
 
-  saveSelectionsToStore('checkout')
+  const payload = {
+    planSelections: {
+      ratioId: currentRatio.value?.id || '',
+      frequencyId: currentFrequency.value?.id || '',
+      recipes: currentRecipes.value
+        .filter((r) => r.quantity > 0)
+        .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+    },
+  }
 
-  const hasNextPage = true
-  if (hasNextPage) {
-    uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
-  } else {
-    uni.showLoading({ title: '处理中...' })
-    try {
-      await executeFinalAction('checkout')
-    } catch {
-      uni.showToast({ title: '操作失败', icon: 'none' })
-    } finally {
-      uni.hideLoading()
-    }
+  const queryParams: any = { scene: scene.value }
+  if (scene.value === 'cart') {
+    queryParams.cartId = cartId.value
+    queryParams.itemId = itemId.value
+  } else if (scene.value === 'subscription') {
+    queryParams.subscriptionId = subscriptionId.value
+    queryParams.itemId = itemId.value
+  }
+
+  uni.showLoading({ title: '保存中...' })
+  try {
+    await freshFoodApi.updatePlan(freshFoodStore.planId, payload, queryParams)
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 1500)
+  } catch (e) {
+    console.error('保存计划失败', e)
+    uni.showToast({ title: '保存失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
   }
 }
 
 // ========== 数据加载 ==========
-
-const loadPlanData = async () => {
+/** 通过 planId 加载方案数据 */
+const loadPlanData = async (planId: string) => {
   isLoading.value = true
   try {
-    // 1. 创建 Plan
-    const createRes = await freshFoodApi.createPlan({ petId: petId.value })
-    if (createRes.code === '0' && createRes.result) {
-      freshFoodStore.planId = createRes.result.planId
-
-      // 2. 获取 Plan 详情
-      const planRes = await freshFoodApi.getPlan(freshFoodStore.planId)
-      if (planRes.code === '0' && planRes.result) {
-        Object.assign(planData, planRes.result)
-        // 默认选推荐占比
-        const recommendedRatio = planData.ratios.list.find((r) => r.recommended)
-        planData.ratios.selected = recommendedRatio?.id || planData.ratios.list[0]?.id || ''
-        // 默认选推荐频率
-        const freqs = currentFrequencies.value
-        const recommendedFreq = freqs.find((f) => f.recommended)
-        selectedFrequencyId.value = recommendedFreq?.id || freqs[0]?.id || ''
-        // 均分食谱
-        distributeRecipes()
-      }
+    const planRes = await freshFoodApi.getPlan(planId)
+    if (planRes.code === '0' && planRes.result) {
+      Object.assign(planData, planRes.result)
+      freshFoodStore.currentPlan = planRes.result // 缓存到store供后续页面使用
+    } else {
+      uni.showToast({ title: '加载方案失败', icon: 'none' })
     }
   } catch (e) {
     console.error('加载方案数据失败', e)
-    loadMockData()
+    uni.showToast({ title: '加载方案失败', icon: 'none' })
   } finally {
     isLoading.value = false
   }
 }
 
-/** Mock 辅助：创建鲜食 SKU */
-const makeFreshSku = (
-  id: string,
-  name: string,
-  desc: string,
-  price: string,
-  imageEmoji: string,
-) => ({
-  skuId: id,
-  productId: id,
-  strikeThroughPrice: price,
-  advertisedPrice: price,
-  originalPrice: price,
-  subscriptionPrice: price,
-  name,
-  image: [`https://placehold.co/200x200/90EE90/333?text=${encodeURIComponent(imageEmoji)}`],
-  desc,
-  specs: '',
-  type: 8,
-  supportsSubscription: true,
-  subscriptionDiscountRate: '0',
-  subscriptionDiscount: '',
-  maxQuantity: 99,
-})
-
-const loadMockData = () => {
-  planData.pet = {
-    id: petId.value || 'pet1',
-    name: '小西',
-    type: 'dog',
-    avatar: 'https://placehold.co/80x80/f5e6d3/333?text=🐕',
-    breedName: '柴犬',
-    birthday: '2022-05-15',
-    gender: 'male',
-    neutered: true,
-    currentWeight: 12,
-    idealWeight: 11,
-    bodyCondition: 'ideal',
-    activityLevel: 'moderate',
-    pickyLevel: 'sometimes',
-    summary: '成年柴犬，体型标准，活动量适中',
-  }
-
-  // 通用食谱 SKU
-  const chickenSku = makeFreshSku(
-    'r1',
-    '鸡肉蔬菜餐',
-    '选用优质鸡胸肉，搭配新鲜时令蔬菜',
-    '25.00',
-    '🍗',
-  )
-  const beefSku = makeFreshSku('r2', '牛肉红薯餐', '精选牛腿肉，配以香甜红薯和南瓜', '28.00', '🥩')
-  const fishSku = makeFreshSku('r3', '三文鱼餐', '深海三文鱼，富含Omega-3脂肪酸', '32.00', '🐟')
-  const lambSku = makeFreshSku('r4', '羊肉糙米餐', '新西兰羊肉，搭配有机糙米', '30.00', '🐑')
-
-  planData.ratios = {
-    list: [
-      {
-        id: 'ratio100',
-        name: '100%鲜食',
-        description: '完全以鲜食为主',
-        percentage: 100,
-        recommended: true,
-        image: 'https://placehold.co/60x40/00a86b/fff?text=100%25',
-        frequencies: [
-          {
-            id: 'f100_2w',
-            interval: 2,
-            unit: 'week',
-            label: '每2周',
-            totalPacks: 14,
-            deliveryDays: 14,
-            shippingFee: '0',
-            tag: '最划算',
-            recommended: true,
-          },
-          {
-            id: 'f100_3w',
-            interval: 3,
-            unit: 'week',
-            label: '每3周',
-            totalPacks: 21,
-            deliveryDays: 21,
-            shippingFee: '0',
-            tag: '🧊 冰箱友好',
-          },
-          {
-            id: 'f100_4w',
-            interval: 4,
-            unit: 'week',
-            label: '每4周',
-            totalPacks: 28,
-            deliveryDays: 28,
-            shippingFee: '10',
-          },
-        ],
-        recipes: [
-          { sku: chickenSku, quantity: 0, recommended: true },
-          { sku: beefSku, quantity: 0, recommended: true },
-          { sku: fishSku, quantity: 0 },
-          { sku: lambSku, quantity: 0 },
-        ],
-      },
-      {
-        id: 'ratio50',
-        name: '50%鲜食',
-        description: '鲜食搭配干粮',
-        percentage: 50,
-        image: 'https://placehold.co/60x40/ffa500/fff?text=50%25',
-        frequencies: [
-          {
-            id: 'f50_2w',
-            interval: 2,
-            unit: 'week',
-            label: '每2周',
-            totalPacks: 7,
-            deliveryDays: 14,
-            shippingFee: '0',
-            recommended: true,
-          },
-          {
-            id: 'f50_3w',
-            interval: 3,
-            unit: 'week',
-            label: '每3周',
-            totalPacks: 11,
-            deliveryDays: 21,
-            shippingFee: '5',
-          },
-          {
-            id: 'f50_4w',
-            interval: 4,
-            unit: 'week',
-            label: '每4周',
-            totalPacks: 14,
-            deliveryDays: 28,
-            shippingFee: '10',
-          },
-        ],
-        recipes: [
-          { sku: chickenSku, quantity: 0, recommended: true },
-          { sku: beefSku, quantity: 0 },
-          { sku: fishSku, quantity: 0, recommended: true },
-        ],
-      },
-      {
-        id: 'ratio25',
-        name: '25%鲜食',
-        description: '鲜食作为辅食',
-        percentage: 25,
-        image: 'https://placehold.co/60x40/6495ed/fff?text=25%25',
-        frequencies: [
-          {
-            id: 'f25_2w',
-            interval: 2,
-            unit: 'week',
-            label: '每2周',
-            totalPacks: 4,
-            deliveryDays: 14,
-            shippingFee: '0',
-            recommended: true,
-          },
-          {
-            id: 'f25_4w',
-            interval: 4,
-            unit: 'week',
-            label: '每4周',
-            totalPacks: 7,
-            deliveryDays: 28,
-            shippingFee: '10',
-          },
-        ],
-        recipes: [
-          { sku: chickenSku, quantity: 0, recommended: true },
-          { sku: beefSku, quantity: 0 },
-        ],
-      },
-    ],
-    selected: '',
-  }
-
-  planData.firstOrderDiscount = 50
-  planData.futureOrderNote = '后续订单按原价计算'
-
-  // 默认选推荐占比
-  const recommendedRatio = planData.ratios.list.find((r) => r.recommended)
-  planData.ratios.selected = recommendedRatio?.id || planData.ratios.list[0]?.id || ''
-
-  // 默认选推荐频率
-  const freqs = currentFrequencies.value
-  const recommendedFreq = freqs.find((f) => f.recommended)
-  selectedFrequencyId.value = recommendedFreq?.id || freqs[0]?.id || ''
-
-  // 均分食谱
-  distributeRecipes()
-}
-
 onLoad((options) => {
-  if (options?.petId) {
-    petId.value = options.petId
-    loadPlanData()
+  if (options?.scene) {
+    scene.value = options.scene as any
+    cartId.value = options.cartId || ''
+    itemId.value = options.itemId || ''
+    subscriptionId.value = options.subscriptionId || ''
+  }
+
+  if (options?.planId) {
+    freshFoodStore.planId = options.planId
+    loadPlanData(options.planId)
   } else {
-    loadMockData()
+    uni.showToast({ title: '缺少方案ID', icon: 'none' })
+    isLoading.value = false
   }
 })
 </script>
@@ -835,6 +737,13 @@ onLoad((options) => {
   }
 }
 
+.first-order-note {
+  display: block;
+  font-size: 24rpx;
+  color: #ff6600;
+  margin-bottom: 20rpx;
+}
+
 // 频率
 .frequency-options {
   display: flex;
@@ -954,14 +863,16 @@ onLoad((options) => {
       font-size: 22rpx;
       color: #666;
       margin-bottom: 4rpx;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
-    .recipe-price {
+    .recipe-detail-link {
       font-size: 24rpx;
-      color: #ff6600;
+      color: #e6a23c;
       font-weight: 500;
     }
   }
@@ -1041,23 +952,26 @@ onLoad((options) => {
     }
 
     .price-current {
-      font-size: 40rpx;
+      font-size: 36rpx;
       font-weight: 700;
       color: #ff6600;
     }
 
     .price-daily {
-      font-size: 22rpx;
+      font-size: 24rpx;
       color: #666;
     }
 
     .discount-note {
       display: block;
-      font-size: 22rpx;
+      font-size: 24rpx;
       color: #c2185b;
       margin-bottom: 2rpx;
     }
-
+    .future-order-note {
+      font-size: 24rpx;
+      color: #999;
+    }
     .shipping-note {
       font-size: 20rpx;
       color: #999;
@@ -1104,7 +1018,99 @@ onLoad((options) => {
   }
 }
 
-// 食谱详情弹窗
+// 成功底部栏
+.footer-bar.success-footer {
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 30rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  height: auto;
+
+  .success-banner {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-bottom: 8rpx;
+  }
+
+  .success-text {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #333;
+  }
+
+  .success-actions {
+    display: flex;
+    width: 100%;
+    gap: 24rpx;
+
+    button {
+      flex: 1;
+      height: 80rpx;
+      font-size: 28rpx;
+      font-weight: 600;
+      border-radius: 40rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+
+      &::after {
+        border: none;
+      }
+    }
+
+    button.btn-cart {
+      color: #ff69b4; /* 粉色字体 */
+      border: 2rpx solid #ff69b4; /* 粉色边框 */
+    }
+
+    button.btn-another {
+      color: #ff3b30; /* 红色字体 */
+      border: 2rpx solid #ff3b30; /* 红色边框 */
+    }
+  }
+}
+
+// 加载态
+.loading-overlay {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid #e0e0e0;
+  border-top-color: #00a86b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: 30rpx;
+  color: #666;
+}
+
+// 成分详情弹窗
 .recipe-popup-mask {
   position: fixed;
   top: 0;
@@ -1145,31 +1151,37 @@ onLoad((options) => {
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .popup-image-container {
+  .popup-ingredient-image {
     width: 100%;
   }
 
-  .popup-main-image {
-    width: 100%;
-    height: 400rpx;
+  .popup-ingredient-info {
+    padding: 24rpx 40rpx 40rpx;
   }
 
   .popup-title {
-    text-align: center;
     font-size: 36rpx;
     font-weight: 700;
     color: #1a1a1a;
-    padding: 20rpx 40rpx;
+    margin-bottom: 20rpx;
   }
 
-  .popup-detail-images {
-    padding: 0 24rpx 40rpx;
+  .popup-ingredient-section {
+    margin-top: 16rpx;
+  }
 
-    .detail-image {
-      width: 100%;
-      display: block;
-      margin-bottom: 0;
-    }
+  .popup-section-label {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8rpx;
+  }
+
+  .popup-ingredient-text {
+    font-size: 26rpx;
+    color: #666;
+    line-height: 1.8;
   }
 }
 </style>

@@ -378,7 +378,11 @@ const goToProductDetail = (id?: string | number) => {
 }
 
 const onCustomize = (item: CartItem) => {
-  console.log('自定义商品', item.itemId)
+  console.log('onCustomize', item)
+  if (!item.sku?.planId) return
+  uni.navigateTo({
+    url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?planId=${item.sku.planId}&scene=cart&cartId=${cartData.value.cartId}&itemId=${item.itemId}`,
+  })
 }
 
 const goShopping = () => {

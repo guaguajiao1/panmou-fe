@@ -115,7 +115,7 @@
         v-bind="toSubscriptionCardProps(item)"
       >
         <!-- 步进器 -->
-        <view class="quantity-stepper">
+        <view class="quantity-stepper" v-if="!isFreshFood(item)">
           <QuantityInput
             :modelValue="item.quantity"
             :min="1"
@@ -129,7 +129,10 @@
         <!-- 操作按钮 -->
         <view class="item-actions">
           <button class="btn-text-link" @click="openSkipItemPopup(item)">跳过一次</button>
-          <button class="btn-text-link">替换</button>
+          <button class="btn-text-link" v-if="isFreshFood(item)" @click="onCustomize(item)">
+            自定义
+          </button>
+          <button class="btn-text-link" v-else>替换</button>
           <button class="btn-text-link btn-remove" @click="openRemoveItemPopup(item)">移除</button>
         </view>
       </ProductCard>
@@ -153,7 +156,7 @@
             <text>已跳过一次</text>
           </view>
           <!-- 步进器 -->
-          <view class="quantity-stepper">
+          <view class="quantity-stepper" v-if="!isFreshFood(item)">
             <QuantityInput
               :modelValue="item.quantity"
               :min="1"
@@ -167,7 +170,10 @@
           <!-- 操作按钮 -->
           <view class="item-actions">
             <button class="btn-text-link" @click="handleAddBackItem(item)">加回</button>
-            <button class="btn-text-link">替换</button>
+            <button class="btn-text-link" v-if="isFreshFood(item)" @click="onCustomize(item)">
+              自定义
+            </button>
+            <button class="btn-text-link" v-else>替换</button>
             <button class="btn-text-link btn-remove" @click="openRemoveItemPopup(item)">
               移除
             </button>
@@ -956,6 +962,17 @@ function navigateToAddItems() {
 const goToAddressManagement = () => {
   uni.navigateTo({ url: '/accountPages/address_list/address_list?source=subscription' })
 }
+
+// ============== 鲜食新增 ==============
+const isFreshFood = (item: Item) => item.sku?.type === 8
+
+const onCustomize = (item: Item) => {
+  if (!item.sku?.planId) return
+  uni.navigateTo({
+    url: `/freshFoodPages/fresh_food_plan/fresh_food_plan?planId=${item.sku.planId}&scene=subscription&subscriptionId=${subscriptionId.value}&itemId=${item.fulfillmentItemId}`,
+  })
+}
+// ============== ==============
 
 // 4. 跳转到订单详情
 function goToOrderDetails(orderId: string) {

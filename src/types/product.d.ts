@@ -89,8 +89,13 @@ export interface Sku {
   /** 订阅优惠文字（格式化字符串，仅展示） */
   subscriptionDiscount: string
   maxQuantity: number
+  /** 成分介绍图片URL（弹窗展示） */
+  ingredientImage?: string
+  /** 主要组成成分文字 */
+  ingredient?: string
   customization?: Customization
   tags?: ProductTag[]
+  planId?: string
 }
 
 /* ================== 组合商品 ================== */

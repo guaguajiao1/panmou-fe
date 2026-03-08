@@ -1,37 +1,43 @@
 <template>
   <view class="snacks-page">
-    <CustomNavigationBar title="选择零食" show-back />
+    <CustomNavigationBar
+      title="选择零食"
+      :back-icon="flowCompleted ? 'close' : 'back'"
+      :custom-back="true"
+      @back="handleBack"
+    />
 
     <scroll-view scroll-y class="snacks-content">
       <view class="page-header">
-        <text class="header-title">为你的狗狗选择健康零食</text>
-        <text class="header-desc">天然食材，无添加剂，每一口都是营养</text>
+        <text class="header-title">{{ snacksConfig?.title || '为你的狗狗选择健康零食' }}</text>
+        <text class="header-desc">{{
+          snacksConfig?.description || '天然食材，无添加剂，每一口都是营养'
+        }}</text>
+        <text class="header-price-info">{{ snacksConfig?.priceNote || '首单免费，后续10元' }}</text>
       </view>
 
       <!-- 零食列表 -->
       <view class="snacks-list">
         <view
           v-for="snack in snackList"
-          :key="snack.id"
+          :key="snack.skuId"
           class="snack-card"
-          :class="{ selected: selectedSnack === snack.id }"
-          @click="selectSnack(snack.id)"
+          :class="{ selected: selectedSnack === snack.skuId }"
+          @click="selectSnack(snack.skuId)"
         >
-          <image class="snack-image" :src="snack.image" mode="aspectFit" />
+          <image class="snack-image" :src="snack.image?.[0]" mode="aspectFit" />
           <view class="snack-info">
             <view class="snack-name-row">
-              <text class="snack-name">{{ snack.nameEn }} {{ snack.name }}</text>
-              <text class="nutrition-link">{{ snack.nutritionFacts }}</text>
+              <text class="snack-name">{{ snack.name }}</text>
+              <text class="nutrition-link" @click.stop="openIngredientPopup(snack)">查看详情</text>
             </view>
             <view class="snack-ingredients">
-              <text v-for="(ing, idx) in snack.ingredients" :key="idx" class="ingredient">
-                {{ ing }}
-              </text>
+              <text class="ingredient">{{ snack.ingredient || snack.desc }}</text>
             </view>
           </view>
           <view class="snack-radio">
-            <view class="radio-circle" :class="{ checked: selectedSnack === snack.id }">
-              <view v-if="selectedSnack === snack.id" class="radio-dot" />
+            <view class="radio-circle" :class="{ checked: selectedSnack === snack.skuId }">
+              <view v-if="selectedSnack === snack.skuId" class="radio-dot" />
             </view>
           </view>
         </view>
@@ -41,42 +47,103 @@
       <view class="footer-placeholder" />
     </scroll-view>
 
+    <!-- 成分图片弹窗 -->
+    <view v-if="showIngredientPopup" class="popup-mask" @click="closeIngredientPopup">
+      <view class="popup-container" @click.stop>
+        <view class="popup-close" @click="closeIngredientPopup">
+          <uni-icons type="close" size="24" color="#666" />
+        </view>
+        <scroll-view scroll-y class="popup-scroll">
+          <image class="popup-image" :src="ingredientPopupImage" mode="widthFix" />
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 成功加入购物车后的底部栏 -->
+    <view v-if="flowCompleted" class="footer-bar success-footer">
+      <view class="success-banner">
+        <uni-icons type="checkmarkempty" size="20" color="#00a86b" />
+        <text class="success-text">🎉 已成功加入购物车！</text>
+      </view>
+      <view class="success-actions">
+        <button class="btn-cart" @click="goToCart">🛒 去购物车</button>
+        <button class="btn-another" @click="goToCustomizeAnother">🐕 为另一只狗狗定制</button>
+      </view>
+    </view>
+
     <!-- 底部固定栏 -->
-    <view class="footer-bar">
-      <button class="btn-skip" @click="skip">Skip 跳过</button>
-      <button class="btn-add" :disabled="!selectedSnack" @click="addToPlan">
-        Add to Plan 添加到计划
-      </button>
+    <view v-else class="footer-bar">
+      <button class="btn-skip" @click="skip">跳过</button>
+      <button class="btn-add" :disabled="!selectedSnack" @click="addToPlan">添加到计划</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useFreshFoodStore } from '@/stores'
 import { cartApi } from '@/api/cart'
 import { checkoutApi } from '@/api/checkout'
-
-interface SnackItem {
-  id: string
-  name: string
-  nameEn: string
-  image: string
-  ingredients: string[]
-  nutritionFacts?: string
-  price: number
-  selected?: boolean
-}
+import type { Sku } from '@/types/product'
 
 const freshFoodStore = useFreshFoodStore()
-const snackList = ref<SnackItem[]>([])
+
+const snacksConfig = computed(() => freshFoodStore.currentPlan?.snacks)
+const snackList = computed<Sku[]>(() => snacksConfig.value?.list || [])
 const selectedSnack = ref<string | null>(null)
-const petId = ref('')
+
+// 追踪本页添加的商品ID
+const addedItemIds = ref<string[]>([])
+
+const flowCompleted = ref(false)
+
+// 成分弹窗
+const showIngredientPopup = ref(false)
+const ingredientPopupImage = ref('')
+
+const openIngredientPopup = (snack: Sku) => {
+  if (snack.ingredientImage) {
+    ingredientPopupImage.value = snack.ingredientImage
+    showIngredientPopup.value = true
+  } else {
+    uni.showToast({ title: '暂无详情', icon: 'none' })
+  }
+}
+
+const closeIngredientPopup = () => {
+  showIngredientPopup.value = false
+}
 
 // 选择零食
-const selectSnack = (id: string) => {
-  selectedSnack.value = selectedSnack.value === id ? null : id
+const selectSnack = (skuId: string) => {
+  selectedSnack.value = selectedSnack.value === skuId ? null : skuId
+}
+
+/** 回退到 landing 并清除中间页面，可选链式跳转 */
+const clearStackAndNavigate = (targetUrl?: string) => {
+  const pages = getCurrentPages()
+  const landingIndex = pages.findIndex((p) => p.route?.includes('fresh_food_landing'))
+  const delta = landingIndex > -1 ? pages.length - 1 - landingIndex : pages.length
+
+  uni.navigateBack({
+    delta,
+    complete: () => {
+      if (targetUrl) {
+        setTimeout(() => uni.navigateTo({ url: targetUrl }), 500)
+      }
+    },
+  })
+}
+
+/** 前往购物车 */
+const goToCart = () => {
+  clearStackAndNavigate('/pages/cart/cart')
+}
+
+/** 为另一只狗狗定制 */
+const goToCustomizeAnother = () => {
+  clearStackAndNavigate('/freshFoodPages/fresh_food_pets/fresh_food_pets')
 }
 
 /** 执行最终操作 (当没有toys页面时使用) */
@@ -89,36 +156,53 @@ const executeFinalAction = async () => {
 
   if (freshFoodStore.flowAction === 'addToCart') {
     await cartApi.addItem('my-cart', params)
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
     freshFoodStore.clearState()
-    setTimeout(() => {
-      uni.switchTab({ url: '/pages/cart/cart' })
-    }, 1000)
+    flowCompleted.value = true // 显示成功操作栏
   } else if (freshFoodStore.flowAction === 'checkout') {
     const res = await checkoutApi.entryDirect(params)
     freshFoodStore.clearState()
-    uni.navigateTo({
-      url: `/orderPages/checkout/checkout?previewId=${res.result.previewId}`,
-    })
+    clearStackAndNavigate(`/orderPages/checkout/checkout?previewId=${res.result.previewId}`)
   } else {
     uni.showToast({ title: '未知操作类型', icon: 'none' })
   }
 }
 
 const proceedNext = async () => {
-  const hasNextPage = true // TODO: 判断是否有 Toys 页面配置
-  if (hasNextPage) {
+  const planData = freshFoodStore.currentPlan
+  const hasToys =
+    planData?.toys && (planData.toys.toyCategories?.length > 0 || planData.toys.chews?.length > 0)
+
+  if (hasToys) {
     uni.navigateTo({ url: '/freshFoodPages/fresh_food_toys/fresh_food_toys' })
   } else {
     uni.showLoading({ title: '处理中...' })
     try {
       await executeFinalAction()
     } catch {
-      uni.showToast({ title: '操作失败', icon: 'none' })
+      uni.showToast({
+        title:
+          freshFoodStore.flowAction === 'addToCart'
+            ? '加入购物车失败，请稍后重试'
+            : '结算失败，请稍后重试',
+        icon: 'none',
+      })
     } finally {
       uni.hideLoading()
     }
   }
+}
+
+// 回退：清理本页添加的商品，然后返回上一页
+const handleBack = () => {
+  if (flowCompleted.value) {
+    clearStackAndNavigate()
+    return
+  }
+
+  if (addedItemIds.value.length > 0) {
+    freshFoodStore.removeExtraItemsByIds(addedItemIds.value)
+  }
+  uni.navigateBack()
 }
 
 // 跳过
@@ -130,67 +214,23 @@ const skip = () => {
 const addToPlan = () => {
   if (!selectedSnack.value) return
 
-  const snack = snackList.value.find((s) => s.id === selectedSnack.value)
+  const snack = snackList.value.find((s) => s.skuId === selectedSnack.value)
   if (snack) {
     freshFoodStore.extraItems.push({
-      productId: snack.id,
-      skuId: snack.id,
+      productId: snack.productId || snack.skuId,
+      skuId: snack.skuId,
       quantity: 1,
-      purchaseType: 0,
+      purchaseType: 1,
     })
+    addedItemIds.value.push(snack.productId || snack.skuId)
   }
 
   proceedNext()
 }
 
-// 加载 mock 数据
-const loadMockData = () => {
-  snackList.value = [
-    {
-      id: 'snack1',
-      name: '牛肉',
-      nameEn: 'Beef',
-      image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🥩+牛肉条',
-      ingredients: [
-        'Beef (protein) 牛肉（蛋白质）',
-        'Apple (fiber) 苹果（纤维）',
-        'Sea Salt (electrolytes) 海盐（电解质）',
-      ],
-      nutritionFacts: 'Nutrition Facts 营养成分',
-      price: 39,
-    },
-    {
-      id: 'snack2',
-      name: '猪肉',
-      nameEn: 'Pork',
-      image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🥓+猪肉条',
-      ingredients: [
-        'Pork (protein) 猪肉（蛋白质）',
-        'Pear (fiber) 梨（纤维）',
-        'Sea Salt (electrolytes) 海盐（电解质）',
-      ],
-      nutritionFacts: 'Nutrition Facts 营养成分',
-      price: 35,
-    },
-    {
-      id: 'snack3',
-      name: '鸡肉',
-      nameEn: 'Chicken',
-      image: 'https://placehold.co/200x200/f5e6d3/8b4513?text=🍗+鸡肉条',
-      ingredients: [
-        'Chicken (protein) 鸡肉（蛋白质）',
-        'Apple (fiber) 苹果（纤维）',
-        'Sea Salt (electrolytes) 海盐（电解质）',
-      ],
-      nutritionFacts: 'Nutrition Facts 营养成分',
-      price: 32,
-    },
-  ]
-}
-
-onLoad((options) => {
-  petId.value = options?.petId || ''
-  loadMockData()
+onLoad(() => {
+  // 默认选中第一个商品
+  selectedSnack.value = snackList.value[0]?.skuId || null
 })
 </script>
 
@@ -222,6 +262,14 @@ onLoad((options) => {
     font-size: 26rpx;
     color: #666;
   }
+
+  .header-price-info {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #ff6b35;
+    margin-top: 12rpx;
+  }
 }
 
 .snacks-list {
@@ -239,7 +287,7 @@ onLoad((options) => {
   transition: all 0.2s ease;
 
   &.selected {
-    border-color: #ff6b35;
+    border-color: #1976d2;
     background-color: #fff9f7;
   }
 }
@@ -271,7 +319,8 @@ onLoad((options) => {
 
   .nutrition-link {
     font-size: 22rpx;
-    color: #ff6b35;
+    color: #e6a23c;
+    font-weight: 500;
   }
 }
 
@@ -300,8 +349,8 @@ onLoad((options) => {
   transition: all 0.2s ease;
 
   &.checked {
-    border-color: #ff6b35;
-    background-color: #ff6b35;
+    border-color: #1976d2;
+    background-color: #1976d2;
   }
 
   .radio-dot {
@@ -309,6 +358,52 @@ onLoad((options) => {
     height: 20rpx;
     border-radius: 50%;
     background-color: #fff;
+  }
+}
+
+// 成分弹窗
+.popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.popup-container {
+  width: 100%;
+  height: 85vh;
+  background-color: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  position: relative;
+  overflow: hidden;
+
+  .popup-close {
+    position: absolute;
+    top: 20rpx;
+    right: 20rpx;
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    z-index: 10;
+  }
+
+  .popup-scroll {
+    height: 100%;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .popup-image {
+    width: 100%;
   }
 }
 
@@ -333,10 +428,10 @@ onLoad((options) => {
   flex: 1;
   height: 88rpx;
   background-color: #fff;
-  color: #ff6b35;
+  color: #1976d2;
   font-size: 30rpx;
   font-weight: 600;
-  border: 2rpx solid #ff6b35;
+  border: 2rpx solid #1976d2;
   border-radius: 44rpx;
   display: flex;
   align-items: center;
@@ -346,7 +441,7 @@ onLoad((options) => {
 .btn-add {
   flex: 1.5;
   height: 88rpx;
-  background-color: #ff6b35;
+  background-color: #1976d2;
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
@@ -358,6 +453,9 @@ onLoad((options) => {
 
   &:disabled {
     background-color: #ccc;
+    color: #fff;
+    border: none;
+    opacity: 1;
   }
 }
 </style>
