@@ -5,6 +5,11 @@
 import type { PetType } from './pet'
 import type { Sku } from './product'
 
+export interface RecipeQuantity {
+  skuId: string
+  quantity: number
+}
+
 /** 配送频率选项 */
 export interface DeliveryFrequency {
   /** 频率ID */
@@ -15,14 +20,16 @@ export interface DeliveryFrequency {
   unit: 'week' | 'month'
   /** 显示文本 */
   label: string
+  /** 最大食谱数量 */
+  maxRecipeCount: number
   /** 该占比+频率下的总袋数 n */
   totalPacks: number
   /** 对应食谱的数量数组 */
-  recipeQuantityArray: number[]
+  recipeQuantityArray: RecipeQuantity[]
   /** 配送周期天数（用于计算每日花费） */
   deliveryDays: number
-  /** 固定运费（格式化字符串） */
-  shippingFee: string
+  /** 固定运费（分） */
+  shippingFee: number
   /** 标签，如"最划算"、"冰箱友好" */
   tag?: string
   /** 是否推荐 */
@@ -35,7 +42,7 @@ export interface DeliveryFrequency {
 export interface FreshFoodRecipeSku {
   /** 食谱SKU（type=8 鲜食SKU） */
   sku: Sku
-  /** 用户选择的数量（步进器控制） */
+  /** deprecated 用户选择的数量（步进器控制） */
   quantity: number
   /** 是否推荐 */
   recommended?: boolean
@@ -125,7 +132,7 @@ export interface FreshPlanPageData {
     list: FreshFoodRatio[]
 
     /** 选择100%占比后的提示，放到配送频率正下方， 文字是"为了您有时间替换为鲜食，第二个订单我们延迟一周配送， 你随时可以修改（请润色）" */
-    wholeRatioNote: string
+    wholeRatioShipNote: string
   }
   /** 首单折扣百分比 */
   firstOrderDiscount: number

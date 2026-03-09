@@ -93,10 +93,10 @@
         </view>
         <view class="recipes-list">
           <view
-            v-for="recipeSku in currentRecipes"
+            v-for="(recipeSku, index) in currentRecipes"
             :key="recipeSku.sku.skuId"
             class="recipe-card"
-            :class="{ active: recipeSku.quantity > 0 }"
+            :class="{ active: currentRecipeQuantityArray[index].quantity > 0 }"
           >
             <view v-if="recipeSku.recommended" class="recipe-recommended-tag">推荐</view>
             <image class="recipe-image" :src="recipeSku.sku.image?.[0] || ''" mode="aspectFill" />
@@ -110,12 +110,12 @@
             <view class="recipe-stepper">
               <view
                 class="stepper-btn minus"
-                :class="{ disabled: recipeSku.quantity <= 0 || isViewOnly }"
+                :class="{ disabled: currentRecipeQuantityArray[index].quantity <= 0 || isViewOnly }"
                 @click="decreaseRecipeQuantity(recipeSku.sku.skuId)"
               >
                 <text>−</text>
               </view>
-              <text class="stepper-value">{{ recipeSku.quantity }}</text>
+              <text class="stepper-value">{{ currentRecipeQuantityArray[index].quantity }}</text>
               <view
                 class="stepper-btn plus"
                 :class="{ disabled: !canIncrease(recipeSku.sku.skuId) || isViewOnly }"
@@ -165,11 +165,15 @@
     <view v-else-if="!isLoading" class="footer-bar">
       <view class="price-info">
         <view class="price-row">
-          <text class="price-current">¥{{ totalCost.toFixed(2) }}</text>
-          <text class="price-daily">(¥{{ dailyCost.toFixed(2) }}/天)</text>
+          <text class="price-current">¥{{ (totalCostAfterDiscount / 100).toFixed(2) }}</text>
+          <text class="price-daily">(¥{{ (dailyCost / 100).toFixed(2) }}/天)</text>
         </view>
-        <text class="discount-note">{{ planData.firstOrderNote }}</text>
-        <text class="future-order-note">后续订单 ¥{{ totalCost.toFixed(2) }}</text>
+        <text v-if="planData.firstOrderNote" class="discount-note">{{
+          planData.firstOrderNote
+        }}</text>
+        <text v-if="planData.firstOrderDiscount > 0" class="future-order-note"
+          >后续订单 ¥{{ (totalCost / 100).toFixed(2) }}</text
+        >
       </view>
       <view class="action-buttons" v-if="scene === 'cart' || scene === 'subscription'">
         <button
@@ -216,7 +220,7 @@ const showIngredientPopup = ref(false)
 const ingredientPopupData = reactive({ image: '' })
 
 // 统一页面数据
-const planData = reactive<FreshPlanPageData>({
+const planData = ref<FreshPlanPageData>({
   pet: {
     id: '',
     name: '',
@@ -230,7 +234,7 @@ const planData = reactive<FreshPlanPageData>({
   },
   ratios: {
     list: [],
-    wholeRatioNote: '',
+    wholeRatioShipNote: '',
   },
   firstOrderDiscount: 0,
   firstOrderNote: '',
@@ -247,7 +251,7 @@ const planData = reactive<FreshPlanPageData>({
 
 /** 当前选中的占比对象 */
 const currentRatio = computed(() => {
-  return planData.ratios.list.find((r) => r.selected)
+  return planData.value.ratios.list.find((r) => r.selected)
 })
 
 /** 当前占比下的配送频率列表 */
@@ -261,8 +265,8 @@ const currentFrequency = computed(() => {
 })
 
 /** 当前占比下的食谱SKU列表 */
-const currentRecipes = computed(() => {
-  return currentRatio.value?.recipes || []
+const currentRecipeQuantityArray = computed(() => {
+  return currentFrequency.value?.recipeQuantityArray || []
 })
 
 /** 当前占比+频率下的总袋数 n */
@@ -272,37 +276,48 @@ const totalPacks = computed(() => {
 
 /** 已选食谱种类数（quantity > 0 的食谱数） */
 const selectedRecipeCount = computed(() => {
-  return currentRecipes.value.filter((r) => r.quantity > 0).length
+  return currentRecipeQuantityArray.value.filter((r) => r.quantity > 0).length
 })
 
 /** 已选食谱总数量 */
 const totalSelectedQuantity = computed(() => {
-  return currentRecipes.value.reduce((sum, r) => sum + r.quantity, 0)
+  return currentRecipeQuantityArray.value.reduce((sum, r) => sum + r.quantity, 0)
 })
 
-/** 当前频率的运费 */
-const currentShippingFee = computed(() => {
-  return currentFrequency.value?.shippingFee || '0'
+/** 当前占比下的食谱数据列表 (提供价格等基础信息) */
+const currentRecipes = computed(() => {
+  return currentRatio.value?.recipes || []
 })
 
-/** 食谱总价 = ∑(sku.originalPrice × quantity) */
+/** 食谱总价 = ∑(currentRecipeArray[i].quantity × recipes[i].originalPriceValue) */
 const totalRecipePrice = computed(() => {
-  return currentRecipes.value.reduce((sum, r) => {
-    return sum + parseFloat(r.sku.originalPrice || '0') * r.quantity
+  const quantites = currentRecipeQuantityArray.value
+  const recipes = currentRecipes.value
+
+  return quantites.reduce((sum, item, index) => {
+    const r = recipes[index]
+    if (r && r.sku.originalPriceValue) {
+      return sum + r.sku.originalPriceValue * item.quantity
+    }
+    return sum
   }, 0)
 })
 
-/** 总费用计算 (假设首单有首单折扣计算，这里按用户的需求 "实时计算出后续订单原价" 逻辑的话) */
+/** 总费用计算 (原价计算 = 食谱总价 + 运费) */
 const totalCost = computed(() => {
-  // 注意，后端也许会给计算好的 price, 但是这里前端实时计算以展示
-  const baseCost = totalRecipePrice.value + parseFloat(currentShippingFee.value || '0')
-  return baseCost
+  // 把 shippingFee 转为数字，防止从 mock 拿到的 '0' 字符串导致拼接 (例如 2500 + '0' = '25000')
+  const shippingFee = Number(currentFrequency.value?.shippingFee || 0)
+  return totalRecipePrice.value + shippingFee
+})
+
+const totalCostAfterDiscount = computed(() => {
+  return (totalCost.value * (100 - planData.value.firstOrderDiscount)) / 100
 })
 
 /** 每日花费 = 总费用 / 配送周期天数 */
 const dailyCost = computed(() => {
   const days = currentFrequency.value?.deliveryDays || 1
-  return totalCost.value / days
+  return totalCostAfterDiscount.value / days
 })
 
 /** 订单是否有效（总数量 = n） */
@@ -317,54 +332,44 @@ const canIncrease = (skuId: string) => {
   // 总数不能超过 n
   if (totalSelectedQuantity.value >= totalPacks.value) return false
   // 找到当前食谱
-  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
+  const recipe = currentRecipeQuantityArray.value.find((r) => r.skuId === skuId)
   if (!recipe) return false
   // 如果当前数量为0，检查已选种类数是否已达3
   if (recipe.quantity === 0 && selectedRecipeCount.value >= 3) return false
   return true
 }
 
-/** 均分食谱数量：将 n 均分给推荐食谱，有余数从前往后依次加1 */
-const distributeRecipes = () => {
-  const recipes = currentRecipes.value
-  if (recipes.length === 0 || totalPacks.value === 0) return
-
-  // 先全部归零
-  recipes.forEach((r) => (r.quantity = 0))
-
-  // 找到推荐食谱，如果没有推荐，则取前3个
-  let targetRecipes = recipes.filter((r) => r.recommended)
-  if (targetRecipes.length === 0) {
-    targetRecipes = recipes.slice(0, Math.min(3, recipes.length))
-  }
-  // 最多3种
-  targetRecipes = targetRecipes.slice(0, 3)
-
-  const n = totalPacks.value
-  const base = Math.floor(n / targetRecipes.length)
-  const remainder = n % targetRecipes.length
-
-  targetRecipes.forEach((r, idx) => {
-    r.quantity = base + (idx < remainder ? 1 : 0)
-  })
-}
-
 /** 选择占比 */
 const selectRatio = (id: string) => {
   if (isViewOnly.value) return
-  const currentRatioObj = planData.ratios.list.find((r) => r.id === id)
-  if (currentRatioObj?.selected) return
+  const currentRatioObj = planData.value.ratios.list.find((r) => r.id === id)
+  if (!currentRatioObj || currentRatioObj.selected) return
+  // 重置ratio selected
+  planData.value.ratios.list.forEach((r) => (r.selected = r.id === id))
 
-  planData.ratios.list.forEach((r) => (r.selected = r.id === id))
+  const freqs = currentRatioObj.frequencies
+  if (!freqs || freqs.length === 0) return
 
-  // 切换频率为推荐或第一个
-  const freqs = currentFrequencies.value
-  const recommended = freqs.find((f) => f.recommended)
-  const targetFreqId = recommended?.id || freqs[0]?.id || ''
-  freqs.forEach((f) => (f.selected = f.id === targetFreqId))
+  let hasSelected = false
+  let recommendedIndex = -1
+  // 重置frequency selected
+  for (let i = 0; i < freqs.length; i++) {
+    if (freqs[i].selected) {
+      if (hasSelected) {
+        freqs[i].selected = false
+      } else {
+        hasSelected = true
+      }
+    }
+    if (recommendedIndex === -1 && freqs[i].recommended) {
+      recommendedIndex = i
+    }
+  }
 
-  // 均分食谱
-  distributeRecipes()
+  if (!hasSelected) {
+    const targetIndex = recommendedIndex !== -1 ? recommendedIndex : 0
+    freqs[targetIndex].selected = true
+  }
 }
 
 /** 选择频率 */
@@ -374,9 +379,6 @@ const selectFrequency = (id: string) => {
   if (currentFreq?.selected) return
 
   currentFrequencies.value.forEach((f) => (f.selected = f.id === id))
-
-  // 频率变了 → totalPacks(n) 变了 → 重新均分
-  distributeRecipes()
 }
 
 /** 增加食谱数量 */
@@ -390,18 +392,20 @@ const increaseRecipeQuantity = (skuId: string) => {
     }
     return
   }
-  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
-  if (recipe) {
-    recipe.quantity++
+  const recipeQuantity = currentFrequency.value?.recipeQuantityArray?.find((r) => r.skuId === skuId)
+  if (recipeQuantity) {
+    recipeQuantity.quantity++
   }
 }
 
 /** 减少食谱数量 */
 const decreaseRecipeQuantity = (skuId: string) => {
   if (isViewOnly.value) return
-  const recipe = currentRecipes.value.find((r) => r.sku.skuId === skuId)
-  if (recipe && recipe.quantity > 0) {
-    recipe.quantity--
+  const recipeQuantity = currentFrequency?.value?.recipeQuantityArray?.find(
+    (r) => r.skuId === skuId,
+  )
+  if (recipeQuantity && recipeQuantity.quantity > 0) {
+    recipeQuantity.quantity--
   }
 }
 
@@ -422,9 +426,9 @@ const saveSelectionsToStore = (action: 'addToCart' | 'checkout') => {
   freshFoodStore.planSelections = {
     ratioId: currentRatio.value?.id || '',
     frequencyId: currentFrequency.value?.id || '',
-    recipes: currentRecipes.value
+    recipes: currentRecipeQuantityArray.value
       .filter((r) => r.quantity > 0)
-      .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+      .map((r) => ({ skuId: r.skuId, quantity: r.quantity })),
   }
 }
 
@@ -484,9 +488,10 @@ const executeFinalAction = async (action: 'addToCart' | 'checkout') => {
 
 /** 判断是否有下一页，并跳转 */
 const proceedNext = (action: 'addToCart' | 'checkout') => {
-  const hasSnacks = planData.snacks && planData.snacks.list?.length > 0
+  const hasSnacks = planData.value.snacks && planData.value.snacks.list?.length > 0
   const hasToys =
-    planData.toys && (planData.toys.toyCategories?.length > 0 || planData.toys.chews?.length > 0)
+    planData.value.toys &&
+    (planData.value.toys.toyCategories?.length > 0 || planData.value.toys.chews?.length > 0)
 
   if (hasSnacks) {
     uni.navigateTo({ url: '/freshFoodPages/fresh_food_snacks/fresh_food_snacks' })
@@ -539,9 +544,9 @@ const handleSave = async () => {
     planSelections: {
       ratioId: currentRatio.value?.id || '',
       frequencyId: currentFrequency.value?.id || '',
-      recipes: currentRecipes.value
+      recipes: currentRecipeQuantityArray.value
         .filter((r) => r.quantity > 0)
-        .map((r) => ({ skuId: r.sku.skuId, quantity: r.quantity })),
+        .map((r) => ({ skuId: r.skuId, quantity: r.quantity })),
     },
   }
 
@@ -574,7 +579,7 @@ const loadPlanData = async (planId: string) => {
   try {
     const planRes = await freshFoodApi.getPlan(planId)
     if (planRes.code === '0' && planRes.result) {
-      Object.assign(planData, planRes.result)
+      planData.value = planRes.result
       freshFoodStore.currentPlan = planRes.result // 缓存到store供后续页面使用
     } else {
       uni.showToast({ title: '加载方案失败', icon: 'none' })

@@ -45,7 +45,9 @@ export const handle = async (url: string, options: any) => {
       strikeThroughPrice: price,
       advertisedPrice: price,
       originalPrice: price,
+      originalPriceValue: Math.round(parseFloat(price) * 100), // 转换为分
       subscriptionPrice: price,
+      subscriptionPriceValue: Math.round(parseFloat(price) * 100), // 转换为分
       name,
       productName: name,
       image: [`https://placehold.co/200x200/90EE90/333?text=${encodeURIComponent(imageEmoji)}`],
@@ -222,7 +224,37 @@ export const handle = async (url: string, options: any) => {
           { sku: beefSku as any, quantity: 0 } as any,
         ],
       },
-    ]
+    ] as any
+
+    // 初始化时自动为每个频率分配好食谱数量
+    ratios.forEach((ratio) => {
+      ratio.frequencies.forEach((freq) => {
+        let targetRecipes = ratio.recipes.filter((r) => r.recommended)
+        if (targetRecipes.length === 0) {
+          targetRecipes = ratio.recipes.slice(0, Math.min(3, ratio.recipes.length))
+        }
+        targetRecipes = targetRecipes.slice(0, 3)
+
+        const n = freq.totalPacks
+        const base = Math.floor(n / targetRecipes.length)
+        const remainder = n % targetRecipes.length
+
+        // 生成针对当前频率的一个默认的全0 sku对应表
+        freq.recipeQuantityArray = ratio.recipes.map((r) => ({
+          skuId: r.sku.skuId,
+          quantity: 0,
+        }))
+
+        // 把计算好的包数分配进去
+        targetRecipes.forEach((tr, idx) => {
+          const qty = base + (idx < remainder ? 1 : 0)
+          const targetItem = freq.recipeQuantityArray.find((item) => item.skuId === tr.sku.skuId)
+          if (targetItem) {
+            targetItem.quantity = qty
+          }
+        })
+      })
+    })
 
     const pet = pets.get(petId) || {
       id: petId || 'pet_mock',
@@ -323,7 +355,7 @@ export const handle = async (url: string, options: any) => {
       pet: pet as any,
       ratios: {
         list: ratios,
-        wholeRatioNote: '为了您有时间替换为鲜食，第二个订单我们延迟一周配送，你随时可以修改。',
+        wholeRatioShipNote: '为了您有时间替换为鲜食，第二个订单我们延迟一周配送，你随时可以修改。',
       },
       firstOrderDiscount: 50,
       firstOrderNote: `首单享有50%折扣（最高减100元）`,
@@ -389,15 +421,15 @@ export const handle = async (url: string, options: any) => {
           if (r.selected && r.frequencies) {
             r.frequencies.forEach((f) => {
               f.selected = f.id === sel.frequencyId
-            })
-          }
-          if (r.selected && r.recipes) {
-            r.recipes.forEach((rcp: any) => {
-              const matched = sel.recipes?.find((sr: any) => sr.skuId === rcp.sku.skuId)
-              if (matched) {
-                rcp.quantity = matched.quantity
-              } else {
-                rcp.quantity = 0
+              if (f.selected && f.recipeQuantityArray) {
+                f.recipeQuantityArray.forEach((item: any) => {
+                  const matched = sel.recipes?.find((sr: any) => sr.skuId === item.skuId)
+                  if (matched) {
+                    item.quantity = matched.quantity
+                  } else {
+                    item.quantity = 0
+                  }
+                })
               }
             })
           }

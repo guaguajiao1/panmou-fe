@@ -74,7 +74,9 @@ export interface Sku {
   strikeThroughPrice: string // 划线价，商品详情页展示
   advertisedPrice: string // 广告价
   originalPrice: string // advertisedPrice，无advertisedPrice时为strikeThroughPrice，原始价格
+  originalPriceValue: number // 原始价格（分）
   subscriptionPrice: string // 订阅价
+  subscriptionPriceValue: number // 订阅价（分）
   name: string
   image: string[]
   desc: string
