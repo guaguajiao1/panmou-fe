@@ -428,7 +428,13 @@ const saveSelectionsToStore = (action: 'addToCart' | 'checkout') => {
     frequencyId: currentFrequency.value?.id || '',
     recipes: currentRecipeQuantityArray.value
       .filter((r) => r.quantity > 0)
-      .map((r) => ({ skuId: r.skuId, quantity: r.quantity })),
+      .map((r) => {
+        return {
+          productId: r.productId,
+          skuId: r.skuId,
+          quantity: r.quantity,
+        }
+      }),
   }
 }
 
@@ -546,7 +552,13 @@ const handleSave = async () => {
       frequencyId: currentFrequency.value?.id || '',
       recipes: currentRecipeQuantityArray.value
         .filter((r) => r.quantity > 0)
-        .map((r) => ({ skuId: r.skuId, quantity: r.quantity })),
+        .map((r) => {
+          return {
+            productId: r.productId,
+            skuId: r.skuId,
+            quantity: r.quantity,
+          }
+        }),
     },
   }
 

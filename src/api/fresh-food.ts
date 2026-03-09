@@ -44,6 +44,7 @@ export interface UpdatePlanData {
     ratioId: string
     frequencyId: string
     recipes: {
+      productId?: string
       skuId: string
       quantity: number
     }[]

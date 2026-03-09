@@ -9,11 +9,9 @@
 
     <scroll-view scroll-y class="snacks-content">
       <view class="page-header">
-        <text class="header-title">{{ snacksConfig?.title || '为你的狗狗选择健康零食' }}</text>
-        <text class="header-desc">{{
-          snacksConfig?.description || '天然食材，无添加剂，每一口都是营养'
-        }}</text>
-        <text class="header-price-info">{{ snacksConfig?.priceNote || '首单免费，后续10元' }}</text>
+        <text class="header-title">{{ snacksConfig?.title }}</text>
+        <text class="header-desc">{{ snacksConfig?.description }}</text>
+        <text class="header-price-info">{{ snacksConfig?.priceNote }}</text>
       </view>
 
       <!-- 零食列表 -->
@@ -63,11 +61,11 @@
     <view v-if="flowCompleted" class="footer-bar success-footer">
       <view class="success-banner">
         <uni-icons type="checkmarkempty" size="20" color="#00a86b" />
-        <text class="success-text">🎉 已成功加入购物车！</text>
+        <text class="success-text">已成功加入购物车！</text>
       </view>
       <view class="success-actions">
-        <button class="btn-cart" @click="goToCart">🛒 去购物车</button>
-        <button class="btn-another" @click="goToCustomizeAnother">🐕 为另一只狗狗定制</button>
+        <button class="btn-cart" @click="goToCart">去购物车</button>
+        <button class="btn-another" @click="goToCustomizeAnother">为另一只狗狗定制</button>
       </view>
     </view>
 

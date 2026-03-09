@@ -149,22 +149,23 @@ export function handleCartFreshFood(data: any): any {
       plan.recipes = sel.recipes
       plan.updatedAt = new Date().toISOString()
 
-      // --- 持久化选项记录到 plan ---
+      // 持久化选项记录到 plan
       if (plan.ratios?.list) {
         plan.ratios.list.forEach((r) => {
           r.selected = r.id === sel.ratioId
           if (r.selected && r.frequencies) {
             r.frequencies.forEach((f) => {
               f.selected = f.id === sel.frequencyId
-            })
-          }
-          if (r.selected && r.recipes) {
-            r.recipes.forEach((rcp) => {
-              const matched = sel.recipes?.find((sr: any) => sr.skuId === rcp.sku.skuId)
-              if (matched) {
-                rcp.quantity = matched.quantity
-              } else {
-                rcp.quantity = 0
+              if (f.selected && f.recipeQuantityArray) {
+                f.recipeQuantityArray.forEach((item: any) => {
+                  const matched = sel.recipes?.find((sr: any) => sr.skuId === item.skuId)
+                  if (matched) {
+                    item.quantity = matched.quantity
+                    item.productId = matched.productId || item.productId
+                  } else {
+                    item.quantity = 0
+                  }
+                })
               }
             })
           }

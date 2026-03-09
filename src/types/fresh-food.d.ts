@@ -7,6 +7,7 @@ import type { Sku } from './product'
 
 export interface RecipeQuantity {
   skuId: string
+  productId?: string
   quantity: number
 }
 
@@ -42,6 +43,8 @@ export interface DeliveryFrequency {
 export interface FreshFoodRecipeSku {
   /** 食谱SKU（type=8 鲜食SKU） */
   sku: Sku
+  /** optional product id from selection */
+  productId?: string
   /** deprecated 用户选择的数量（步进器控制） */
   quantity: number
   /** 是否推荐 */
@@ -68,18 +71,6 @@ export interface FreshFoodRatio {
   recipes: FreshFoodRecipeSku[]
   /** 是否选中 */
   selected?: boolean
-}
-
-/** 加入购物车/结算的请求参数 */
-export interface FreshFoodOrderParams {
-  /** 宠物ID */
-  petId: string
-  /** 选择的占比ID */
-  ratioId: string
-  /** 选择的配送频率ID */
-  frequencyId: string
-  /** 选择的食谱列表及数量 */
-  recipes: { skuId: string; quantity: number }[]
 }
 
 // ========== 零食相关 ==========

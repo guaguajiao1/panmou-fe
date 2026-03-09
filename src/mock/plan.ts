@@ -426,6 +426,7 @@ export const handle = async (url: string, options: any) => {
                   const matched = sel.recipes?.find((sr: any) => sr.skuId === item.skuId)
                   if (matched) {
                     item.quantity = matched.quantity
+                    item.productId = matched.productId || item.productId
                   } else {
                     item.quantity = 0
                   }

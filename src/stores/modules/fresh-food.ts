@@ -13,7 +13,7 @@ export const useFreshFoodStore = defineStore('freshFood', () => {
   const planSelections = ref<{
     ratioId: string
     frequencyId: string
-    recipes: { skuId: string; quantity: number }[]
+    recipes: { productId?: string; skuId: string; quantity: number }[]
   }>({
     ratioId: '',
     frequencyId: '',
