@@ -19,24 +19,24 @@
         <view class="toy-categories">
           <view
             v-for="toy in toyCategories"
-            :key="toy.skuId"
+            :key="toy.sku?.skuId"
             class="toy-card"
-            :class="{ selected: selectedToy === toy.skuId }"
-            @click="selectToy(toy.skuId)"
+            :class="{ selected: (toy.quantity || 0) > 0 }"
+            @click="selectToy(toy)"
           >
-            <view class="toy-image-wrapper" :class="{ selected: selectedToy === toy.skuId }">
-              <image class="toy-image" :src="toy.image?.[0]" mode="aspectFit" />
+            <view class="toy-image-wrapper" :class="{ selected: (toy.quantity || 0) > 0 }">
+              <image class="toy-image" :src="toy.sku?.image?.[0]" mode="aspectFit" />
             </view>
-            <text class="toy-name">{{ toy.name }}</text>
-            <text class="toy-desc">{{ toy.desc }}</text>
+            <text class="toy-name">{{ toy.sku?.name }}</text>
+            <text class="toy-desc">{{ toy.sku?.desc }}</text>
 
             <!-- 数量选择器 -->
-            <view v-if="selectedToy === toy.skuId" class="quantity-picker">
-              <view class="qty-btn" @click.stop="decreaseQty('toy')">
+            <view v-if="(toy.quantity || 0) > 0" class="quantity-picker">
+              <view class="qty-btn" @click.stop="decreaseToyQty(toy)">
                 <text>−</text>
               </view>
-              <text class="qty-value">{{ toyQuantity }}</text>
-              <view class="qty-btn" @click.stop="increaseQty('toy')">
+              <text class="qty-value">{{ toy.quantity }}</text>
+              <view class="qty-btn" @click.stop="increaseToyQty(toy)">
                 <text>+</text>
               </view>
             </view>
@@ -55,20 +55,22 @@
         </view>
 
         <view class="chews-list">
-          <view v-for="chew in chewList" :key="chew.skuId" class="chew-card">
-            <image class="chew-image" :src="chew.image?.[0]" mode="aspectFit" />
+          <view v-for="chew in chewList" :key="chew.sku?.skuId" class="chew-card">
+            <image class="chew-image" :src="chew.sku?.image?.[0]" mode="aspectFit" />
             <view class="chew-info">
-              <text class="chew-name">{{ chew.name }}</text>
-              <text class="chew-ingredient">{{ chew.ingredient || chew.desc }}</text>
-              <text class="chew-detail-link" @click.stop="openIngredientPopup(chew)">查看详情</text>
+              <text class="chew-name">{{ chew.sku?.name }}</text>
+              <text class="chew-ingredient">{{ chew.sku?.ingredient || chew.sku?.desc }}</text>
+              <text class="chew-detail-link" @click.stop="openIngredientPopup(chew.sku)"
+                >查看详情</text
+              >
             </view>
             <!-- 数量选择器 -->
             <view class="quantity-picker">
-              <view class="qty-btn" @click="decreaseChewQty(chew.skuId)">
+              <view class="qty-btn" @click="decreaseChewQty(chew)">
                 <text>−</text>
               </view>
-              <text class="qty-value">{{ chewQuantities[chew.skuId] || 0 }}</text>
-              <view class="qty-btn" @click="increaseChewQty(chew.skuId)">
+              <text class="qty-value">{{ chew.quantity }}</text>
+              <view class="qty-btn" @click="increaseChewQty(chew)">
                 <text>+</text>
               </view>
             </view>
@@ -119,16 +121,13 @@ import { useFreshFoodStore } from '@/stores'
 import { cartApi } from '@/api/cart'
 import { checkoutApi } from '@/api/checkout'
 import type { Sku } from '@/types/product'
+import type { FreshFoodRecommendProduct } from '@/types/fresh-food'
 
 const freshFoodStore = useFreshFoodStore()
 
 const toysConfig = computed(() => freshFoodStore.currentPlan?.toys)
-const toyCategories = computed<Sku[]>(() => toysConfig.value?.toyCategories || [])
-const chewList = computed<Sku[]>(() => toysConfig.value?.chews || [])
-
-const selectedToy = ref<string | null>(null)
-const toyQuantity = ref(1)
-const chewQuantities = ref<Record<string, number>>({})
+const toyCategories = computed(() => toysConfig.value?.toyCategories || [])
+const chewList = computed(() => toysConfig.value?.chews || [])
 
 const flowCompleted = ref(false)
 
@@ -153,50 +152,42 @@ const closeIngredientPopup = () => {
 }
 
 // 选择玩具
-const selectToy = (id: string) => {
-  if (selectedToy.value === id) {
-    selectedToy.value = null
-    toyQuantity.value = 1
+const selectToy = (toy: FreshFoodRecommendProduct) => {
+  if (toy.quantity > 0) {
+    toy.quantity = 0
   } else {
-    selectedToy.value = id
-    toyQuantity.value = 1
+    toy.quantity = 1
   }
 }
 
 // 玩具数量增减
-const increaseQty = (type: string) => {
-  if (type === 'toy') {
-    toyQuantity.value++
-  }
+const increaseToyQty = (toy: FreshFoodRecommendProduct) => {
+  toy.quantity = (toy.quantity || 0) + 1
 }
 
-const decreaseQty = (type: string) => {
-  if (type === 'toy' && toyQuantity.value > 1) {
-    toyQuantity.value--
+const decreaseToyQty = (toy: FreshFoodRecommendProduct) => {
+  if (toy.quantity > 0) {
+    toy.quantity--
   }
 }
 
 // 磨牙棒数量增减
-const increaseChewQty = (id: string) => {
-  if (!chewQuantities.value[id]) {
-    chewQuantities.value[id] = 0
-  }
-  chewQuantities.value[id]++
+const increaseChewQty = (chew: FreshFoodRecommendProduct) => {
+  chew.quantity = (chew.quantity || 0) + 1
 }
 
-const decreaseChewQty = (id: string) => {
-  if (chewQuantities.value[id] && chewQuantities.value[id] > 0) {
-    chewQuantities.value[id]--
+const decreaseChewQty = (chew: FreshFoodRecommendProduct) => {
+  if (chew.quantity > 0) {
+    chew.quantity--
   }
 }
 
 // 计算属性
-const selectedChews = computed(() => {
-  return chewList.value.filter((c) => chewQuantities.value[c.skuId] > 0)
-})
-
 const hasSelection = computed(() => {
-  return (selectedToy.value && toyQuantity.value > 0) || selectedChews.value.length > 0
+  return (
+    toyCategories.value.some((t) => (t.quantity || 0) > 0) ||
+    chewList.value.some((c) => (c.quantity || 0) > 0)
+  )
 })
 
 /** 回退到 landing 并清除中间页面，可选链式跳转 */
@@ -278,36 +269,36 @@ const skip = () => {
 // 添加到计划
 const addToPlan = () => {
   // 存储玩具
-  if (selectedToy.value && toyQuantity.value > 0) {
-    const toy = toyCategories.value.find((t) => t.skuId === selectedToy.value)
-    if (toy) {
+  toyCategories.value.forEach((t) => {
+    if ((t.quantity || 0) > 0) {
       freshFoodStore.extraItems.push({
-        productId: toy.productId,
-        skuId: toy.skuId,
-        quantity: toyQuantity.value,
+        productId: t.sku.productId,
+        skuId: t.sku.skuId,
+        quantity: t.quantity,
         purchaseType: 1,
       })
-      addedItemIds.value.push(toy.skuId)
+      addedItemIds.value.push(t.sku.skuId)
     }
-  }
+  })
 
   // 存储磨牙棒
-  selectedChews.value.forEach((c) => {
-    freshFoodStore.extraItems.push({
-      productId: c.productId,
-      skuId: c.skuId,
-      quantity: chewQuantities.value[c.skuId],
-      purchaseType: 1,
-    })
-    addedItemIds.value.push(c.skuId)
+  chewList.value.forEach((c) => {
+    if ((c.quantity || 0) > 0) {
+      freshFoodStore.extraItems.push({
+        productId: c.sku.productId,
+        skuId: c.sku.skuId,
+        quantity: c.quantity,
+        purchaseType: 1,
+      })
+      addedItemIds.value.push(c.sku.skuId)
+    }
   })
 
   goToCheckout()
 }
 
 onLoad(() => {
-  // 默认选中第一个玩具
-  selectedToy.value = toyCategories.value[0]?.skuId || null
+  // Quantities handle their state natively, no defaults populated here.
 })
 </script>
 

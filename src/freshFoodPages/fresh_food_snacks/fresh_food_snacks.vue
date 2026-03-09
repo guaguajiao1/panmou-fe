@@ -18,24 +18,26 @@
       <view class="snacks-list">
         <view
           v-for="snack in snackList"
-          :key="snack.skuId"
+          :key="snack.sku?.skuId"
           class="snack-card"
-          :class="{ selected: selectedSnack === snack.skuId }"
-          @click="selectSnack(snack.skuId)"
+          :class="{ selected: selectedSnack === snack.sku?.skuId }"
+          @click="selectSnack(snack.sku?.skuId)"
         >
-          <image class="snack-image" :src="snack.image?.[0]" mode="aspectFit" />
+          <image class="snack-image" :src="snack.sku?.image?.[0]" mode="aspectFit" />
           <view class="snack-info">
             <view class="snack-name-row">
-              <text class="snack-name">{{ snack.name }}</text>
-              <text class="nutrition-link" @click.stop="openIngredientPopup(snack)">查看详情</text>
+              <text class="snack-name">{{ snack.sku?.name }}</text>
+              <text class="nutrition-link" @click.stop="openIngredientPopup(snack.sku)"
+                >查看详情</text
+              >
             </view>
             <view class="snack-ingredients">
-              <text class="ingredient">{{ snack.ingredient || snack.desc }}</text>
+              <text class="ingredient">{{ snack.sku?.ingredient || snack.sku?.desc }}</text>
             </view>
           </view>
           <view class="snack-radio">
-            <view class="radio-circle" :class="{ checked: selectedSnack === snack.skuId }">
-              <view v-if="selectedSnack === snack.skuId" class="radio-dot" />
+            <view class="radio-circle" :class="{ checked: selectedSnack === snack.sku?.skuId }">
+              <view v-if="selectedSnack === snack.sku?.skuId" class="radio-dot" />
             </view>
           </view>
         </view>
@@ -88,12 +90,11 @@ import type { Sku } from '@/types/product'
 const freshFoodStore = useFreshFoodStore()
 
 const snacksConfig = computed(() => freshFoodStore.currentPlan?.snacks)
-const snackList = computed<Sku[]>(() => snacksConfig.value?.list || [])
+const snackList = computed(() => snacksConfig.value?.list || [])
 const selectedSnack = ref<string | null>(null)
 
 // 追踪本页添加的商品ID
 const addedItemIds = ref<string[]>([])
-
 const flowCompleted = ref(false)
 
 // 成分弹窗
@@ -212,15 +213,15 @@ const skip = () => {
 const addToPlan = () => {
   if (!selectedSnack.value) return
 
-  const snack = snackList.value.find((s) => s.skuId === selectedSnack.value)
+  const snack = snackList.value.find((s) => s.sku.skuId === selectedSnack.value)
   if (snack) {
     freshFoodStore.extraItems.push({
-      productId: snack.productId,
-      skuId: snack.skuId,
+      productId: snack.sku.productId,
+      skuId: snack.sku.skuId,
       quantity: 1,
       purchaseType: 1,
     })
-    addedItemIds.value.push(snack.skuId)
+    addedItemIds.value.push(snack.sku.skuId)
   }
 
   proceedNext()
@@ -228,7 +229,7 @@ const addToPlan = () => {
 
 onLoad(() => {
   // 默认选中第一个商品
-  selectedSnack.value = snackList.value[0]?.skuId || null
+  selectedSnack.value = snackList.value[0]?.sku?.skuId || null
 })
 </script>
 
