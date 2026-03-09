@@ -282,24 +282,24 @@ const addToPlan = () => {
     const toy = toyCategories.value.find((t) => t.skuId === selectedToy.value)
     if (toy) {
       freshFoodStore.extraItems.push({
-        productId: toy.productId || toy.skuId,
+        productId: toy.productId,
         skuId: toy.skuId,
         quantity: toyQuantity.value,
         purchaseType: 1,
       })
-      addedItemIds.value.push(toy.productId || toy.skuId)
+      addedItemIds.value.push(toy.skuId)
     }
   }
 
   // 存储磨牙棒
   selectedChews.value.forEach((c) => {
     freshFoodStore.extraItems.push({
-      productId: c.productId || c.skuId,
+      productId: c.productId,
       skuId: c.skuId,
       quantity: chewQuantities.value[c.skuId],
       purchaseType: 1,
     })
-    addedItemIds.value.push(c.productId || c.skuId)
+    addedItemIds.value.push(c.skuId)
   })
 
   goToCheckout()

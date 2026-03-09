@@ -35,16 +35,16 @@ export const useFreshFoodStore = defineStore('freshFood', () => {
 
   /** 重置所有状态（操作成功后调用） */
   const clearState = () => {
-    planId.value = ''
-    flowAction.value = null
-    planSelections.value = { ratioId: '', frequencyId: '', recipes: [] }
-    extraItems.value = []
+    // planId.value = ''
+    // flowAction.value = null
+    // planSelections.value = { ratioId: '', frequencyId: '', recipes: [] }
+    // extraItems.value = []
     // 注意：不要在此处清空 currentPlan，否则最后一页渲染会丢失数据
   }
 
-  /** 移除指定 productId 列表的附加商品（回退时清理） */
+  /** 移除指定 skuId 列表的附加商品（回退时清理） */
   const removeExtraItemsByIds = (ids: string[]) => {
-    extraItems.value = extraItems.value.filter((i) => !ids.includes(i.productId))
+    extraItems.value = extraItems.value.filter((i) => !ids.includes(i.skuId))
   }
 
   return {

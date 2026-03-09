@@ -93,7 +93,7 @@
               class="contact-phone"
               @click="callPhone"
             >
-              <uni-icons type="phone-filled" size="24" color="#00a86b" />
+              <uni-icons type="phone-filled" size="24" color="#004a99" />
               <text class="phone-number">{{ landingData.contactInfo.phoneNumber }}</text>
             </view>
           </view>
@@ -114,7 +114,7 @@
             >
               <view class="faq-question">
                 <text class="faq-q-text">{{ faq.question }}</text>
-                <uni-icons :type="expandedFaq === index ? 'up' : 'down'" size="18" color="#999" />
+                <uni-icons :type="expandedFaq === index ? 'up' : 'down'" size="18" color="#808080" />
               </view>
               <view v-if="expandedFaq === index" class="faq-answer">
                 <text class="faq-a-text">{{ faq.answer }}</text>
@@ -222,7 +222,7 @@ onLoad(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #fff;
+  background-color: $uni-text-color-inverse;
 }
 
 .loading-container {
@@ -253,7 +253,7 @@ onLoad(() => {
 // 评价区域
 .reviews-section {
   padding: 40rpx 24rpx;
-  background-color: #fafafa;
+  background-color: $uni-bg-color-grey;
 }
 
 .section-header {
@@ -262,7 +262,7 @@ onLoad(() => {
   .section-title {
     font-size: 36rpx;
     font-weight: 700;
-    color: #1a1a1a;
+    color: $uni-text-color;
   }
 }
 
@@ -273,7 +273,7 @@ onLoad(() => {
 }
 
 .review-card {
-  background-color: #fff;
+  background-color: $uni-text-color-inverse;
   border-radius: 16rpx;
   padding: 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
@@ -300,19 +300,19 @@ onLoad(() => {
     display: block;
     font-size: 28rpx;
     font-weight: 600;
-    color: #333;
+    color: $uni-text-color;
   }
 
   .review-pet-info {
     font-size: 24rpx;
-    color: #999;
+    color: $uni-text-color-placeholder;
   }
 }
 
 .review-rating {
   .star {
     font-size: 28rpx;
-    color: #ddd;
+    color: $uni-border-color;
 
     &.filled {
       color: #ffb800;
@@ -323,7 +323,7 @@ onLoad(() => {
 .review-content {
   display: block;
   font-size: 28rpx;
-  color: #333;
+  color: $uni-text-color;
   line-height: 1.6;
   margin-bottom: 16rpx;
 }
@@ -364,7 +364,7 @@ onLoad(() => {
     justify-content: center;
 
     .play-icon {
-      color: #fff;
+      color: $uni-text-color-inverse;
       font-size: 32rpx;
       margin-left: 6rpx;
     }
@@ -373,7 +373,7 @@ onLoad(() => {
 
 .review-date {
   font-size: 22rpx;
-  color: #bbb;
+  color: $uni-text-color-disable;
 }
 
 // 联系客服区域
@@ -387,14 +387,14 @@ onLoad(() => {
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #1a1a1a;
+  color: $uni-text-color;
   margin-bottom: 12rpx;
 }
 
 .contact-desc {
   display: block;
   font-size: 26rpx;
-  color: #666;
+  color: $uni-text-color-grey;
   margin-bottom: 32rpx;
 }
 
@@ -413,13 +413,13 @@ onLoad(() => {
     width: 200rpx;
     height: 200rpx;
     border-radius: 12rpx;
-    background-color: #fff;
+    background-color: $uni-text-color-inverse;
   }
 
   .qrcode-hint {
     margin-top: 12rpx;
     font-size: 24rpx;
-    color: #666;
+    color: $uni-text-color-grey;
   }
 }
 
@@ -433,7 +433,7 @@ onLoad(() => {
     margin-top: 12rpx;
     font-size: 28rpx;
     font-weight: 600;
-    color: #00a86b;
+    color: $uni-color-primary;
   }
 }
 
@@ -449,7 +449,7 @@ onLoad(() => {
 }
 
 .faq-item {
-  background-color: #f8f8f8;
+  background-color: $uni-bg-color-grey;
   border-radius: 12rpx;
   overflow: hidden;
 }
@@ -464,7 +464,7 @@ onLoad(() => {
     flex: 1;
     font-size: 28rpx;
     font-weight: 500;
-    color: #333;
+    color: $uni-text-color;
   }
 }
 
@@ -473,7 +473,7 @@ onLoad(() => {
 
   .faq-a-text {
     font-size: 26rpx;
-    color: #666;
+    color: $uni-text-color-grey;
     line-height: 1.6;
   }
 }
@@ -491,15 +491,15 @@ onLoad(() => {
   bottom: 0;
   padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background-color: #fff;
+  background-color: $uni-text-color-inverse;
   box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 .cta-button {
   width: 100%;
   height: 96rpx;
-  background: linear-gradient(135deg, #00a86b 0%, #00c853 100%);
-  color: #fff;
+  background: linear-gradient(135deg, $uni-color-primary 0%, $uni-color-success 100%);
+  color: $uni-text-color-inverse;
   font-size: 34rpx;
   font-weight: 700;
   border-radius: 48rpx;

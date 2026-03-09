@@ -111,13 +111,13 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: $uni-bg-color-grey;
 }
 
 .page-header {
   padding: 40rpx 30rpx;
-  background: linear-gradient(135deg, #00a86b 0%, #00c853 100%);
-  color: #fff;
+  background: linear-gradient(135deg, $uni-color-primary 0%, $uni-color-success 100%);
+  color: $uni-text-color-inverse;
   flex-shrink: 0;
 
   .title {
@@ -153,7 +153,7 @@ onShow(() => {
   display: flex;
   align-items: center;
   padding: 24rpx;
-  background-color: #fff;
+  background-color: $uni-text-color-inverse;
   border-radius: 16rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 
@@ -161,7 +161,7 @@ onShow(() => {
     width: 100rpx;
     height: 100rpx;
     border-radius: 50%;
-    background-color: #f0f0f0;
+    background-color: $uni-bg-color-grey;
     flex-shrink: 0;
   }
 
@@ -173,13 +173,13 @@ onShow(() => {
       display: block;
       font-size: 30rpx;
       font-weight: 600;
-      color: #333;
+      color: $uni-text-color;
       margin-bottom: 6rpx;
     }
 
     .pet-breed {
       font-size: 24rpx;
-      color: #999;
+      color: $uni-text-color-placeholder;
     }
   }
 
@@ -198,7 +198,7 @@ onShow(() => {
   }
 
   &.add-new {
-    border: 2rpx dashed #004a99;
+    border: 2rpx dashed $uni-color-primary;
     background-color: #f0f7ff;
 
     .add-icon {
@@ -213,7 +213,7 @@ onShow(() => {
     }
 
     .pet-name {
-      color: #004a99;
+      color: $uni-color-primary;
     }
   }
 }

@@ -615,7 +615,7 @@ onLoad((options) => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: $uni-bg-color-grey;
 }
 
 .plan-content {
@@ -627,13 +627,13 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   padding: 30rpx;
-  background: linear-gradient(135deg, #00a86b 0%, #00c853 100%);
+  background: linear-gradient(135deg, $uni-color-primary 0%, $uni-color-success 100%);
 
   .pet-avatar {
     width: 100rpx;
     height: 100rpx;
     border-radius: 50%;
-    border: 4rpx solid rgba(255, 255, 255, 0.5);
+    border: 4rpx solid rgba($uni-text-color-inverse, 0.5);
     flex-shrink: 0;
   }
 
@@ -645,13 +645,13 @@ onLoad((options) => {
       display: block;
       font-size: 36rpx;
       font-weight: 700;
-      color: #fff;
+      color: $uni-text-color-inverse;
       margin-bottom: 8rpx;
     }
 
     .pet-desc {
       font-size: 26rpx;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba($uni-text-color-inverse, 0.9);
     }
   }
 }
@@ -660,7 +660,7 @@ onLoad((options) => {
 .section {
   margin: 20rpx;
   padding: 24rpx;
-  background-color: #fff;
+  background-color: $uni-bg-color;
   border-radius: 16rpx;
 
   .section-header {
@@ -672,12 +672,12 @@ onLoad((options) => {
     .section-title {
       font-size: 32rpx;
       font-weight: 600;
-      color: #333;
+      color: $uni-text-color;
     }
 
     .section-hint {
       font-size: 24rpx;
-      color: #999;
+      color: $uni-text-color-placeholder;
     }
   }
 }
@@ -695,13 +695,13 @@ onLoad((options) => {
   align-items: center;
   gap: 16rpx;
   padding: 16rpx 20rpx;
-  background-color: #f8f8f8;
+  background-color: $uni-bg-color-grey;
   border-radius: 12rpx;
   border: 2rpx solid transparent;
 
   &.selected {
-    border-color: #00a86b;
-    background-color: #e8f5e9;
+    border-color: $uni-color-primary;
+    background-color: rgba($uni-color-primary, 0.08);
   }
 
   &.recommended {
@@ -709,8 +709,8 @@ onLoad((options) => {
       position: absolute;
       top: -10rpx;
       right: 16rpx;
-      background-color: #ff6600;
-      color: #fff;
+      background-color: $uni-color-warning;
+      color: $uni-text-color-inverse;
       font-size: 18rpx;
       padding: 2rpx 10rpx;
       border-radius: 6rpx;
@@ -731,13 +731,13 @@ onLoad((options) => {
       display: block;
       font-size: 28rpx;
       font-weight: 600;
-      color: #333;
+      color: $uni-text-color;
       margin-bottom: 2rpx;
     }
 
     .ratio-desc {
       font-size: 22rpx;
-      color: #666;
+      color: $uni-text-color-grey;
     }
   }
 }
@@ -745,7 +745,7 @@ onLoad((options) => {
 .first-order-note {
   display: block;
   font-size: 24rpx;
-  color: #ff6600;
+  color: $uni-color-warning;
   margin-bottom: 20rpx;
 }
 
@@ -759,14 +759,14 @@ onLoad((options) => {
   flex: 1;
   position: relative;
   padding: 24rpx 16rpx 16rpx;
-  background-color: #f8f8f8;
+  background-color: $uni-bg-color-grey;
   border-radius: 12rpx;
   border: 2rpx solid transparent;
   text-align: center;
 
   &.selected {
-    border-color: #00a86b;
-    background-color: #e8f5e9;
+    border-color: $uni-color-primary;
+    background-color: rgba($uni-color-primary, 0.08);
   }
 
   &.has-tag {
@@ -778,8 +778,8 @@ onLoad((options) => {
     top: -10rpx;
     left: 50%;
     transform: translateX(-50%);
-    background-color: #c2185b;
-    color: #fff;
+    background-color: $uni-color-error;
+    color: $uni-text-color-inverse;
     font-size: 16rpx;
     padding: 2rpx 10rpx;
     border-radius: 6rpx;
@@ -790,8 +790,8 @@ onLoad((options) => {
     position: absolute;
     top: -10rpx;
     right: 8rpx;
-    background-color: #ff6600;
-    color: #fff;
+    background-color: $uni-color-warning;
+    color: $uni-text-color-inverse;
     font-size: 16rpx;
     padding: 2rpx 8rpx;
     border-radius: 6rpx;
@@ -801,13 +801,13 @@ onLoad((options) => {
     display: block;
     font-size: 26rpx;
     font-weight: 600;
-    color: #333;
+    color: $uni-text-color;
     margin-bottom: 6rpx;
   }
 
   .freq-packs {
     font-size: 20rpx;
-    color: #666;
+    color: $uni-text-color-grey;
   }
 }
 
@@ -823,22 +823,22 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   padding: 16rpx;
-  background-color: #f8f8f8;
+  background-color: $uni-bg-color-grey;
   border-radius: 12rpx;
   border: 2rpx solid transparent;
   transition: all 0.2s ease;
 
   &.active {
-    border-color: #00a86b;
-    background-color: #e8f5e9;
+    border-color: $uni-color-primary;
+    background-color: rgba($uni-color-primary, 0.08);
   }
 
   .recipe-recommended-tag {
     position: absolute;
     top: -8rpx;
     left: 16rpx;
-    background-color: #ff6600;
-    color: #fff;
+    background-color: $uni-color-warning;
+    color: $uni-text-color-inverse;
     font-size: 18rpx;
     padding: 2rpx 10rpx;
     border-radius: 6rpx;
@@ -859,14 +859,14 @@ onLoad((options) => {
       display: block;
       font-size: 28rpx;
       font-weight: 600;
-      color: #333;
+      color: $uni-text-color;
       margin-bottom: 4rpx;
     }
 
     .recipe-desc {
       display: block;
       font-size: 22rpx;
-      color: #666;
+      color: $uni-text-color-grey;
       margin-bottom: 4rpx;
       display: -webkit-box;
       -webkit-box-orient: vertical;
@@ -877,7 +877,7 @@ onLoad((options) => {
 
     .recipe-detail-link {
       font-size: 24rpx;
-      color: #e6a23c;
+      color: $uni-color-warning;
       font-weight: 500;
     }
   }
@@ -897,21 +897,21 @@ onLoad((options) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2rpx solid #ddd;
-    background-color: #fff;
+    border: 2rpx solid $uni-border-color;
+    background-color: $uni-bg-color;
 
     text {
       font-size: 28rpx;
-      color: #333;
+      color: $uni-text-color;
       line-height: 1;
     }
 
     &.plus {
-      background-color: #00a86b;
-      border-color: #00a86b;
+      background-color: $uni-color-primary;
+      border-color: $uni-color-primary;
 
       text {
-        color: #fff;
+        color: $uni-text-color-inverse;
       }
     }
 
@@ -943,7 +943,7 @@ onLoad((options) => {
   justify-content: space-between;
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  background-color: #fff;
+  background-color: $uni-bg-color;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.08);
 
   .price-info {
@@ -959,27 +959,27 @@ onLoad((options) => {
     .price-current {
       font-size: 36rpx;
       font-weight: 700;
-      color: #ff6600;
+      color: $uni-color-warning;
     }
 
     .price-daily {
       font-size: 24rpx;
-      color: #666;
+      color: $uni-text-color-grey;
     }
 
     .discount-note {
       display: block;
       font-size: 24rpx;
-      color: #c2185b;
+      color: $uni-color-warning;
       margin-bottom: 2rpx;
     }
     .future-order-note {
       font-size: 24rpx;
-      color: #999;
+      color: $uni-text-color-placeholder;
     }
     .shipping-note {
       font-size: 20rpx;
-      color: #999;
+      color: $uni-text-color-placeholder;
     }
   }
 
@@ -1006,9 +1006,9 @@ onLoad((options) => {
       height: 64rpx;
       padding: 0 24rpx;
       border-radius: 32rpx;
-      background-color: #fff;
-      border: 2rpx solid #00a86b;
-      color: #00a86b;
+      background-color: $uni-bg-color;
+      border: 2rpx solid $uni-color-primary;
+      color: $uni-color-primary;
       font-weight: 500;
     }
 
@@ -1016,8 +1016,8 @@ onLoad((options) => {
       height: 64rpx;
       padding: 0 28rpx;
       border-radius: 32rpx;
-      background-color: #ff6600;
-      color: #fff;
+      background-color: $uni-color-warning;
+      color: $uni-text-color-inverse;
       font-weight: 600;
     }
   }
@@ -1041,7 +1041,7 @@ onLoad((options) => {
   .success-text {
     font-size: 32rpx;
     font-weight: 700;
-    color: #333;
+    color: $uni-text-color;
   }
 
   .success-actions {
@@ -1058,7 +1058,7 @@ onLoad((options) => {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: #fff;
+      background-color: $uni-bg-color;
       margin: 0;
       padding: 0;
 
@@ -1068,13 +1068,13 @@ onLoad((options) => {
     }
 
     button.btn-cart {
-      color: #ff69b4; /* 粉色字体 */
-      border: 2rpx solid #ff69b4; /* 粉色边框 */
+      color: $uni-color-error; /* 粉色字体 */
+      border: 2rpx solid $uni-color-error; /* 粉色边框 */
     }
 
     button.btn-another {
-      color: #ff3b30; /* 红色字体 */
-      border: 2rpx solid #ff3b30; /* 红色边框 */
+      color: $uni-color-error; /* 红色字体 */
+      border: 2rpx solid $uni-color-error; /* 红色边框 */
     }
   }
 }
@@ -1085,7 +1085,7 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f5f5;
+  background-color: $uni-bg-color-grey;
 }
 
 .loading-content {
@@ -1098,8 +1098,8 @@ onLoad((options) => {
 .loading-spinner {
   width: 80rpx;
   height: 80rpx;
-  border: 6rpx solid #e0e0e0;
-  border-top-color: #00a86b;
+  border: 6rpx solid $uni-border-color;
+  border-top-color: $uni-color-primary;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1112,7 +1112,7 @@ onLoad((options) => {
 
 .loading-text {
   font-size: 30rpx;
-  color: #666;
+  color: $uni-text-color-grey;
 }
 
 // 成分详情弹窗
@@ -1132,7 +1132,7 @@ onLoad((options) => {
 .recipe-popup {
   width: 100%;
   height: 85vh;
-  background-color: #fff;
+  background-color: $uni-bg-color;
   border-radius: 32rpx 32rpx 0 0;
   position: relative;
   overflow: hidden;
@@ -1146,7 +1146,7 @@ onLoad((options) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba($uni-text-color-inverse, 0.9);
     border-radius: 50%;
     z-index: 10;
   }
@@ -1167,7 +1167,7 @@ onLoad((options) => {
   .popup-title {
     font-size: 36rpx;
     font-weight: 700;
-    color: #1a1a1a;
+    color: $uni-text-color;
     margin-bottom: 20rpx;
   }
 
@@ -1179,13 +1179,13 @@ onLoad((options) => {
     display: block;
     font-size: 28rpx;
     font-weight: 600;
-    color: #333;
+    color: $uni-text-color;
     margin-bottom: 8rpx;
   }
 
   .popup-ingredient-text {
     font-size: 26rpx;
-    color: #666;
+    color: $uni-text-color-grey;
     line-height: 1.8;
   }
 }

@@ -217,12 +217,12 @@ const addToPlan = () => {
   const snack = snackList.value.find((s) => s.skuId === selectedSnack.value)
   if (snack) {
     freshFoodStore.extraItems.push({
-      productId: snack.productId || snack.skuId,
+      productId: snack.productId,
       skuId: snack.skuId,
       quantity: 1,
       purchaseType: 1,
     })
-    addedItemIds.value.push(snack.productId || snack.skuId)
+    addedItemIds.value.push(snack.skuId)
   }
 
   proceedNext()
